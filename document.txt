@@ -1,0 +1,87 @@
+# HUGO OYUNU
+
+## OYUN SETİ
+- 106 taş
+- 4 renk (kırmızı, sarı, mavi, siyah)
+- Her renkte 1'den 13'e kadar sayılar
+- Her sayıdan 8 taş (her renkte 2'şer adet)
+- 2 adet özel joker taşı (numarasız)
+
+## TEMEL KURALLAR
+1. Oyuncu Sayısı: 4 kişi
+2. Tur Sayısı: 9 tur
+3. Hugo Turları: 1., 5. ve 9. turlar (puanlar x2)
+4. Kazanan: 9 tur sonunda en az puana sahip oyuncu
+
+## OYUN BAŞLANGICI
+1. Dağıtım:
+   - Her oyuncuya 14 taş
+   - 1. oyuncuya 15 taş
+   - Kalan taşlar kapalı deste 
+2. Okey Belirleme:
+   - Normal turlarda: Açılan taşın bir üstü okey olur
+   - Hugo turlarında: Özel joker taşları okey olur
+   - Gösterge 13 ise, okey 1 olur
+   - Gösterge sahte okey çıkarsa, o tur Hugo turu sayılır
+3. Oyun Yönü: Saat yönünün tersi
+
+## PER VE EL AÇMA KURALLARI
+1. El Açma Koşulları:
+   - Minimum 51 değerinde per(ler)
+   - 3 veya 4 aynı sayılı farklı renk
+   - Aynı renkte ardışık 3+ sayı
+   - Minimum 52 çiftler için (aynı sayı ve renk)
+
+2. İşleme (Taş Ekleme) Kuralları:
+   - Açılan perlere taş eklenebilir
+   - Eklenen her taş, peri açan oyuncuya ceza puanı yazdırır
+   - Yandan alınan taş mutlaka kullanılmalıdır
+   - Okey içeren perden okey alınabilir (per sahibine ceza)
+
+## PUANLAMA SİSTEMİ
+1. Normal Puanlar:
+   - Taş değeri = Üzerindeki sayı x 10
+   - El açmama = 400 puan
+   - Oyunu bitirme = -100 puan
+   - Joker ile bitirme = -200 puan
+
+2. Puan Katlamaları (Çarpımsal):
+   - Hugo turu = Tüm puanlar x2
+   - Joker ile bitiş = Ceza puanları x2
+   - Çift ile bitiş = Diğer oyuncuların puanları x2
+   (Örnek: Hugo turunda, joker ile, çiftten bitiş = puanlar x8)
+
+3. Anlık Ceza Puanları:
+   - Yetersiz değerde el açma = 100 puan(tiyamiyam yok)
+   - İşlenebilir taş atma = Taş değeri x 10
+   - Yanlış işleme yapıp geri alma = 100 puan
+   - Kullanılmayan okey = 100 puan (her biri için)
+   - Okeyli perden okey çalınması = 100 puan (per sahibine)
+
+4. Tur Sonu Puanları:
+   - Elde kalan taşlar = Taş değerleri x 2
+   - El açmama = 400 puan
+   - Deste bittiğinde = Elde kalan taşlar x 2
+
+## ÖZEL DURUMLAR
+1. Seri Kısıtlamaları:
+   - Aynı sayı ve renkte per geçersiz
+   - 13'ten sonra 1 bağlantısı yok
+   - Per toplamı 100+ = -100 puan
+
+2. Çift Kuralları:
+   - Çiftlerin toplamı min 51 olmalı
+   - İzinsiz işleme yapılabilir
+   - Çiftten bitişte diğer oyuncuların puanları x2
+
+
+
+
+
+
+
+
+
+
+
+
