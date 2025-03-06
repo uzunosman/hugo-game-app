@@ -211,73 +211,121 @@ function Game({ player, room }) {
         console.log('Taş ID:', tileId);
         console.log('Eski pozisyonlar:', JSON.parse(JSON.stringify(newPositions)));
 
-        // Önce kaynak konumu boşalt (önemli: taşı geçici olarak saklıyoruz)
-        newPositions[sourceIndex] = null;
+        // Animasyon için taşları işaretle
+        const tilesToAnimate = [];
 
         // Hedef konumda taş yoksa, basitçe taşı
         if (newPositions[targetIndex] === null) {
+            newPositions[sourceIndex] = null;
             newPositions[targetIndex] = tileId;
+
+            // Animasyon için taşı işaretle
+            tilesToAnimate.push(targetIndex);
         } else {
-            // Hedef konumda taş varsa, kaydırma işlemi yap
+            // Hedef konumda taş varsa
 
-            // Önce tercih edilen yönü belirle (sağa veya sola)
-            const moveRight = targetIndex > sourceIndex;
+            // Kaynak taşı geçici olarak sakla
+            const movingTile = tileId;
 
-            // İlk deneme için tercih edilen yön
-            let canShift = false;
-            let shiftDirection = moveRight ? 1 : -1;
+            // Kaynak konumu boşalt
+            newPositions[sourceIndex] = null;
 
-            // Kaydırma için boş yer bul
-            let emptyIndex = -1;
+            // Eğer taş hemen yanındaki dolu bir hücreye bırakılırsa, iki taş yer değiştirir
+            const isAdjacent = Math.abs(sourceIndex - targetIndex) === 1;
 
-            // İlk yönde kaydırma dene
-            for (let i = targetIndex; moveRight ? (i < 30) : (i >= 0); i += shiftDirection) {
-                if (newPositions[i] === null) {
-                    emptyIndex = i;
-                    canShift = true;
-                    break;
-                }
-            }
+            if (isAdjacent) {
+                // İki taş yer değiştirir
+                const targetTile = newPositions[targetIndex];
+                newPositions[sourceIndex] = targetTile;
+                newPositions[targetIndex] = movingTile;
 
-            // Eğer ilk yönde kaydırma mümkün değilse, diğer yönü dene
-            if (!canShift) {
-                shiftDirection = moveRight ? -1 : 1;
+                // Animasyon için taşları işaretle
+                tilesToAnimate.push(sourceIndex);
+                tilesToAnimate.push(targetIndex);
+            } else {
+                // Taşlar kaydırılır
 
-                for (let i = targetIndex; moveRight ? (i >= 0) : (i < 30); i += shiftDirection) {
-                    if (i !== sourceIndex && newPositions[i] === null) {
-                        emptyIndex = i;
-                        canShift = true;
+                // Sağa doğru kaydırma için boş yer ara
+                let rightEmptyIndex = -1;
+                for (let i = targetIndex; i < 30; i++) {
+                    if (newPositions[i] === null) {
+                        rightEmptyIndex = i;
                         break;
                     }
                 }
-            }
 
-            if (canShift) {
+                // Sola doğru kaydırma için boş yer ara
+                let leftEmptyIndex = -1;
+                for (let i = targetIndex; i >= 0; i--) {
+                    if (newPositions[i] === null) {
+                        leftEmptyIndex = i;
+                        break;
+                    }
+                }
+
+                // Hangi yöne kaydıracağımızı belirle
+                let shiftRight = true;
+
+                // Eğer sağda boş yer yoksa, sola kaydır
+                if (rightEmptyIndex === -1) {
+                    shiftRight = false;
+                }
+                // Eğer solda boş yer yoksa, sağa kaydır
+                else if (leftEmptyIndex === -1) {
+                    shiftRight = true;
+                }
+                // Her iki yönde de boş yer varsa, daha yakın olanı seç
+                else {
+                    const rightDistance = rightEmptyIndex - targetIndex;
+                    const leftDistance = targetIndex - leftEmptyIndex;
+                    shiftRight = rightDistance <= leftDistance;
+                }
+
                 // Kaydırma işlemi yap
-                if (shiftDirection === 1) {
+                if (shiftRight) {
+                    console.log(`Sağa kaydırma: ${targetIndex} -> ${rightEmptyIndex}`);
                     // Sağa kaydır
-                    for (let i = emptyIndex; i > targetIndex; i--) {
+                    for (let i = rightEmptyIndex; i > targetIndex; i--) {
                         newPositions[i] = newPositions[i - 1];
+                        // Animasyon için taşı işaretle
+                        tilesToAnimate.push(i);
                     }
                 } else {
+                    console.log(`Sola kaydırma: ${targetIndex} -> ${leftEmptyIndex}`);
                     // Sola kaydır
-                    for (let i = emptyIndex; i < targetIndex; i++) {
+                    for (let i = leftEmptyIndex; i < targetIndex; i++) {
                         newPositions[i] = newPositions[i + 1];
+                        // Animasyon için taşı işaretle
+                        tilesToAnimate.push(i);
                     }
                 }
 
                 // Hedef konuma sürüklenen taşı yerleştir
-                newPositions[targetIndex] = tileId;
-            } else {
-                // Kaydırma mümkün değilse, işlem yapma
-                console.error('Kaydırma için boş yer bulunamadı');
-                // Kaynak konumu geri yükle
-                newPositions[sourceIndex] = tileId;
-                return;
+                newPositions[targetIndex] = movingTile;
+
+                // Animasyon için taşı işaretle
+                tilesToAnimate.push(targetIndex);
             }
         }
 
         console.log('Yeni pozisyonlar:', JSON.parse(JSON.stringify(newPositions)));
+
+        // Animasyon için taşları işaretle
+        setTimeout(() => {
+            // Taşları animasyonlu olarak işaretle
+            const tileCells = document.querySelectorAll('.tile-cell');
+            tilesToAnimate.forEach(index => {
+                const cell = tileCells[index];
+                if (cell) {
+                    cell.classList.add('animated');
+
+                    // Animasyon bittikten sonra sınıfı kaldır
+                    setTimeout(() => {
+                        cell.classList.remove('animated');
+                    }, 300);
+                }
+            });
+        }, 0);
 
         // Pozisyonları güncelle
         setTilePositions(newPositions);
