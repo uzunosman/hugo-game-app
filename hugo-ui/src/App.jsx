@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Login from './components/Login'
 import Lobby from './components/Lobby'
 import Room from './components/Room'
+import './assets/css/global.css';
 
 function App() {
   const [player, setPlayer] = useState(null)

@@ -1,5 +1,10 @@
 import { useState, useEffect } from 'react';
 import socketService from '../services/socketService';
+import PlayerPanel from './PlayerPanel/PlayerPanel';
+import TileHolder from './TileHolder/TileHolder';
+import CenterArea from './CenterArea/CenterArea';
+import Tile from './Tile/Tile';
+import '../assets/css/components/GameBoard.css';
 
 function Game({ player, room }) {
     const [tiles, setTiles] = useState([]);
@@ -7,6 +12,7 @@ function Game({ player, room }) {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [selectedTile, setSelectedTile] = useState(null);
+    const [timeLeft, setTimeLeft] = useState(60);
 
     useEffect(() => {
         // Taşları dinle
@@ -45,8 +51,21 @@ function Game({ player, room }) {
                     ...prevState,
                     currentPlayerId: response.playerId
                 }));
+                // Süreyi sıfırla
+                setTimeLeft(60);
             }
         });
+
+        // Süre sayacı
+        const timer = setInterval(() => {
+            setTimeLeft(prev => {
+                if (prev <= 0) {
+                    clearInterval(timer);
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
 
         return () => {
             // Component unmount olduğunda event listener'ları temizle
@@ -54,6 +73,7 @@ function Game({ player, room }) {
             socketService.socket.off('game:tileDraw');
             socketService.socket.off('game:tileDiscard');
             socketService.socket.off('game:nextTurn');
+            clearInterval(timer);
         };
     }, [player.id]);
 
@@ -84,8 +104,10 @@ function Game({ player, room }) {
         });
     };
 
-    const handleDiscardTile = () => {
-        if (!selectedTile) {
+    const handleDiscardTile = (tileIndex) => {
+        const tileToDiscard = tiles[tileIndex];
+
+        if (!tileToDiscard) {
             setError('Lütfen atmak için bir taş seçin');
             return;
         }
@@ -98,12 +120,12 @@ function Game({ player, room }) {
         setLoading(true);
         setError('');
 
-        socketService.discardTile(selectedTile.id, (response) => {
+        socketService.discardTile(tileToDiscard.id, (response) => {
             setLoading(false);
 
             if (response.success) {
                 // Atılan taşı elinden çıkar
-                setTiles(prevTiles => prevTiles.filter(tile => tile.id !== selectedTile.id));
+                setTiles(prevTiles => prevTiles.filter(tile => tile.id !== tileToDiscard.id));
                 setSelectedTile(null);
 
                 // Oyun durumunu güncelle
@@ -117,97 +139,171 @@ function Game({ player, room }) {
         });
     };
 
+    const handleTileClick = (playerIndex, tileIndex) => {
+        if (playerIndex === getCurrentPlayerIndex() && gameState.turnAction === 'discard') {
+            handleDiscardTile(tileIndex);
+        }
+    };
+
+    const handleTileMove = (sourceIndex, targetIndex) => {
+        // Taşları yeniden düzenle
+        if (sourceIndex !== targetIndex && targetIndex !== -1) {
+            const newTiles = [...tiles];
+            const [movedTile] = newTiles.splice(sourceIndex, 1);
+            newTiles.splice(targetIndex, 0, movedTile);
+            setTiles(newTiles);
+        }
+    };
+
+    // Oyuncunun köşesini belirle
+    const getPlayerCorner = (playerIndex) => {
+        const cornerMap = {
+            0: 'topLeft',     // 3. oyuncu
+            1: 'topRight',    // 2. oyuncu
+            2: 'bottomRight', // 1. oyuncu (kendimiz)
+            3: 'bottomLeft'   // 4. oyuncu
+        };
+        return cornerMap[playerIndex];
+    };
+
+    // Mevcut oyuncunun indeksini bul
+    const getCurrentPlayerIndex = () => {
+        return room.players.findIndex(p => p.id === gameState.currentPlayerId);
+    };
+
+    // Oyuncuları düzenle (kendimiz her zaman altta olacak şekilde)
+    const getOrderedPlayers = () => {
+        const myIndex = room.players.findIndex(p => p.id === player.id);
+        if (myIndex === -1) return room.players;
+
+        // Kendimizi 2. indekse (alt) yerleştir
+        const orderedPlayers = [...room.players];
+        const myPlayer = orderedPlayers.splice(myIndex, 1)[0];
+        orderedPlayers.splice(2, 0, myPlayer);
+        return orderedPlayers;
+    };
+
+    const players = getOrderedPlayers();
+    const currentPlayerIndex = getCurrentPlayerIndex();
     const isMyTurn = gameState.currentPlayerId === player.id;
 
+    // Oyuncu taşlarını hazırla (sadece kendi taşlarımızı biliyoruz)
+    const playerTiles = Array(players.length).fill([]);
+    const myOrderedIndex = players.findIndex(p => p.id === player.id);
+    playerTiles[myOrderedIndex] = tiles;
+
+    // Atılan taşları köşelere göre düzenle
+    const discardedTiles = {
+        topLeft: [],
+        topRight: [],
+        bottomRight: [],
+        bottomLeft: []
+    };
+
+    if (gameState.discardPile && gameState.discardPile.length > 0) {
+        const lastTile = gameState.discardPile[gameState.discardPile.length - 1];
+        const corner = getPlayerCorner(currentPlayerIndex);
+        discardedTiles[corner] = [lastTile];
+    }
+
+    // Taş çekme durumunu takip et
+    const hasDrawnTile = {};
+    players.forEach((p, index) => {
+        hasDrawnTile[index] = p.id === gameState.currentPlayerId && gameState.turnAction === 'discard';
+    });
+
     return (
-        <div>
-            <h2>Hugo Oyunu</h2>
-            {error && <p style={{ color: 'red' }}>{error}</p>}
+        <>
+            {error && <div style={{ color: 'red', textAlign: 'center', padding: '10px' }}>{error}</div>}
 
-            <div>
-                <h3>Oyun Bilgileri</h3>
-                <p>Tur: {gameState.round}</p>
-                <p>Hugo Turu: {gameState.isHugoRound ? 'Evet' : 'Hayır'}</p>
-                <p>Sıra: {isMyTurn ? 'Senin Sıran' : 'Diğer Oyuncunun Sırası'}</p>
-                <p>Aksiyon: {gameState.turnAction === 'draw' ? 'Taş Çek' : 'Taş At'}</p>
-            </div>
+            {/* Player Panels */}
+            {players.map((p, index) => (
+                <PlayerPanel
+                    key={index}
+                    name={p.name}
+                    score={0}
+                    position={index === 2 ? 'current-player' : ['top', 'right', 'left'][index === 3 ? 2 : index]}
+                    isCurrentPlayer={p.id === gameState.currentPlayerId}
+                    timeLeft={p.id === gameState.currentPlayerId ? timeLeft : null}
+                />
+            ))}
 
-            <div>
-                <h3>Gösterge Taşı</h3>
-                {gameState.indicatorTile ? (
-                    <div>
-                        Renk: {gameState.indicatorTile.color},
-                        Değer: {gameState.indicatorTile.value}
-                    </div>
-                ) : (
-                    <p>Gösterge taşı yok</p>
-                )}
-            </div>
+            <div className="game-board">
+                <div className="board-content">
+                    {/* Köşe Bırakma Alanları */}
+                    <div className={`tile-drop-zone top-left ${getPlayerCorner(currentPlayerIndex) === 'topLeft' ? 'active' : ''}`} />
+                    <div className={`tile-drop-zone top-right ${getPlayerCorner(currentPlayerIndex) === 'topRight' ? 'active' : ''}`} />
+                    <div className={`tile-drop-zone bottom-left ${getPlayerCorner(currentPlayerIndex) === 'bottomLeft' ? 'active' : ''}`} />
+                    <div className={`tile-drop-zone bottom-right ${getPlayerCorner(currentPlayerIndex) === 'bottomRight' ? 'active' : ''}`} />
 
-            <div>
-                <h3>Atılan Son Taş</h3>
-                {gameState.discardPile && gameState.discardPile.length > 0 ? (
-                    <div>
-                        Renk: {gameState.discardPile[gameState.discardPile.length - 1].color},
-                        Değer: {gameState.discardPile[gameState.discardPile.length - 1].value}
-                    </div>
-                ) : (
-                    <p>Henüz atılan taş yok</p>
-                )}
-            </div>
-
-            <div>
-                <h3>Senin Taşların</h3>
-                <div style={{ display: 'flex', flexWrap: 'wrap' }}>
-                    {tiles.map((tile) => (
-                        <div
-                            key={tile.id}
-                            onClick={() => setSelectedTile(tile)}
-                            style={{
-                                padding: '10px',
-                                margin: '5px',
-                                border: '1px solid black',
-                                backgroundColor: selectedTile && selectedTile.id === tile.id ? 'lightblue' : 'white'
-                            }}
-                        >
-                            {tile.color} - {tile.value}
+                    {/* Atılan taşlar */}
+                    <div className="discarded-tiles-container">
+                        <div className="discarded-tiles top-left">
+                            {discardedTiles.topLeft.length > 0 && (
+                                <div className="discarded-tile topLeft">
+                                    <Tile
+                                        value={discardedTiles.topLeft[0].value}
+                                        color={discardedTiles.topLeft[0].color}
+                                        isDiscarded={true}
+                                    />
+                                </div>
+                            )}
                         </div>
-                    ))}
+                        <div className="discarded-tiles top-right">
+                            {discardedTiles.topRight.length > 0 && (
+                                <div className="discarded-tile topRight">
+                                    <Tile
+                                        value={discardedTiles.topRight[0].value}
+                                        color={discardedTiles.topRight[0].color}
+                                        isDiscarded={true}
+                                    />
+                                </div>
+                            )}
+                        </div>
+                        <div className="discarded-tiles bottom-left">
+                            {discardedTiles.bottomLeft.length > 0 && (
+                                <div className="discarded-tile bottomLeft">
+                                    <Tile
+                                        value={discardedTiles.bottomLeft[0].value}
+                                        color={discardedTiles.bottomLeft[0].color}
+                                        isDiscarded={true}
+                                    />
+                                </div>
+                            )}
+                        </div>
+                        <div className="discarded-tiles bottom-right">
+                            {discardedTiles.bottomRight.length > 0 && (
+                                <div className="discarded-tile bottomRight">
+                                    <Tile
+                                        value={discardedTiles.bottomRight[0].value}
+                                        color={discardedTiles.bottomRight[0].color}
+                                        isDiscarded={true}
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Center Area */}
+                    <CenterArea
+                        remainingTiles={gameState.deck ? gameState.deck.length : 0}
+                        onDrawTile={() => handleDrawTile(false)}
+                        openTile={gameState.indicatorTile}
+                        gameRound={gameState.round || 1}
+                        canDrawTile={isMyTurn && gameState.turnAction === 'draw'}
+                    />
                 </div>
             </div>
 
-            <div>
-                <h3>Aksiyonlar</h3>
-                {isMyTurn && gameState.turnAction === 'draw' && (
-                    <>
-                        <button
-                            onClick={() => handleDrawTile(false)}
-                            disabled={loading}
-                        >
-                            Desteden Çek
-                        </button>
-
-                        {gameState.discardPile && gameState.discardPile.length > 0 && (
-                            <button
-                                onClick={() => handleDrawTile(true)}
-                                disabled={loading}
-                            >
-                                Atılan Taşı Al
-                            </button>
-                        )}
-                    </>
-                )}
-
-                {isMyTurn && gameState.turnAction === 'discard' && (
-                    <button
-                        onClick={handleDiscardTile}
-                        disabled={loading || !selectedTile}
-                    >
-                        Seçili Taşı At
-                    </button>
-                )}
-            </div>
-        </div>
+            {/* Current Player's Tiles */}
+            {isMyTurn && (
+                <TileHolder
+                    tiles={tiles}
+                    onTileClick={(tileIndex) => handleTileClick(myOrderedIndex, tileIndex)}
+                    onTileMove={handleTileMove}
+                />
+            )}
+        </>
     );
 }
 
