@@ -14,6 +14,8 @@ const Tile = ({ value, color, onClick, index }) => {
                 color,
                 sourceIndex: index
             };
+
+            console.log('Sürükleme başladı:', tileData);
             e.dataTransfer.setData('tile', JSON.stringify(tileData));
 
             // Sürükleme sırasında görsel geri bildirim
@@ -30,21 +32,6 @@ const Tile = ({ value, color, onClick, index }) => {
 
     const handleClick = (e) => {
         if (onClick) {
-            const rect = e.target.getBoundingClientRect();
-            // Mouse'u taşın merkezine konumlandır
-            const centerX = rect.left + rect.width / 2;
-            const centerY = rect.top + rect.height / 2;
-
-            // Mouse'u merkeze taşı
-            const event = new MouseEvent('mousemove', {
-                view: window,
-                bubbles: true,
-                cancelable: true,
-                clientX: centerX,
-                clientY: centerY
-            });
-            document.dispatchEvent(event);
-
             onClick();
         }
     };

@@ -13,12 +13,23 @@ function Game({ player, room }) {
     const [loading, setLoading] = useState(false);
     const [selectedTile, setSelectedTile] = useState(null);
     const [timeLeft, setTimeLeft] = useState(60);
+    const [tilePositions, setTilePositions] = useState(Array(30).fill(null));
 
     useEffect(() => {
         // Taşları dinle
         socketService.onGameTiles((response) => {
             if (response.success) {
+                // Taşları al
                 setTiles(response.tiles);
+
+                // Taşları ilk 14-15 pozisyona yerleştir
+                const initialPositions = Array(30).fill(null);
+                response.tiles.forEach((tile, index) => {
+                    if (index < 30) {
+                        initialPositions[index] = tile.id;
+                    }
+                });
+                setTilePositions(initialPositions);
             }
         });
 
@@ -139,24 +150,108 @@ function Game({ player, room }) {
         });
     };
 
-    const handleTileClick = (playerIndex, tileIndex) => {
+    const handleTileMove = (sourceIndex, targetIndex) => {
+        console.log(`handleTileMove: ${sourceIndex} -> ${targetIndex}`);
+
+        // Geçersiz indeksleri kontrol et
+        if (sourceIndex < 0 || sourceIndex >= 30 || targetIndex < 0 || targetIndex >= 30) {
+            console.error('Geçersiz indeks:', sourceIndex, targetIndex);
+            return;
+        }
+
+        // Eğer targetIndex -1 ise, taş köşeye bırakılmıştır (taş atma işlemi)
+        if (targetIndex === -1) {
+            // Sadece sırası gelen oyuncu ve taş atma aksiyonu varsa taş atabilir
+            if (gameState.currentPlayerId !== player.id || gameState.turnAction !== 'discard') {
+                setError('Şu anda taş atamazsınız');
+                return;
+            }
+
+            // Atılacak taşı belirle
+            const tileId = tilePositions[sourceIndex];
+            if (!tileId) {
+                setError('Geçerli bir taş seçmelisiniz');
+                return;
+            }
+
+            const tileToDiscard = tiles.find(t => t.id === tileId);
+            if (!tileToDiscard) {
+                setError('Geçerli bir taş seçmelisiniz');
+                return;
+            }
+
+            // Taşı at
+            handleDiscardTile(tiles.findIndex(t => t.id === tileId));
+
+            // Pozisyonu güncelle
+            const newPositions = [...tilePositions];
+            newPositions[sourceIndex] = null;
+            setTilePositions(newPositions);
+
+            return;
+        }
+
+        // Eğer taş aynı yere bırakılıyorsa hiçbir şey yapma
+        if (sourceIndex === targetIndex) {
+            return;
+        }
+
+        // Pozisyonları güncelle (30 elemanlı dizi)
+        const newPositions = [...tilePositions].slice(0, 30);
+
+        // Sürüklenen taşın ID'sini al
+        const tileId = newPositions[sourceIndex];
+
+        // Taş yoksa işlem yapma
+        if (!tileId) {
+            console.error('Sürüklenen taş bulunamadı:', sourceIndex);
+            return;
+        }
+
+        console.log('Taş ID:', tileId);
+        console.log('Eski pozisyonlar:', newPositions);
+
+        // Hedef konumda taş varsa, taşları yer değiştir
+        if (newPositions[targetIndex] !== null) {
+            // Hedef konumdaki taşı kaynak konuma taşı
+            newPositions[sourceIndex] = newPositions[targetIndex];
+        } else {
+            // Hedef konum boşsa, kaynak konumu boşalt
+            newPositions[sourceIndex] = null;
+        }
+
+        // Sürüklenen taşı hedef konuma yerleştir
+        newPositions[targetIndex] = tileId;
+
+        console.log('Yeni pozisyonlar:', newPositions);
+
+        // Pozisyonları güncelle
+        setTilePositions(newPositions);
+    };
+
+    const handleTileClick = (tileIndex) => {
         // Oyuncu her zaman taşlarını düzenleyebilir
         // Ancak sadece sırası geldiğinde ve taş atma aksiyonu varsa taş atabilir
         if (gameState.currentPlayerId === player.id && gameState.turnAction === 'discard') {
-            handleDiscardTile(tileIndex);
+            const tileId = tilePositions[tileIndex];
+            if (tileId) {
+                const tileToDiscard = tiles.find(t => t.id === tileId);
+                if (tileToDiscard) {
+                    handleDiscardTile(tiles.findIndex(t => t.id === tileId));
+
+                    // Pozisyonu güncelle
+                    const newPositions = [...tilePositions];
+                    newPositions[tileIndex] = null;
+                    setTilePositions(newPositions);
+                }
+            }
         } else {
             // Taşı seçili olarak işaretle (düzenleme için)
-            setSelectedTile(tiles[tileIndex]);
-        }
-    };
-
-    const handleTileMove = (sourceIndex, targetIndex) => {
-        // Taşları yeniden düzenle
-        if (sourceIndex !== targetIndex && targetIndex !== -1) {
-            const newTiles = [...tiles];
-            const [movedTile] = newTiles.splice(sourceIndex, 1);
-            newTiles.splice(targetIndex, 0, movedTile);
-            setTiles(newTiles);
+            const tileId = tilePositions[tileIndex];
+            if (tileId) {
+                const selectedTile = tiles.find(t => t.id === tileId);
+                setSelectedTile(selectedTile);
+            }
         }
     };
 
@@ -257,10 +352,106 @@ function Game({ player, room }) {
             <div className="game-board">
                 <div className="board-content">
                     {/* Köşe Bırakma Alanları */}
-                    <div className={`tile-drop-zone top-left ${getPlayerCorner(currentPlayerIndex) === 'topLeft' ? 'active' : ''}`} />
-                    <div className={`tile-drop-zone top-right ${getPlayerCorner(currentPlayerIndex) === 'topRight' ? 'active' : ''}`} />
-                    <div className={`tile-drop-zone bottom-left ${getPlayerCorner(currentPlayerIndex) === 'bottomLeft' ? 'active' : ''}`} />
-                    <div className={`tile-drop-zone bottom-right ${getPlayerCorner(currentPlayerIndex) === 'bottomRight' ? 'active' : ''}`} />
+                    <div
+                        className={`tile-drop-zone top-left ${getPlayerCorner(currentPlayerIndex) === 'topLeft' ? 'active' : ''}`}
+                        onDragOver={(e) => {
+                            if (getPlayerCorner(currentPlayerIndex) === 'topLeft') {
+                                e.preventDefault();
+                                e.dataTransfer.dropEffect = 'move';
+                                e.currentTarget.classList.add('drag-over');
+                            }
+                        }}
+                        onDragLeave={(e) => {
+                            e.currentTarget.classList.remove('drag-over');
+                        }}
+                        onDrop={(e) => {
+                            if (getPlayerCorner(currentPlayerIndex) === 'topLeft') {
+                                e.preventDefault();
+                                e.currentTarget.classList.remove('drag-over');
+                                try {
+                                    const tileData = JSON.parse(e.dataTransfer.getData('tile'));
+                                    handleTileMove(tileData.sourceIndex, -1);
+                                } catch (error) {
+                                    console.error('Taş bırakma sırasında hata:', error);
+                                }
+                            }
+                        }}
+                    />
+                    <div
+                        className={`tile-drop-zone top-right ${getPlayerCorner(currentPlayerIndex) === 'topRight' ? 'active' : ''}`}
+                        onDragOver={(e) => {
+                            if (getPlayerCorner(currentPlayerIndex) === 'topRight') {
+                                e.preventDefault();
+                                e.dataTransfer.dropEffect = 'move';
+                                e.currentTarget.classList.add('drag-over');
+                            }
+                        }}
+                        onDragLeave={(e) => {
+                            e.currentTarget.classList.remove('drag-over');
+                        }}
+                        onDrop={(e) => {
+                            if (getPlayerCorner(currentPlayerIndex) === 'topRight') {
+                                e.preventDefault();
+                                e.currentTarget.classList.remove('drag-over');
+                                try {
+                                    const tileData = JSON.parse(e.dataTransfer.getData('tile'));
+                                    handleTileMove(tileData.sourceIndex, -1);
+                                } catch (error) {
+                                    console.error('Taş bırakma sırasında hata:', error);
+                                }
+                            }
+                        }}
+                    />
+                    <div
+                        className={`tile-drop-zone bottom-left ${getPlayerCorner(currentPlayerIndex) === 'bottomLeft' ? 'active' : ''}`}
+                        onDragOver={(e) => {
+                            if (getPlayerCorner(currentPlayerIndex) === 'bottomLeft') {
+                                e.preventDefault();
+                                e.dataTransfer.dropEffect = 'move';
+                                e.currentTarget.classList.add('drag-over');
+                            }
+                        }}
+                        onDragLeave={(e) => {
+                            e.currentTarget.classList.remove('drag-over');
+                        }}
+                        onDrop={(e) => {
+                            if (getPlayerCorner(currentPlayerIndex) === 'bottomLeft') {
+                                e.preventDefault();
+                                e.currentTarget.classList.remove('drag-over');
+                                try {
+                                    const tileData = JSON.parse(e.dataTransfer.getData('tile'));
+                                    handleTileMove(tileData.sourceIndex, -1);
+                                } catch (error) {
+                                    console.error('Taş bırakma sırasında hata:', error);
+                                }
+                            }
+                        }}
+                    />
+                    <div
+                        className={`tile-drop-zone bottom-right ${getPlayerCorner(currentPlayerIndex) === 'bottomRight' ? 'active' : ''}`}
+                        onDragOver={(e) => {
+                            if (getPlayerCorner(currentPlayerIndex) === 'bottomRight') {
+                                e.preventDefault();
+                                e.dataTransfer.dropEffect = 'move';
+                                e.currentTarget.classList.add('drag-over');
+                            }
+                        }}
+                        onDragLeave={(e) => {
+                            e.currentTarget.classList.remove('drag-over');
+                        }}
+                        onDrop={(e) => {
+                            if (getPlayerCorner(currentPlayerIndex) === 'bottomRight') {
+                                e.preventDefault();
+                                e.currentTarget.classList.remove('drag-over');
+                                try {
+                                    const tileData = JSON.parse(e.dataTransfer.getData('tile'));
+                                    handleTileMove(tileData.sourceIndex, -1);
+                                } catch (error) {
+                                    console.error('Taş bırakma sırasında hata:', error);
+                                }
+                            }
+                        }}
+                    />
 
                     {/* Atılan taşlar */}
                     <div className="discarded-tiles-container">
@@ -324,7 +515,8 @@ function Game({ player, room }) {
             {/* Current Player's Tiles */}
             <TileHolder
                 tiles={tiles}
-                onTileClick={(tileIndex) => handleTileClick(currentPlayerIndex, tileIndex)}
+                tilePositions={tilePositions}
+                onTileClick={(tileIndex) => handleTileClick(tileIndex)}
                 onTileMove={handleTileMove}
             />
         </div>

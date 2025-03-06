@@ -2,14 +2,19 @@ import React, { useRef } from 'react';
 import Tile from '../Tile/Tile';
 import '../../assets/css/components/TileHolder.css';
 
-const TileHolder = ({ tiles, onTileClick, onTileMove }) => {
+const TileHolder = ({ tiles, tilePositions, onTileClick, onTileMove }) => {
     const firstRowRef = useRef(null);
     const secondRowRef = useRef(null);
 
-    // İlk 15 hücre
-    const firstRow = Array(15).fill(null).map((_, index) => tiles[index]);
-    // Son 15 hücre
-    const secondRow = Array(15).fill(null).map((_, index) => tiles[index + 15]);
+    // Sabit 30 hücre oluştur (15 x 2 satır)
+    const TOTAL_CELLS = 30;
+    const CELLS_PER_ROW = 15;
+
+    // Taşları ID'lerine göre bir Map'e dönüştür
+    const tilesMap = {};
+    tiles.forEach(tile => {
+        tilesMap[tile.id] = tile;
+    });
 
     const handleDragOver = (e) => {
         e.preventDefault();
@@ -46,8 +51,23 @@ const TileHolder = ({ tiles, onTileClick, onTileMove }) => {
 
                 // İkinci satır için offset ekle
                 if (row === secondRowRef.current) {
-                    targetIndex += 15;
+                    targetIndex += CELLS_PER_ROW;
                 }
+
+                console.log(`Hedef hücre indeksi: ${targetIndex}, Satır: ${row === secondRowRef.current ? 'İkinci Satır' : 'Birinci Satır'}`);
+
+                // İndeksi kontrol et
+                if (targetIndex < 0 || targetIndex >= TOTAL_CELLS) {
+                    console.error('Geçersiz hedef indeks:', targetIndex);
+                    return;
+                }
+
+                if (tileData.sourceIndex < 0 || tileData.sourceIndex >= TOTAL_CELLS) {
+                    console.error('Geçersiz kaynak indeks:', tileData.sourceIndex);
+                    return;
+                }
+
+                console.log(`Taş taşınıyor: ${tileData.sourceIndex} -> ${targetIndex}`);
 
                 // Taşı hareket ettir
                 onTileMove(tileData.sourceIndex, targetIndex);
@@ -60,24 +80,36 @@ const TileHolder = ({ tiles, onTileClick, onTileMove }) => {
         }
     };
 
-    const renderRow = (rowTiles, startIndex) => {
-        return Array(15).fill(null).map((_, index) => (
+    const renderCell = (index) => {
+        // İndeksi kontrol et
+        if (index < 0 || index >= TOTAL_CELLS) {
+            return null;
+        }
+
+        const tileId = tilePositions[index];
+        const tile = tileId ? tilesMap[tileId] : null;
+
+        return (
             <div
                 key={index}
-                className="tile-cell"
-                data-index={index}
+                className={`tile-cell ${!tile ? 'empty-cell' : ''}`}
+                data-index={index % CELLS_PER_ROW}
             >
-                {rowTiles[index] && (
+                {tile && (
                     <Tile
-                        index={startIndex + index}
-                        value={rowTiles[index].value}
-                        color={rowTiles[index].color}
-                        onClick={() => onTileClick(startIndex + index)}
+                        index={index}
+                        value={tile.value}
+                        color={tile.color}
+                        onClick={() => onTileClick(index)}
                     />
                 )}
             </div>
-        ));
+        );
     };
+
+    // Sadece 30 hücre render et
+    const firstRowIndices = Array(CELLS_PER_ROW).fill(null).map((_, i) => i);
+    const secondRowIndices = Array(CELLS_PER_ROW).fill(null).map((_, i) => i + CELLS_PER_ROW);
 
     return (
         <div className="tile-holder-container">
@@ -89,7 +121,7 @@ const TileHolder = ({ tiles, onTileClick, onTileMove }) => {
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
                 >
-                    {renderRow(firstRow, 0)}
+                    {firstRowIndices.map(index => renderCell(index))}
                 </div>
                 <hr className="tile-row-divider" />
                 <div
@@ -99,7 +131,7 @@ const TileHolder = ({ tiles, onTileClick, onTileMove }) => {
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
                 >
-                    {renderRow(secondRow, 15)}
+                    {secondRowIndices.map(index => renderCell(index))}
                 </div>
             </div>
         </div>
