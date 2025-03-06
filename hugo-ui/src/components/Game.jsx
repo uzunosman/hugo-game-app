@@ -197,7 +197,7 @@ function Game({ player, room }) {
         }
 
         // Pozisyonları güncelle (30 elemanlı dizi)
-        const newPositions = [...tilePositions].slice(0, 30);
+        const newPositions = [...tilePositions];
 
         // Sürüklenen taşın ID'sini al
         const tileId = newPositions[sourceIndex];
@@ -209,21 +209,75 @@ function Game({ player, room }) {
         }
 
         console.log('Taş ID:', tileId);
-        console.log('Eski pozisyonlar:', newPositions);
+        console.log('Eski pozisyonlar:', JSON.parse(JSON.stringify(newPositions)));
 
-        // Hedef konumda taş varsa, taşları yer değiştir
-        if (newPositions[targetIndex] !== null) {
-            // Hedef konumdaki taşı kaynak konuma taşı
-            newPositions[sourceIndex] = newPositions[targetIndex];
+        // Önce kaynak konumu boşalt (önemli: taşı geçici olarak saklıyoruz)
+        newPositions[sourceIndex] = null;
+
+        // Hedef konumda taş yoksa, basitçe taşı
+        if (newPositions[targetIndex] === null) {
+            newPositions[targetIndex] = tileId;
         } else {
-            // Hedef konum boşsa, kaynak konumu boşalt
-            newPositions[sourceIndex] = null;
+            // Hedef konumda taş varsa, kaydırma işlemi yap
+
+            // Önce tercih edilen yönü belirle (sağa veya sola)
+            const moveRight = targetIndex > sourceIndex;
+
+            // İlk deneme için tercih edilen yön
+            let canShift = false;
+            let shiftDirection = moveRight ? 1 : -1;
+
+            // Kaydırma için boş yer bul
+            let emptyIndex = -1;
+
+            // İlk yönde kaydırma dene
+            for (let i = targetIndex; moveRight ? (i < 30) : (i >= 0); i += shiftDirection) {
+                if (newPositions[i] === null) {
+                    emptyIndex = i;
+                    canShift = true;
+                    break;
+                }
+            }
+
+            // Eğer ilk yönde kaydırma mümkün değilse, diğer yönü dene
+            if (!canShift) {
+                shiftDirection = moveRight ? -1 : 1;
+
+                for (let i = targetIndex; moveRight ? (i >= 0) : (i < 30); i += shiftDirection) {
+                    if (i !== sourceIndex && newPositions[i] === null) {
+                        emptyIndex = i;
+                        canShift = true;
+                        break;
+                    }
+                }
+            }
+
+            if (canShift) {
+                // Kaydırma işlemi yap
+                if (shiftDirection === 1) {
+                    // Sağa kaydır
+                    for (let i = emptyIndex; i > targetIndex; i--) {
+                        newPositions[i] = newPositions[i - 1];
+                    }
+                } else {
+                    // Sola kaydır
+                    for (let i = emptyIndex; i < targetIndex; i++) {
+                        newPositions[i] = newPositions[i + 1];
+                    }
+                }
+
+                // Hedef konuma sürüklenen taşı yerleştir
+                newPositions[targetIndex] = tileId;
+            } else {
+                // Kaydırma mümkün değilse, işlem yapma
+                console.error('Kaydırma için boş yer bulunamadı');
+                // Kaynak konumu geri yükle
+                newPositions[sourceIndex] = tileId;
+                return;
+            }
         }
 
-        // Sürüklenen taşı hedef konuma yerleştir
-        newPositions[targetIndex] = tileId;
-
-        console.log('Yeni pozisyonlar:', newPositions);
+        console.log('Yeni pozisyonlar:', JSON.parse(JSON.stringify(newPositions)));
 
         // Pozisyonları güncelle
         setTilePositions(newPositions);
