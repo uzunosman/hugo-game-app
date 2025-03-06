@@ -160,32 +160,46 @@ function Game({ player, room }) {
         }
     };
 
-    // Oyuncunun köşesini belirle
-    const getPlayerCorner = (playerIndex) => {
-        const cornerMap = {
-            0: 'topLeft',     // 3. oyuncu
-            1: 'topRight',    // 2. oyuncu
-            2: 'bottomRight', // 1. oyuncu (kendimiz)
-            3: 'bottomLeft'   // 4. oyuncu
-        };
-        return cornerMap[playerIndex];
-    };
-
-    // Mevcut oyuncunun indeksini bul
-    const getCurrentPlayerIndex = () => {
-        return room.players.findIndex(p => p.id === gameState.currentPlayerId);
-    };
-
     // Oyuncuları düzenle (kendimiz her zaman altta olacak şekilde)
     const getOrderedPlayers = () => {
         const myIndex = room.players.findIndex(p => p.id === player.id);
         if (myIndex === -1) return room.players;
 
-        // Kendimizi 2. indekse (alt) yerleştir
-        const orderedPlayers = [...room.players];
-        const myPlayer = orderedPlayers.splice(myIndex, 1)[0];
-        orderedPlayers.splice(2, 0, myPlayer);
+        // Kendimizi 0. indekse (alt) yerleştir
+        const orderedPlayers = [];
+        for (let i = 0; i < room.players.length; i++) {
+            const index = (myIndex + i) % room.players.length;
+            orderedPlayers.push(room.players[index]);
+        }
         return orderedPlayers;
+    };
+
+    // Oyuncunun pozisyonunu belirle
+    const getPlayerPosition = (index) => {
+        const positionMap = {
+            0: 'current-player', // Kendimiz (alt)
+            1: 'right',          // Sağımızdaki oyuncu
+            2: 'top',            // Karşımızdaki oyuncu
+            3: 'left'            // Solumuzdaki oyuncu
+        };
+        return positionMap[index] || 'current-player';
+    };
+
+    // Oyuncunun köşesini belirle (taş atma için)
+    const getPlayerCorner = (index) => {
+        const cornerMap = {
+            0: 'bottomRight', // Alt oyuncu sağ köşeye atar
+            1: 'topRight',    // Sağ oyuncu sağ üst köşeye atar
+            2: 'topLeft',     // Üst oyuncu sol üst köşeye atar
+            3: 'bottomLeft'   // Sol oyuncu sol alt köşeye atar
+        };
+        return cornerMap[index];
+    };
+
+    // Mevcut oyuncunun indeksini bul
+    const getCurrentPlayerIndex = () => {
+        const players = getOrderedPlayers();
+        return players.findIndex(p => p.id === gameState.currentPlayerId);
     };
 
     const players = getOrderedPlayers();
@@ -194,8 +208,7 @@ function Game({ player, room }) {
 
     // Oyuncu taşlarını hazırla (sadece kendi taşlarımızı biliyoruz)
     const playerTiles = Array(players.length).fill([]);
-    const myOrderedIndex = players.findIndex(p => p.id === player.id);
-    playerTiles[myOrderedIndex] = tiles;
+    playerTiles[0] = tiles; // Kendimiz her zaman 0. indekste
 
     // Atılan taşları köşelere göre düzenle
     const discardedTiles = {
@@ -206,9 +219,17 @@ function Game({ player, room }) {
     };
 
     if (gameState.discardPile && gameState.discardPile.length > 0) {
+        // Son taşı atan oyuncunun indeksini bul
         const lastTile = gameState.discardPile[gameState.discardPile.length - 1];
-        const corner = getPlayerCorner(currentPlayerIndex);
-        discardedTiles[corner] = [lastTile];
+
+        // Taşı atan oyuncunun köşesine yerleştir
+        // Her oyuncu sağındaki köşeye atar
+        players.forEach((p, index) => {
+            if (p.id === lastTile.playerId) {
+                const corner = getPlayerCorner(index);
+                discardedTiles[corner] = [lastTile];
+            }
+        });
     }
 
     // Taş çekme durumunu takip et
@@ -218,7 +239,7 @@ function Game({ player, room }) {
     });
 
     return (
-        <>
+        <div className="game-container">
             {error && <div style={{ color: 'red', textAlign: 'center', padding: '10px' }}>{error}</div>}
 
             {/* Player Panels */}
@@ -227,7 +248,7 @@ function Game({ player, room }) {
                     key={index}
                     name={p.name}
                     score={0}
-                    position={index === 2 ? 'current-player' : ['top', 'right', 'left'][index === 3 ? 2 : index]}
+                    position={getPlayerPosition(index)}
                     isCurrentPlayer={p.id === gameState.currentPlayerId}
                     timeLeft={p.id === gameState.currentPlayerId ? timeLeft : null}
                 />
@@ -303,10 +324,10 @@ function Game({ player, room }) {
             {/* Current Player's Tiles */}
             <TileHolder
                 tiles={tiles}
-                onTileClick={(tileIndex) => handleTileClick(myOrderedIndex, tileIndex)}
+                onTileClick={(tileIndex) => handleTileClick(currentPlayerIndex, tileIndex)}
                 onTileMove={handleTileMove}
             />
-        </>
+        </div>
     );
 }
 
