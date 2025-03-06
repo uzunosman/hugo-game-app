@@ -140,8 +140,13 @@ function Game({ player, room }) {
     };
 
     const handleTileClick = (playerIndex, tileIndex) => {
-        if (playerIndex === getCurrentPlayerIndex() && gameState.turnAction === 'discard') {
+        // Oyuncu her zaman taşlarını düzenleyebilir
+        // Ancak sadece sırası geldiğinde ve taş atma aksiyonu varsa taş atabilir
+        if (gameState.currentPlayerId === player.id && gameState.turnAction === 'discard') {
             handleDiscardTile(tileIndex);
+        } else {
+            // Taşı seçili olarak işaretle (düzenleme için)
+            setSelectedTile(tiles[tileIndex]);
         }
     };
 
@@ -287,7 +292,7 @@ function Game({ player, room }) {
                     {/* Center Area */}
                     <CenterArea
                         remainingTiles={gameState.deck ? gameState.deck.length : 0}
-                        onDrawTile={() => handleDrawTile(false)}
+                        onDrawTile={() => isMyTurn && gameState.turnAction === 'draw' ? handleDrawTile(false) : null}
                         openTile={gameState.indicatorTile}
                         gameRound={gameState.round || 1}
                         canDrawTile={isMyTurn && gameState.turnAction === 'draw'}
@@ -296,13 +301,11 @@ function Game({ player, room }) {
             </div>
 
             {/* Current Player's Tiles */}
-            {isMyTurn && (
-                <TileHolder
-                    tiles={tiles}
-                    onTileClick={(tileIndex) => handleTileClick(myOrderedIndex, tileIndex)}
-                    onTileMove={handleTileMove}
-                />
-            )}
+            <TileHolder
+                tiles={tiles}
+                onTileClick={(tileIndex) => handleTileClick(myOrderedIndex, tileIndex)}
+                onTileMove={handleTileMove}
+            />
         </>
     );
 }
