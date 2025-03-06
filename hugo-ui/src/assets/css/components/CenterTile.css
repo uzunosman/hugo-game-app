@@ -1,0 +1,124 @@
+.tile-container {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.center-tile {
+    width: 25px;
+    height: 36px;
+    background-color: var(--tile-bg);
+    border-radius: 2px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    font-size: 18px;
+    font-weight: bold;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    user-select: none;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    position: relative;
+    padding-bottom: 8px;
+}
+
+.center-tile:not(.closed):not(.indicator)::after {
+    content: '';
+    position: absolute;
+    bottom: 4px;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+}
+
+.center-tile.closed {
+    background-color: #ffffff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding-bottom: 0;
+    cursor: pointer;
+}
+
+.remaining-count {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    width: 16px;
+    height: 16px;
+    background-color: #e0e0e0;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 10px;
+    color: #666;
+    font-weight: bold;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.center-tile.indicator {
+    border: 2px solid #4CAF50;
+    cursor: not-allowed;
+    transform: scale(1.1);
+}
+
+.center-tile.indicator.green {
+    border-color: #4CAF50;
+    color: #4CAF50;
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.center-tile.red:not(.closed) {
+    color: #FF0000;
+}
+
+.center-tile.red:not(.closed)::after {
+    background-color: #FF0000;
+}
+
+.center-tile.black:not(.closed) {
+    color: #000000;
+}
+
+.center-tile.black:not(.closed)::after {
+    background-color: #000000;
+}
+
+.center-tile.blue:not(.closed) {
+    color: #00BCD4;
+}
+
+.center-tile.blue:not(.closed)::after {
+    background-color: #00BCD4;
+}
+
+.center-tile.yellow:not(.closed) {
+    color: #FFC107;
+}
+
+.center-tile.yellow:not(.closed)::after {
+    background-color: #FFC107;
+}
+
+.draggable-tile {
+    cursor: grab;
+}
+
+.draggable-tile:active {
+    cursor: grabbing;
+}
+
+.indicator-tile {
+    pointer-events: none;
+    margin-left: var(--spacing-sm);
+}
+
+.center-tile.disabled,
+.draggable-tile.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}

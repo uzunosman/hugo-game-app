@@ -1,0 +1,51 @@
+:root {
+    --primary-bg: #0097b2;
+    --panel-bg: #808080;
+    --tile-bg: #FFFFFF;
+    --red-tile: #FF0000;
+    --black-tile: #000000;
+    --spacing-xs: 5px;
+    --spacing-sm: 10px;
+    --spacing-md: 15px;
+    --spacing-lg: 20px;
+    --font-family: 'Roboto', sans-serif;
+    --game-size: 720px;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+    width: 100%;
+    height: 100%;
+}
+
+body {
+    font-family: var(--font-family);
+    background-color: var(--primary-bg);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#root {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.player-name {
+    font-size: 18px;
+    color: var(--tile-bg);
+}
+
+.player-score {
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--tile-bg);
+}
