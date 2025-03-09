@@ -148,6 +148,30 @@ class SocketService {
     onNextTurn(callback) {
         this.socket.on('game:nextTurn', callback);
     }
+
+    offNextTurn() {
+        this.socket.off('game:nextTurn');
+    }
+
+    onGameStateChange(callback) {
+        this.socket.on('game:stateChange', callback);
+    }
+
+    offGameStateChange() {
+        this.socket.off('game:stateChange');
+    }
+
+    offGameTiles() {
+        this.socket.off('game:tiles');
+    }
+
+    offTileDraw() {
+        this.socket.off('game:tileDraw');
+    }
+
+    offTileDiscard() {
+        this.socket.off('game:tileDiscard');
+    }
 }
 
 // Singleton örneği oluştur

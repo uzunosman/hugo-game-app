@@ -1,11 +1,21 @@
 import React, { useEffect, useRef, useState } from 'react';
 import '../../assets/css/components/Tile.css';
 
-const Tile = ({ value, color, onClick, index }) => {
+const Tile = ({ value, color, onClick, index, tile, isDiscarded }) => {
     const tileRef = useRef(null);
     const [prevIndex, setPrevIndex] = useState(index);
 
+    // Eğer tile prop'u verilmişse, value ve color değerlerini tile'dan al
+    const tileValue = tile ? tile.value : value;
+    const tileColor = tile ? tile.color : color;
+
     const handleDragStart = (e) => {
+        // Atılan taşlar sürüklenemez
+        if (isDiscarded) {
+            e.preventDefault();
+            return;
+        }
+
         try {
             const rect = e.target.getBoundingClientRect();
             // Mouse'u taşın merkezine konumlandır
@@ -13,8 +23,8 @@ const Tile = ({ value, color, onClick, index }) => {
 
             // Sürüklenen taşın bilgilerini saklayalım
             const tileData = {
-                value,
-                color,
+                value: tileValue,
+                color: tileColor,
                 sourceIndex: index
             };
 
@@ -47,7 +57,7 @@ const Tile = ({ value, color, onClick, index }) => {
 
     // Taş pozisyonu değiştiğinde animasyon ekle
     useEffect(() => {
-        if (tileRef.current && prevIndex !== index) {
+        if (tileRef.current && prevIndex !== index && !isDiscarded) {
             // Taşın hareket yönünü belirle
             const direction = index > prevIndex ? 'right' : 'left';
 
@@ -69,19 +79,19 @@ const Tile = ({ value, color, onClick, index }) => {
 
             return () => clearTimeout(timer);
         }
-    }, [index, prevIndex]);
+    }, [index, prevIndex, isDiscarded]);
 
     return (
         <div
             ref={tileRef}
-            className={`tile ${color}`}
+            className={`tile ${tileColor} ${isDiscarded ? 'discarded' : ''}`}
             onClick={handleClick}
-            draggable="true"
+            draggable={!isDiscarded}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
             data-index={index}
         >
-            {value}
+            {tileValue}
         </div>
     );
 };

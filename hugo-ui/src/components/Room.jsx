@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import socketService from '../services/socketService';
-import Game from './Game';
+import Game from '../components/Game/Game';
 
 function Room({ player, room, onLeaveRoom }) {
     const [currentRoom, setCurrentRoom] = useState(room);
