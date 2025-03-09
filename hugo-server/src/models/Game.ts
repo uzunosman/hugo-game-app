@@ -77,9 +77,9 @@ export class Game {
             }
         });
 
-        // 2 adet joker taşı ekle
-        this.deck.push(new Tile(TileColor.JOKER, 0, true));
-        this.deck.push(new Tile(TileColor.JOKER, 0, true));
+        // 2 adet joker taşı ekle (mor renkte ve "H" değerinde)
+        this.deck.push(new Tile(TileColor.PURPLE, 'H', true));
+        this.deck.push(new Tile(TileColor.PURPLE, 'H', true));
     }
 
     private shuffleDeck(): void {
@@ -115,20 +115,25 @@ export class Game {
         if (!this.indicatorTile || this.indicatorTile.isJoker) return;
 
         // Gösterge taşının bir üstü okey olur
-        let okeyValue = this.indicatorTile.value + 1;
+        let okeyValue: number;
 
-        // Eğer gösterge 13 ise, okey 1 olur
-        if (okeyValue > 13) {
-            okeyValue = 1;
-        }
+        // Eğer gösterge taşının değeri sayı ise
+        if (typeof this.indicatorTile.value === 'number') {
+            okeyValue = this.indicatorTile.value + 1;
 
-        // Okey taşını bul (aynı renkte ve bir üst değerde)
-        const okeyTile = this.deck.find(
-            tile => tile.color === this.indicatorTile?.color && tile.value === okeyValue
-        );
+            // Eğer gösterge 13 ise, okey 1 olur
+            if (okeyValue > 13) {
+                okeyValue = 1;
+            }
 
-        if (okeyTile) {
-            this.okeyTile = okeyTile;
+            // Okey taşını bul (aynı renkte ve bir üst değerde)
+            const okeyTile = this.deck.find(
+                tile => tile.color === this.indicatorTile?.color && tile.value === okeyValue
+            );
+
+            if (okeyTile) {
+                this.okeyTile = okeyTile;
+            }
         }
     }
 
@@ -184,26 +189,50 @@ export class Game {
     }
 
     discardTile(playerId: string, tileId: string): Tile | null {
+        console.log(`[DEBUG] discardTile çağrıldı - playerId: ${playerId}, tileId: ${tileId}`);
+
         // Oyuncunun sırası mı kontrol et
         const player = this.getPlayerById(playerId);
-        if (!player || !this.isPlayerTurn(playerId) || this.turnAction !== TurnAction.DISCARD) {
+        console.log(`[DEBUG] Oyuncu bulundu mu: ${!!player}`);
+
+        if (!player) {
+            console.log(`[DEBUG] Oyuncu bulunamadı: ${playerId}`);
+            return null;
+        }
+
+        const isPlayerTurn = this.isPlayerTurn(playerId);
+        console.log(`[DEBUG] Oyuncunun sırası mı: ${isPlayerTurn}`);
+
+        console.log(`[DEBUG] Mevcut aksiyon: ${this.turnAction}`);
+
+        // İlk tur kontrolü - oyuncunun 15 taşı varsa ve sırası geldiyse taş atabilir
+        const isFirstTurn = player.tiles.length === 15 && this.turnAction === TurnAction.DRAW;
+        console.log(`[DEBUG] İlk tur mu: ${isFirstTurn}, Taş sayısı: ${player.tiles.length}`);
+
+        if (!isPlayerTurn || (this.turnAction !== TurnAction.DISCARD && !isFirstTurn)) {
+            console.log(`[DEBUG] Oyuncunun sırası değil veya taş atma aksiyonu değil`);
             return null;
         }
 
         // Taşı oyuncudan çıkar
         const discardedTile = player.removeTile(tileId);
+        console.log(`[DEBUG] Taş oyuncudan çıkarıldı mı: ${!!discardedTile}`);
 
         if (discardedTile) {
             // Taşı atılan taşlar yığınına ekle
             discardedTile.setStatus(TileStatus.DISCARDED);
             discardedTile.setVisible(true);
             this.discardPile.push(discardedTile);
+            console.log(`[DEBUG] Taş atılan taşlar yığınına eklendi. Yeni yığın boyutu: ${this.discardPile.length}`);
 
             // Sırayı bir sonraki oyuncuya geçir
             this.nextTurn();
+            console.log(`[DEBUG] Sıra bir sonraki oyuncuya geçti. Yeni oyuncu indeksi: ${this.currentPlayerIndex}`);
 
             this.lastActionTime = new Date();
             return discardedTile;
+        } else {
+            console.log(`[DEBUG] Taş oyuncudan çıkarılamadı. Taş ID: ${tileId}`);
         }
 
         return null;
@@ -233,7 +262,7 @@ export class Game {
 
     isHugoRound(): boolean {
         // 1., 5. ve 9. turlar Hugo turudur
-        return this.round === 1 || this.round === 5 || this.round === 9;
+        return [1, 5, 9].includes(this.round);
     }
 
     toJSON(): Record<string, any> {

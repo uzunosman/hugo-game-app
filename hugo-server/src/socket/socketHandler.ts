@@ -449,7 +449,10 @@ export const setupSocketHandlers = (io: Server) => {
                 io.to(player.roomId).emit('game:tileDiscard', {
                     success: true,
                     playerId,
-                    tile: discardedTile.toJSON()
+                    tile: {
+                        ...discardedTile.toJSON(),
+                        playerId
+                    }
                 });
 
                 // Sıradaki oyuncuya bildir

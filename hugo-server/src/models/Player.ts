@@ -28,11 +28,20 @@ export class Player {
     }
 
     removeTile(tileId: string): Tile | undefined {
+        console.log(`[DEBUG] removeTile çağrıldı - tileId: ${tileId}`);
+        console.log(`[DEBUG] Mevcut taşlar: ${this.tiles.map(t => t.id).join(', ')}`);
+
         const tileIndex = this.tiles.findIndex(tile => tile.id === tileId);
+        console.log(`[DEBUG] Taş indeksi: ${tileIndex}`);
+
         if (tileIndex !== -1) {
             const [removedTile] = this.tiles.splice(tileIndex, 1);
+            console.log(`[DEBUG] Taş çıkarıldı: ${removedTile.id}`);
+            console.log(`[DEBUG] Kalan taşlar: ${this.tiles.map(t => t.id).join(', ')}`);
             return removedTile;
         }
+
+        console.log(`[DEBUG] Taş bulunamadı: ${tileId}`);
         return undefined;
     }
 

@@ -167,3 +167,25 @@
         transform: translate(-50%, -50%);
     }
 }
+
+/* Hata animasyonu */
+@keyframes errorPulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.4);
+        background-color: rgba(255, 0, 0, 0.1);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(255, 0, 0, 0);
+        background-color: rgba(255, 0, 0, 0.3);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(255, 0, 0, 0);
+        background-color: rgba(255, 0, 0, 0.1);
+    }
+}
+
+.error-animation {
+    animation: errorPulse 0.5s ease-in-out 2;
+}

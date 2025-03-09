@@ -14,6 +14,12 @@ function Game({ player, room }) {
     const [selectedTile, setSelectedTile] = useState(null);
     const [timeLeft, setTimeLeft] = useState(60);
     const [tilePositions, setTilePositions] = useState(Array(30).fill(null));
+    const [discardedTiles, setDiscardedTiles] = useState({
+        topLeft: [],
+        topRight: [],
+        bottomRight: [],
+        bottomLeft: []
+    });
 
     useEffect(() => {
         // Taşları dinle
@@ -46,22 +52,59 @@ function Game({ player, room }) {
         // Taş atma olayını dinle
         socketService.onTileDiscard((response) => {
             if (response.success) {
+                console.log('Taş atma olayı:', response);
+
                 // Atılan taşı göster
                 setGameState(prevState => ({
                     ...prevState,
                     discardPile: [...(prevState.discardPile || []), response.tile]
                 }));
+
+                // Atılan taşı ilgili köşeye ekle
+                const players = getOrderedPlayers();
+                console.log('Oyuncular:', players);
+
+                // Taşın playerId değerini kontrol et
+                if (!response.tile.playerId) {
+                    console.error('Taş atma olayında playerId eksik:', response.tile);
+                    return;
+                }
+
+                const discardPlayerIndex = players.findIndex(p => p.id === response.tile.playerId);
+                console.log('Taş atan oyuncu indeksi:', discardPlayerIndex, 'Oyuncu ID:', response.tile.playerId);
+
+                if (discardPlayerIndex !== -1) {
+                    const corner = getPlayerCorner(discardPlayerIndex);
+                    console.log(`${response.tile.playerId} oyuncusu ${corner} köşesine taş attı:`, response.tile);
+
+                    setDiscardedTiles(prev => {
+                        const newDiscardedTiles = {
+                            ...prev,
+                            [corner]: [response.tile]
+                        };
+                        console.log('Yeni atılan taşlar:', newDiscardedTiles);
+                        return newDiscardedTiles;
+                    });
+                } else {
+                    console.error('Taş atan oyuncu bulunamadı:', response.tile.playerId);
+                }
+            } else {
+                console.error('Taş atma olayı başarısız:', response.error);
             }
         });
 
         // Sıra değişimini dinle
         socketService.onNextTurn((response) => {
             if (response.success) {
+                console.log('Sıra değişimi:', response);
+
                 // Oyuncuların sıra durumunu güncelle
                 setGameState(prevState => ({
                     ...prevState,
-                    currentPlayerId: response.playerId
+                    currentPlayerId: response.playerId,
+                    turnAction: 'draw' // Yeni oyuncu önce taş çekecek
                 }));
+
                 // Süreyi sıfırla
                 setTimeLeft(60);
             }
@@ -94,11 +137,7 @@ function Game({ player, room }) {
             return;
         }
 
-        setLoading(true);
-        setError('');
-
         socketService.drawTile(fromDiscard, (response) => {
-            setLoading(false);
 
             if (response.success) {
                 // Yeni taşı ekle
@@ -119,12 +158,20 @@ function Game({ player, room }) {
         const tileToDiscard = tiles[tileIndex];
 
         if (!tileToDiscard) {
-            setError('Lütfen atmak için bir taş seçin');
+            console.error('Lütfen atmak için bir taş seçin');
             return;
         }
 
-        if (gameState.currentPlayerId !== player.id || gameState.turnAction !== 'discard') {
-            setError('Şu anda taş atamazsınız');
+        // Oyuncunun sırası olup olmadığını kontrol et
+        if (gameState.currentPlayerId !== player.id) {
+            console.error('Şu anda taş atamazsınız, sıranız değil');
+            return;
+        }
+
+        // Oyun yeni başladıysa ve 15 taşımız varsa veya taş atma aksiyonu varsa taş atabilir
+        const isFirstTurn = tiles.length === 15 && gameState.turnAction === 'draw';
+        if (!isFirstTurn && gameState.turnAction !== 'discard') {
+            console.error('Şu anda taş atamazsınız, önce taş çekmelisiniz');
             return;
         }
 
@@ -139,13 +186,23 @@ function Game({ player, room }) {
                 setTiles(prevTiles => prevTiles.filter(tile => tile.id !== tileToDiscard.id));
                 setSelectedTile(null);
 
-                // Oyun durumunu güncelle
+                // Oyun durumunu güncelle - sıra diğer oyuncuya geçecek
+                // Bu işlem sunucu tarafından yapılacak ve socket üzerinden bildirilecek
+                // Burada sadece yerel durumu güncelliyoruz
                 setGameState(prevState => ({
                     ...prevState,
                     turnAction: 'draw'
                 }));
+
+                // Atılan taşı ilgili köşeye ekle
+                const currentPlayerIndex = getCurrentPlayerIndex();
+                const corner = getPlayerCorner(currentPlayerIndex);
+                setDiscardedTiles(prev => ({
+                    ...prev,
+                    [corner]: [{ ...tileToDiscard, playerId: player.id }]
+                }));
             } else {
-                setError(response.error || 'Taş atılırken bir hata oluştu');
+                console.error('Taş atılamadı:', response.error || 'Taş atılırken bir hata oluştu');
             }
         });
     };
@@ -154,40 +211,111 @@ function Game({ player, room }) {
         console.log(`handleTileMove: ${sourceIndex} -> ${targetIndex}`);
 
         // Geçersiz indeksleri kontrol et
-        if (sourceIndex < 0 || sourceIndex >= 30 || targetIndex < 0 || targetIndex >= 30) {
-            console.error('Geçersiz indeks:', sourceIndex, targetIndex);
+        if (sourceIndex < 0 || sourceIndex >= 30) {
+            console.error('Geçersiz kaynak indeks:', sourceIndex);
             return;
         }
 
         // Eğer targetIndex -1 ise, taş köşeye bırakılmıştır (taş atma işlemi)
         if (targetIndex === -1) {
-            // Sadece sırası gelen oyuncu ve taş atma aksiyonu varsa taş atabilir
-            if (gameState.currentPlayerId !== player.id || gameState.turnAction !== 'discard') {
-                setError('Şu anda taş atamazsınız');
+            // Oyuncunun sırası olup olmadığını kontrol et
+            if (gameState.currentPlayerId !== player.id) {
+                console.error('Şu anda taş atamazsınız, sıranız değil');
+                return;
+            }
+
+            // Oyun yeni başladıysa ve 15 taşımız varsa veya taş atma aksiyonu varsa taş atabilir
+            const isFirstTurn = tiles.length === 15 && gameState.turnAction === 'draw';
+            if (!isFirstTurn && gameState.turnAction !== 'discard') {
+                console.error('Şu anda taş atamazsınız, önce taş çekmelisiniz');
                 return;
             }
 
             // Atılacak taşı belirle
             const tileId = tilePositions[sourceIndex];
             if (!tileId) {
-                setError('Geçerli bir taş seçmelisiniz');
+                console.error('Geçerli bir taş seçmelisiniz');
                 return;
             }
 
             const tileToDiscard = tiles.find(t => t.id === tileId);
             if (!tileToDiscard) {
-                setError('Geçerli bir taş seçmelisiniz');
+                console.error('Geçerli bir taş seçmelisiniz');
                 return;
             }
 
-            // Taşı at
-            handleDiscardTile(tiles.findIndex(t => t.id === tileId));
+            // Taş atma işlemini başlat
+            setLoading(true);
+            setError('');
 
-            // Pozisyonu güncelle
-            const newPositions = [...tilePositions];
-            newPositions[sourceIndex] = null;
-            setTilePositions(newPositions);
+            // Taşın orijinal pozisyonunu kaydet (hata durumunda geri dönmek için)
+            const originalTilePosition = sourceIndex;
 
+            // Taş atma isteğini gönder
+            socketService.discardTile(tileToDiscard.id, (response) => {
+                setLoading(false);
+
+                if (response.success) {
+                    // Atılan taşı elinden çıkar
+                    setTiles(prevTiles => prevTiles.filter(tile => tile.id !== tileToDiscard.id));
+                    setSelectedTile(null);
+
+                    // Pozisyonu güncelle
+                    const newPositions = [...tilePositions];
+                    newPositions[sourceIndex] = null;
+                    setTilePositions(newPositions);
+
+                    // Oyun durumunu güncelle
+                    setGameState(prevState => ({
+                        ...prevState,
+                        turnAction: 'draw'
+                    }));
+
+                    // Atılan taşı ilgili köşeye ekle
+                    const currentPlayerIndex = getCurrentPlayerIndex();
+                    const corner = getPlayerCorner(currentPlayerIndex);
+
+                    // Atılan taşı discardedTiles state'ine ekle
+                    const discardedTile = {
+                        ...tileToDiscard,
+                        playerId: player.id
+                    };
+
+                    setDiscardedTiles(prev => {
+                        const newDiscardedTiles = {
+                            ...prev,
+                            [corner]: [discardedTile]
+                        };
+                        console.log('Atılan taş köşeye eklendi:', corner, discardedTile);
+                        return newDiscardedTiles;
+                    });
+
+                    console.log('Taş başarıyla atıldı:', tileToDiscard);
+                } else {
+                    console.error('Taş atılamadı:', response.error || 'Taş atılırken bir hata oluştu');
+
+                    // Hata durumunda taşı orijinal pozisyonuna geri getir
+                    // Burada hiçbir şey yapmamıza gerek yok, çünkü taşın pozisyonu değiştirilmedi
+                    // Sadece kullanıcıya görsel geri bildirim verelim
+
+                    // Taşın bulunduğu hücreyi kırmızı yanıp sönme efekti ile işaretle
+                    const tileCells = document.querySelectorAll('.tile-cell');
+                    const cell = tileCells[originalTilePosition];
+                    if (cell) {
+                        cell.classList.add('error-animation');
+                        setTimeout(() => {
+                            cell.classList.remove('error-animation');
+                        }, 1000);
+                    }
+                }
+            });
+
+            return;
+        }
+
+        // Hedef indeksi kontrol et
+        if (targetIndex < 0 || targetIndex >= 30) {
+            console.error('Geçersiz hedef indeks:', targetIndex);
             return;
         }
 
@@ -209,7 +337,6 @@ function Game({ player, room }) {
         }
 
         console.log('Taş ID:', tileId);
-        console.log('Eski pozisyonlar:', JSON.parse(JSON.stringify(newPositions)));
 
         // Animasyon için taşları işaretle
         const tilesToAnimate = [];
@@ -308,8 +435,6 @@ function Game({ player, room }) {
             }
         }
 
-        console.log('Yeni pozisyonlar:', JSON.parse(JSON.stringify(newPositions)));
-
         // Animasyon için taşları işaretle
         setTimeout(() => {
             // Taşları animasyonlu olarak işaretle
@@ -334,25 +459,87 @@ function Game({ player, room }) {
     const handleTileClick = (tileIndex) => {
         // Oyuncu her zaman taşlarını düzenleyebilir
         // Ancak sadece sırası geldiğinde ve taş atma aksiyonu varsa taş atabilir
-        if (gameState.currentPlayerId === player.id && gameState.turnAction === 'discard') {
-            const tileId = tilePositions[tileIndex];
-            if (tileId) {
-                const tileToDiscard = tiles.find(t => t.id === tileId);
-                if (tileToDiscard) {
-                    handleDiscardTile(tiles.findIndex(t => t.id === tileId));
+        if (gameState.currentPlayerId === player.id) {
+            const isFirstTurn = tiles.length === 15 && gameState.turnAction === 'draw';
+            if (gameState.turnAction === 'discard' || isFirstTurn) {
+                const tileId = tilePositions[tileIndex];
+                if (tileId) {
+                    const tileToDiscard = tiles.find(t => t.id === tileId);
+                    if (tileToDiscard) {
+                        // Taş atma işlemini başlat
+                        setLoading(true);
+                        setError('');
 
-                    // Pozisyonu güncelle
-                    const newPositions = [...tilePositions];
-                    newPositions[tileIndex] = null;
-                    setTilePositions(newPositions);
+                        // Taşın orijinal pozisyonunu kaydet (hata durumunda geri dönmek için)
+                        const originalTilePosition = tileIndex;
+
+                        // Taş atma isteğini gönder
+                        socketService.discardTile(tileToDiscard.id, (response) => {
+                            setLoading(false);
+
+                            if (response.success) {
+                                // Atılan taşı elinden çıkar
+                                setTiles(prevTiles => prevTiles.filter(tile => tile.id !== tileToDiscard.id));
+                                setSelectedTile(null);
+
+                                // Pozisyonu güncelle
+                                const newPositions = [...tilePositions];
+                                newPositions[tileIndex] = null;
+                                setTilePositions(newPositions);
+
+                                // Oyun durumunu güncelle
+                                setGameState(prevState => ({
+                                    ...prevState,
+                                    turnAction: 'draw'
+                                }));
+
+                                // Atılan taşı ilgili köşeye ekle
+                                const currentPlayerIndex = getCurrentPlayerIndex();
+                                const corner = getPlayerCorner(currentPlayerIndex);
+
+                                // Atılan taşı discardedTiles state'ine ekle
+                                const discardedTile = {
+                                    ...tileToDiscard,
+                                    playerId: player.id
+                                };
+
+                                setDiscardedTiles(prev => {
+                                    const newDiscardedTiles = {
+                                        ...prev,
+                                        [corner]: [discardedTile]
+                                    };
+                                    console.log('Atılan taş köşeye eklendi:', corner, discardedTile);
+                                    return newDiscardedTiles;
+                                });
+
+                                console.log('Taş başarıyla atıldı:', tileToDiscard);
+                            } else {
+                                console.error('Taş atılamadı:', response.error || 'Taş atılırken bir hata oluştu');
+
+                                // Hata durumunda taşı orijinal pozisyonuna geri getir
+                                // Burada hiçbir şey yapmamıza gerek yok, çünkü taşın pozisyonu değiştirilmedi
+                                // Sadece kullanıcıya görsel geri bildirim verelim
+
+                                // Taşın bulunduğu hücreyi kırmızı yanıp sönme efekti ile işaretle
+                                const tileCells = document.querySelectorAll('.tile-cell');
+                                const cell = tileCells[originalTilePosition];
+                                if (cell) {
+                                    cell.classList.add('error-animation');
+                                    setTimeout(() => {
+                                        cell.classList.remove('error-animation');
+                                    }, 1000);
+                                }
+                            }
+                        });
+                    }
                 }
-            }
-        } else {
-            // Taşı seçili olarak işaretle (düzenleme için)
-            const tileId = tilePositions[tileIndex];
-            if (tileId) {
-                const selectedTile = tiles.find(t => t.id === tileId);
-                setSelectedTile(selectedTile);
+            } else {
+                // Taşı seçili olarak işaretle (düzenleme için)
+                const tileId = tilePositions[tileIndex];
+                if (tileId) {
+                    const selectedTile = tiles.find(t => t.id === tileId);
+                    setSelectedTile(selectedTile);
+                }
             }
         }
     };
@@ -407,28 +594,6 @@ function Game({ player, room }) {
     const playerTiles = Array(players.length).fill([]);
     playerTiles[0] = tiles; // Kendimiz her zaman 0. indekste
 
-    // Atılan taşları köşelere göre düzenle
-    const discardedTiles = {
-        topLeft: [],
-        topRight: [],
-        bottomRight: [],
-        bottomLeft: []
-    };
-
-    if (gameState.discardPile && gameState.discardPile.length > 0) {
-        // Son taşı atan oyuncunun indeksini bul
-        const lastTile = gameState.discardPile[gameState.discardPile.length - 1];
-
-        // Taşı atan oyuncunun köşesine yerleştir
-        // Her oyuncu sağındaki köşeye atar
-        players.forEach((p, index) => {
-            if (p.id === lastTile.playerId) {
-                const corner = getPlayerCorner(index);
-                discardedTiles[corner] = [lastTile];
-            }
-        });
-    }
-
     // Taş çekme durumunu takip et
     const hasDrawnTile = {};
     players.forEach((p, index) => {
@@ -437,7 +602,7 @@ function Game({ player, room }) {
 
     return (
         <div className="game-container">
-            {error && <div style={{ color: 'red', textAlign: 'center', padding: '10px' }}>{error}</div>}
+            {error && <div style={{ color: 'red', textAlign: 'center', padding: '10px', display: 'none' }}>{error}</div>}
 
             {/* Player Panels */}
             {players.map((p, index) => (
@@ -455,9 +620,10 @@ function Game({ player, room }) {
                 <div className="board-content">
                     {/* Köşe Bırakma Alanları */}
                     <div
-                        className={`tile-drop-zone top-left ${getPlayerCorner(currentPlayerIndex) === 'topLeft' ? 'active' : ''}`}
+                        className={`tile-drop-zone top-left ${getPlayerCorner(currentPlayerIndex) === 'topLeft' && isMyTurn && (gameState.turnAction === 'discard' || tiles.length === 15) ? 'active' : ''}`}
                         onDragOver={(e) => {
-                            if (getPlayerCorner(currentPlayerIndex) === 'topLeft') {
+                            const isFirstTurn = tiles.length === 15 && gameState.turnAction === 'draw';
+                            if (getPlayerCorner(currentPlayerIndex) === 'topLeft' && isMyTurn && (gameState.turnAction === 'discard' || isFirstTurn)) {
                                 e.preventDefault();
                                 e.dataTransfer.dropEffect = 'move';
                                 e.currentTarget.classList.add('drag-over');
@@ -467,7 +633,8 @@ function Game({ player, room }) {
                             e.currentTarget.classList.remove('drag-over');
                         }}
                         onDrop={(e) => {
-                            if (getPlayerCorner(currentPlayerIndex) === 'topLeft') {
+                            const isFirstTurn = tiles.length === 15 && gameState.turnAction === 'draw';
+                            if (getPlayerCorner(currentPlayerIndex) === 'topLeft' && isMyTurn && (gameState.turnAction === 'discard' || isFirstTurn)) {
                                 e.preventDefault();
                                 e.currentTarget.classList.remove('drag-over');
                                 try {
@@ -480,9 +647,10 @@ function Game({ player, room }) {
                         }}
                     />
                     <div
-                        className={`tile-drop-zone top-right ${getPlayerCorner(currentPlayerIndex) === 'topRight' ? 'active' : ''}`}
+                        className={`tile-drop-zone top-right ${getPlayerCorner(currentPlayerIndex) === 'topRight' && isMyTurn && (gameState.turnAction === 'discard' || tiles.length === 15) ? 'active' : ''}`}
                         onDragOver={(e) => {
-                            if (getPlayerCorner(currentPlayerIndex) === 'topRight') {
+                            const isFirstTurn = tiles.length === 15 && gameState.turnAction === 'draw';
+                            if (getPlayerCorner(currentPlayerIndex) === 'topRight' && isMyTurn && (gameState.turnAction === 'discard' || isFirstTurn)) {
                                 e.preventDefault();
                                 e.dataTransfer.dropEffect = 'move';
                                 e.currentTarget.classList.add('drag-over');
@@ -492,7 +660,8 @@ function Game({ player, room }) {
                             e.currentTarget.classList.remove('drag-over');
                         }}
                         onDrop={(e) => {
-                            if (getPlayerCorner(currentPlayerIndex) === 'topRight') {
+                            const isFirstTurn = tiles.length === 15 && gameState.turnAction === 'draw';
+                            if (getPlayerCorner(currentPlayerIndex) === 'topRight' && isMyTurn && (gameState.turnAction === 'discard' || isFirstTurn)) {
                                 e.preventDefault();
                                 e.currentTarget.classList.remove('drag-over');
                                 try {
@@ -505,9 +674,10 @@ function Game({ player, room }) {
                         }}
                     />
                     <div
-                        className={`tile-drop-zone bottom-left ${getPlayerCorner(currentPlayerIndex) === 'bottomLeft' ? 'active' : ''}`}
+                        className={`tile-drop-zone bottom-left ${getPlayerCorner(currentPlayerIndex) === 'bottomLeft' && isMyTurn && (gameState.turnAction === 'discard' || tiles.length === 15) ? 'active' : ''}`}
                         onDragOver={(e) => {
-                            if (getPlayerCorner(currentPlayerIndex) === 'bottomLeft') {
+                            const isFirstTurn = tiles.length === 15 && gameState.turnAction === 'draw';
+                            if (getPlayerCorner(currentPlayerIndex) === 'bottomLeft' && isMyTurn && (gameState.turnAction === 'discard' || isFirstTurn)) {
                                 e.preventDefault();
                                 e.dataTransfer.dropEffect = 'move';
                                 e.currentTarget.classList.add('drag-over');
@@ -517,7 +687,8 @@ function Game({ player, room }) {
                             e.currentTarget.classList.remove('drag-over');
                         }}
                         onDrop={(e) => {
-                            if (getPlayerCorner(currentPlayerIndex) === 'bottomLeft') {
+                            const isFirstTurn = tiles.length === 15 && gameState.turnAction === 'draw';
+                            if (getPlayerCorner(currentPlayerIndex) === 'bottomLeft' && isMyTurn && (gameState.turnAction === 'discard' || isFirstTurn)) {
                                 e.preventDefault();
                                 e.currentTarget.classList.remove('drag-over');
                                 try {
@@ -530,9 +701,10 @@ function Game({ player, room }) {
                         }}
                     />
                     <div
-                        className={`tile-drop-zone bottom-right ${getPlayerCorner(currentPlayerIndex) === 'bottomRight' ? 'active' : ''}`}
+                        className={`tile-drop-zone bottom-right ${getPlayerCorner(currentPlayerIndex) === 'bottomRight' && isMyTurn && (gameState.turnAction === 'discard' || tiles.length === 15) ? 'active' : ''}`}
                         onDragOver={(e) => {
-                            if (getPlayerCorner(currentPlayerIndex) === 'bottomRight') {
+                            const isFirstTurn = tiles.length === 15 && gameState.turnAction === 'draw';
+                            if (getPlayerCorner(currentPlayerIndex) === 'bottomRight' && isMyTurn && (gameState.turnAction === 'discard' || isFirstTurn)) {
                                 e.preventDefault();
                                 e.dataTransfer.dropEffect = 'move';
                                 e.currentTarget.classList.add('drag-over');
@@ -542,7 +714,8 @@ function Game({ player, room }) {
                             e.currentTarget.classList.remove('drag-over');
                         }}
                         onDrop={(e) => {
-                            if (getPlayerCorner(currentPlayerIndex) === 'bottomRight') {
+                            const isFirstTurn = tiles.length === 15 && gameState.turnAction === 'draw';
+                            if (getPlayerCorner(currentPlayerIndex) === 'bottomRight' && isMyTurn && (gameState.turnAction === 'discard' || isFirstTurn)) {
                                 e.preventDefault();
                                 e.currentTarget.classList.remove('drag-over');
                                 try {
@@ -558,7 +731,7 @@ function Game({ player, room }) {
                     {/* Atılan taşlar */}
                     <div className="discarded-tiles-container">
                         <div className="discarded-tiles top-left">
-                            {discardedTiles.topLeft.length > 0 && (
+                            {discardedTiles.topLeft && discardedTiles.topLeft.length > 0 && (
                                 <div className="discarded-tile topLeft">
                                     <Tile
                                         value={discardedTiles.topLeft[0].value}
@@ -569,7 +742,7 @@ function Game({ player, room }) {
                             )}
                         </div>
                         <div className="discarded-tiles top-right">
-                            {discardedTiles.topRight.length > 0 && (
+                            {discardedTiles.topRight && discardedTiles.topRight.length > 0 && (
                                 <div className="discarded-tile topRight">
                                     <Tile
                                         value={discardedTiles.topRight[0].value}
@@ -580,7 +753,7 @@ function Game({ player, room }) {
                             )}
                         </div>
                         <div className="discarded-tiles bottom-left">
-                            {discardedTiles.bottomLeft.length > 0 && (
+                            {discardedTiles.bottomLeft && discardedTiles.bottomLeft.length > 0 && (
                                 <div className="discarded-tile bottomLeft">
                                     <Tile
                                         value={discardedTiles.bottomLeft[0].value}
@@ -591,7 +764,7 @@ function Game({ player, room }) {
                             )}
                         </div>
                         <div className="discarded-tiles bottom-right">
-                            {discardedTiles.bottomRight.length > 0 && (
+                            {discardedTiles.bottomRight && discardedTiles.bottomRight.length > 0 && (
                                 <div className="discarded-tile bottomRight">
                                     <Tile
                                         value={discardedTiles.bottomRight[0].value}

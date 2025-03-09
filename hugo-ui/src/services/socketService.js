@@ -6,6 +6,7 @@ class SocketService {
     constructor() {
         this.socket = null;
         this.playerId = null;
+        this.activeRoomId = null;
     }
 
     connect() {
@@ -34,15 +35,30 @@ class SocketService {
     }
 
     createRoom(name, callback) {
-        this.socket.emit('room:create', { name, playerId: this.playerId }, callback);
+        this.socket.emit('room:create', { name, playerId: this.playerId }, (response) => {
+            if (response.success) {
+                this.activeRoomId = response.room.id;
+            }
+            if (callback) callback(response);
+        });
     }
 
     joinRoom(roomId, callback) {
-        this.socket.emit('room:join', { roomId, playerId: this.playerId }, callback);
+        this.socket.emit('room:join', { roomId, playerId: this.playerId }, (response) => {
+            if (response.success) {
+                this.activeRoomId = roomId;
+            }
+            if (callback) callback(response);
+        });
     }
 
     leaveRoom(roomId, callback) {
-        this.socket.emit('room:leave', { roomId, playerId: this.playerId }, callback);
+        this.socket.emit('room:leave', { roomId, playerId: this.playerId }, (response) => {
+            if (response.success) {
+                this.activeRoomId = null;
+            }
+            if (callback) callback(response);
+        });
     }
 
     getRooms(callback) {
@@ -50,19 +66,51 @@ class SocketService {
     }
 
     setReady(roomId, ready, callback) {
+        if (!roomId) {
+            roomId = this.activeRoomId;
+            if (!roomId) {
+                console.error('Aktif oda bulunamadı');
+                if (callback) callback({ success: false, error: 'Aktif oda bulunamadı' });
+                return;
+            }
+        }
+
         this.socket.emit('player:ready', { roomId, playerId: this.playerId, ready }, callback);
     }
 
     startGame(roomId, callback) {
+        if (!roomId) {
+            roomId = this.activeRoomId;
+            if (!roomId) {
+                console.error('Aktif oda bulunamadı');
+                if (callback) callback({ success: false, error: 'Aktif oda bulunamadı' });
+                return;
+            }
+        }
+
         this.socket.emit('game:start', { roomId, playerId: this.playerId }, callback);
     }
 
     drawTile(fromDiscard, callback) {
-        this.socket.emit('game:drawTile', { playerId: this.playerId, fromDiscard }, callback);
+        const roomId = this.activeRoomId;
+        if (!roomId) {
+            console.error('Aktif oda bulunamadı');
+            if (callback) callback({ success: false, error: 'Aktif oda bulunamadı' });
+            return;
+        }
+
+        this.socket.emit('game:drawTile', { playerId: this.playerId, roomId, fromDiscard }, callback);
     }
 
     discardTile(tileId, callback) {
-        this.socket.emit('game:discardTile', { playerId: this.playerId, tileId }, callback);
+        const roomId = this.activeRoomId;
+        if (!roomId) {
+            console.error('Aktif oda bulunamadı');
+            if (callback) callback({ success: false, error: 'Aktif oda bulunamadı' });
+            return;
+        }
+
+        this.socket.emit('game:discardTile', { playerId: this.playerId, roomId, tileId }, callback);
     }
 
     onPlayerJoined(callback) {

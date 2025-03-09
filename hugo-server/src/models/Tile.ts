@@ -5,7 +5,8 @@ export enum TileColor {
     YELLOW = 'yellow',
     BLUE = 'blue',
     BLACK = 'black',
-    JOKER = 'joker'
+    JOKER = 'joker',
+    PURPLE = 'purple'
 }
 
 export enum TileStatus {
@@ -19,12 +20,12 @@ export enum TileStatus {
 export class Tile {
     id: string;
     color: TileColor;
-    value: number;
+    value: number | string;
     status: TileStatus;
     isVisible: boolean;
     isJoker: boolean;
 
-    constructor(color: TileColor, value: number, isJoker: boolean = false) {
+    constructor(color: TileColor, value: number | string, isJoker: boolean = false) {
         this.id = uuidv4();
         this.color = color;
         this.value = value;
