@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import Tile from '../Tile/Tile';
 import '../../assets/css/components/TileHolder.css';
 
-const TileHolder = ({ tiles, tilePositions, onTileClick, onTileMove }) => {
+const TileHolder = ({ tiles, tilePositions, onTileClick, onTileMove, onDrawDiscardedTile }) => {
     const firstRowRef = useRef(null);
     const secondRowRef = useRef(null);
 
@@ -59,6 +59,13 @@ const TileHolder = ({ tiles, tilePositions, onTileClick, onTileMove }) => {
                 // İndeksi kontrol et
                 if (targetIndex < 0 || targetIndex >= TOTAL_CELLS) {
                     console.error('Geçersiz hedef indeks:', targetIndex);
+                    return;
+                }
+
+                // Eğer atılan bir taş ise, atılan taşı çek
+                if (tileData.isDiscarded) {
+                    console.log('Atılan taş ıstakaya bırakılıyor:', tileData);
+                    onDrawDiscardedTile(tileData.discardedFrom, tileData.sourceIndex, targetIndex);
                     return;
                 }
 

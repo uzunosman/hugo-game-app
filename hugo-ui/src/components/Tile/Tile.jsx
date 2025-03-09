@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import '../../assets/css/components/Tile.css';
 
-const Tile = ({ value, color, onClick, index, tile, isDiscarded }) => {
+const Tile = ({ value, color, onClick, index, tile, isDiscarded, canDrag, discardedFrom }) => {
     const tileRef = useRef(null);
     const [prevIndex, setPrevIndex] = useState(index);
 
@@ -9,12 +9,33 @@ const Tile = ({ value, color, onClick, index, tile, isDiscarded }) => {
     const tileValue = tile ? tile.value : value;
     const tileColor = tile ? tile.color : color;
 
+    // Atılan taşlar için log
+    if (isDiscarded) {
+        console.log("Discarded tile render:", {
+            tileValue,
+            tileColor,
+            isDiscarded,
+            canDrag,
+            discardedFrom,
+            index
+        });
+    }
+
     const handleDragStart = (e) => {
-        // Atılan taşlar sürüklenemez
-        if (isDiscarded) {
-            e.preventDefault();
-            return;
-        }
+        // Atılan taşlar sadece canDrag true ise sürüklenebilir
+        console.log("Drag start attempt:", {
+            isDiscarded,
+            canDrag,
+            tileValue,
+            tileColor,
+            discardedFrom
+        });
+
+        // Şimdilik bu kontrolü kaldıralım (test için)
+        // if (isDiscarded && !canDrag) {
+        //     e.preventDefault();
+        //     return;
+        // }
 
         try {
             const rect = e.target.getBoundingClientRect();
@@ -25,7 +46,9 @@ const Tile = ({ value, color, onClick, index, tile, isDiscarded }) => {
             const tileData = {
                 value: tileValue,
                 color: tileColor,
-                sourceIndex: index
+                sourceIndex: index,
+                isDiscarded: isDiscarded,
+                discardedFrom: discardedFrom
             };
 
             console.log('Sürükleme başladı:', tileData);
@@ -84,12 +107,13 @@ const Tile = ({ value, color, onClick, index, tile, isDiscarded }) => {
     return (
         <div
             ref={tileRef}
-            className={`tile ${tileColor} ${isDiscarded ? 'discarded' : ''}`}
+            className={`tile ${tileColor} ${isDiscarded ? 'discarded' : ''} ${canDrag && isDiscarded ? 'can-drag' : ''}`}
             onClick={handleClick}
-            draggable={!isDiscarded}
+            draggable={isDiscarded ? (canDrag ? "true" : "false") : "true"}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
             data-index={index}
+            data-discarded-from={discardedFrom}
         >
             {tileValue}
         </div>

@@ -288,4 +288,78 @@ export const handleTileMove = ({
         newPositions[targetIndex] = tileId;
         return newPositions;
     });
+};
+
+/**
+ * Atılan taşı çekme işlemi
+ * @param {Object} params - Parametreler
+ * @param {String} params.corner - Taşın atıldığı köşe
+ * @param {Number} params.tileIndex - Atılan taşın indeksi
+ * @param {Number} params.targetIndex - Hedef indeks (ıstakada)
+ * @param {Object} params.gameState - Oyun durumu
+ * @param {String} params.playerId - Oyuncunun ID'si
+ * @param {Object} params.discardedTiles - Atılan taşlar
+ * @param {Function} params.socketService - Socket servisi
+ * @param {Function} params.setTiles - Taşları güncelleyen fonksiyon
+ * @param {Function} params.setTilePositions - Taş pozisyonlarını güncelleyen fonksiyon
+ * @param {Function} params.setDiscardedTiles - Atılan taşları güncelleyen fonksiyon
+ * @param {Function} params.setGameState - Oyun durumunu güncelleyen fonksiyon
+ * @param {Function} params.setError - Hata mesajını güncelleyen fonksiyon
+ * @returns {void}
+ */
+export const handleDrawDiscardedTile = ({
+    corner,
+    tileIndex,
+    targetIndex,
+    gameState,
+    playerId,
+    discardedTiles,
+    socketService,
+    setTiles,
+    setTilePositions,
+    setDiscardedTiles,
+    setGameState,
+    setError
+}) => {
+    if (gameState.currentPlayerId !== playerId || gameState.turnAction !== 'draw') {
+        setError('Şu anda taş çekemezsiniz');
+        return;
+    }
+
+    // Atılan taşı al
+    const discardedTile = discardedTiles[corner][tileIndex];
+    if (!discardedTile) {
+        setError('Geçerli bir taş seçmelisiniz');
+        return;
+    }
+
+    // Sunucuya taş çekme isteği gönder
+    socketService.drawTile(true, (response) => {
+        if (response.success) {
+            // Yeni taşı ekle
+            setTiles(prevTiles => [...prevTiles, response.tile]);
+
+            // Yeni taşı ıstakaya yerleştir
+            setTilePositions(prevPositions => {
+                const newPositions = [...prevPositions];
+                newPositions[targetIndex] = response.tile.id;
+                return newPositions;
+            });
+
+            // Atılan taşı listeden kaldır
+            setDiscardedTiles(prevDiscardedTiles => {
+                const newDiscardedTiles = { ...prevDiscardedTiles };
+                newDiscardedTiles[corner] = newDiscardedTiles[corner].filter((_, i) => i !== tileIndex);
+                return newDiscardedTiles;
+            });
+
+            // Oyun durumunu güncelle
+            setGameState(prevState => ({
+                ...prevState,
+                turnAction: 'discard'
+            }));
+        } else {
+            setError(response.error || 'Taş çekilirken bir hata oluştu');
+        }
+    });
 }; 

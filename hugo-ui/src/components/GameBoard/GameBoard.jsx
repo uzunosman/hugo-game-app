@@ -13,6 +13,7 @@ import '../../assets/css/components/GameBoard.css';
  * @param {Function} props.handleTileClick - Taş tıklama işleyicisi
  * @param {Function} props.handleTileMove - Taş taşıma işleyicisi
  * @param {Function} props.handleDrawTile - Taş çekme işleyicisi
+ * @param {Function} props.handleDrawDiscardedTile - Atılan taşı çekme işleyicisi
  * @param {Boolean} props.isMyTurn - Oyuncunun sırası mı
  * @param {String} props.turnAction - Mevcut aksiyon (draw/discard)
  * @param {String} props.playerCorner - Oyuncunun köşesi
@@ -26,6 +27,7 @@ const GameBoard = ({
     handleTileClick,
     handleTileMove,
     handleDrawTile,
+    handleDrawDiscardedTile,
     isMyTurn,
     turnAction,
     playerCorner,
@@ -38,6 +40,7 @@ const GameBoard = ({
                 <DiscardAreas
                     discardedTiles={discardedTiles}
                     handleTileMove={handleTileMove}
+                    handleDrawDiscardedTile={handleDrawDiscardedTile}
                     isMyTurn={isMyTurn}
                     turnAction={turnAction}
                     playerCorner={playerCorner}
@@ -57,6 +60,7 @@ const GameBoard = ({
                     tilePositions={tilePositions}
                     onTileClick={handleTileClick}
                     onTileMove={handleTileMove}
+                    onDrawDiscardedTile={handleDrawDiscardedTile}
                 />
             </div>
         </div>

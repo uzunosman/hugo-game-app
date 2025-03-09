@@ -117,6 +117,19 @@
     opacity: 0.9;
 }
 
+.tile.discarded.can-drag {
+    cursor: grab;
+    pointer-events: all;
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+    opacity: 1;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tile.discarded.can-drag:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.5);
+}
+
 .tile.discarded:hover {
     transform: none;
 }

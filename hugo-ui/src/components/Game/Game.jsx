@@ -4,7 +4,7 @@ import GameBoard from '../GameBoard/GameBoard';
 import useGameState from '../../hooks/useGameState';
 import useGameSocket from '../../hooks/useGameSocket';
 import { getOrderedPlayers, getPlayerPosition, getPlayerCorner, getCurrentPlayerIndex } from '../../utils/gameUtils';
-import { handleDrawTile, handleDiscardTile, handleTileMove } from '../../utils/tileHandlers';
+import { handleDrawTile, handleDiscardTile, handleTileMove, handleDrawDiscardedTile } from '../../utils/tileHandlers';
 import '../../assets/css/components/GameBoard.css';
 
 /**
@@ -64,6 +64,32 @@ function Game({ player, room }) {
             setError,
             fromDiscard,
             setTilePositions
+        });
+    };
+
+    // Atılan taşı çekme işleyicisi
+    const onDrawDiscardedTile = (corner, tileIndex, targetIndex) => {
+        console.log("onDrawDiscardedTile called:", {
+            corner,
+            tileIndex,
+            targetIndex,
+            isMyTurn,
+            turnAction: gameState.turnAction
+        });
+
+        handleDrawDiscardedTile({
+            corner,
+            tileIndex,
+            targetIndex,
+            gameState,
+            playerId: player.id,
+            discardedTiles,
+            socketService,
+            setTiles,
+            setTilePositions,
+            setDiscardedTiles,
+            setGameState,
+            setError
         });
     };
 
@@ -134,6 +160,7 @@ function Game({ player, room }) {
                 handleTileClick={handleTileClick}
                 handleTileMove={onTileMove}
                 handleDrawTile={onDrawTile}
+                handleDrawDiscardedTile={onDrawDiscardedTile}
                 isMyTurn={isMyTurn}
                 turnAction={gameState.turnAction}
                 playerCorner={myCorner}
