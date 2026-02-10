@@ -43,6 +43,15 @@ function Game({ player, room }) {
     const isMyTurn = gameState.currentPlayerId === player.id;
     const myCorner = getPlayerCorner(0); // Kendimiz her zaman 0. indeksteyiz
 
+    // Debug için log
+    console.log('Game render:', {
+        player,
+        gameState,
+        isMyTurn,
+        currentPlayerIndex,
+        players
+    });
+
     // Taş tıklama işleyicisi
     const handleTileClick = (tileIndex) => {
         // Taş seçme/bırakma işlemi
@@ -74,9 +83,12 @@ function Game({ player, room }) {
             tileIndex,
             targetIndex,
             isMyTurn,
-            turnAction: gameState.turnAction
+            turnAction: gameState.turnAction,
+            currentPlayerId: gameState.currentPlayerId,
+            playerId: player.id
         });
 
+        // Doğrudan handleDrawDiscardedTile fonksiyonunu çağır
         handleDrawDiscardedTile({
             corner,
             tileIndex,

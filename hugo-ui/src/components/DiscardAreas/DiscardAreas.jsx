@@ -70,16 +70,22 @@ const DiscardAreas = ({
             corner
         });
 
-        // Şimdilik her zaman true döndürelim (test için)
+        // Test için her zaman true döndür
         return true;
+
+        // Sıradaki oyuncu ve çekme aşamasında ise true döndür
+        // return isMyTurn && turnAction === 'draw';
     };
 
     // Atılan taşa tıklama işleyicisi
     const handleDiscardedTileClick = (corner, tileIndex) => {
-        if (canDragDiscardedTile(corner)) {
-            // Atılan taşı çek
-            handleDrawDiscardedTile(corner, tileIndex);
-        }
+        console.log('Atılan taşa tıklandı:', corner, tileIndex);
+
+        // canDragDiscardedTile kontrolünü kaldıralım (test için)
+        // if (canDragDiscardedTile(corner)) {
+        // Atılan taşı çek
+        handleDrawDiscardedTile(corner, tileIndex);
+        // }
     };
 
     return (

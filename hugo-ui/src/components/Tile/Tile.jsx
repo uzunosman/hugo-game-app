@@ -31,7 +31,7 @@ const Tile = ({ value, color, onClick, index, tile, isDiscarded, canDrag, discar
             discardedFrom
         });
 
-        // Şimdilik bu kontrolü kaldıralım (test için)
+        // Sürükleme kontrolünü kaldıralım (test için)
         // if (isDiscarded && !canDrag) {
         //     e.preventDefault();
         //     return;
@@ -52,7 +52,14 @@ const Tile = ({ value, color, onClick, index, tile, isDiscarded, canDrag, discar
             };
 
             console.log('Sürükleme başladı:', tileData);
-            e.dataTransfer.setData('tile', JSON.stringify(tileData));
+
+            // Taş verisini text/plain formatında ayarla
+            const tileDataString = JSON.stringify(tileData);
+            e.dataTransfer.setData('text/plain', tileDataString);
+            e.dataTransfer.setData('tile', tileDataString);
+
+            // Sürükleme efektini ayarla
+            e.dataTransfer.effectAllowed = 'move';
 
             // Sürükleme sırasında taşı gizle
             setTimeout(() => {
@@ -109,7 +116,7 @@ const Tile = ({ value, color, onClick, index, tile, isDiscarded, canDrag, discar
             ref={tileRef}
             className={`tile ${tileColor} ${isDiscarded ? 'discarded' : ''} ${canDrag && isDiscarded ? 'can-drag' : ''}`}
             onClick={handleClick}
-            draggable={isDiscarded ? (canDrag ? "true" : "false") : "true"}
+            draggable="true"
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
             data-index={index}

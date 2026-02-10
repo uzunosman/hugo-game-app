@@ -45,8 +45,26 @@ const TileHolder = ({ tiles, tilePositions, onTileClick, onTileMove, onDrawDisca
         const row = e.currentTarget;
 
         try {
+            console.log('Drop event:', e);
+            console.log('Drop target:', e.target);
+            console.log('Cell:', cell);
+            console.log('Row:', row);
+
+            // dataTransfer'dan veriyi al
+            let tileDataString = e.dataTransfer.getData('tile');
+            if (!tileDataString) {
+                tileDataString = e.dataTransfer.getData('text/plain');
+            }
+
+            console.log('Tile data string:', tileDataString);
+
+            if (!tileDataString) {
+                console.error('Taş verisi bulunamadı');
+                return;
+            }
+
             if (cell) {
-                const tileData = JSON.parse(e.dataTransfer.getData('tile'));
+                const tileData = JSON.parse(tileDataString);
                 let targetIndex = parseInt(cell.dataset.index);
 
                 // İkinci satır için offset ekle
@@ -55,6 +73,7 @@ const TileHolder = ({ tiles, tilePositions, onTileClick, onTileMove, onDrawDisca
                 }
 
                 console.log(`Hedef hücre indeksi: ${targetIndex}, Satır: ${row === secondRowRef.current ? 'İkinci Satır' : 'Birinci Satır'}`);
+                console.log('Mevcut taş pozisyonları:', tilePositions);
 
                 // İndeksi kontrol et
                 if (targetIndex < 0 || targetIndex >= TOTAL_CELLS) {
@@ -65,6 +84,24 @@ const TileHolder = ({ tiles, tilePositions, onTileClick, onTileMove, onDrawDisca
                 // Eğer atılan bir taş ise, atılan taşı çek
                 if (tileData.isDiscarded) {
                     console.log('Atılan taş ıstakaya bırakılıyor:', tileData);
+
+                    // Hedef hücre dolu mu kontrol et
+                    if (tilePositions[targetIndex]) {
+                        console.log('Hedef hücre dolu:', targetIndex, tilePositions[targetIndex]);
+                        // Dolu hücreye bırakılamaz, boş bir hücre bul
+                        const emptyIndex = tilePositions.findIndex(pos => pos === null);
+                        if (emptyIndex !== -1) {
+                            // Boş hücre bulundu, oraya bırak
+                            console.log(`Hedef hücre dolu, boş hücre bulundu: ${emptyIndex}`);
+                            targetIndex = emptyIndex;
+                        } else {
+                            // Boş hücre bulunamadı, işlemi iptal et
+                            console.error('Boş hücre bulunamadı, taş bırakılamaz');
+                            return;
+                        }
+                    }
+
+                    console.log('onDrawDiscardedTile çağrılıyor:', tileData.discardedFrom, tileData.sourceIndex, targetIndex);
                     onDrawDiscardedTile(tileData.discardedFrom, tileData.sourceIndex, targetIndex);
                     return;
                 }

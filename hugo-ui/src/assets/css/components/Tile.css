@@ -124,18 +124,3 @@
     opacity: 1;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
-
-.tile.discarded.can-drag:hover {
-    transform: scale(1.05);
-    box-shadow: 0 0 12px rgba(255, 255, 255, 0.5);
-}
-
-.tile.discarded:hover {
-    transform: none;
-}
-
-.tile.discarded::after {
-    width: 6px;
-    height: 6px;
-    bottom: 6px;
-}

@@ -45,6 +45,7 @@ const useGameState = (player, room) => {
 
         // Oyun durumunu dinle
         socketService.onNextTurn((newGameState) => {
+            console.log('Oyun durumu güncellendi:', newGameState);
             setGameState(newGameState);
         });
 
@@ -53,7 +54,26 @@ const useGameState = (player, room) => {
             if (response.success) {
                 // Başka bir oyuncu taş çekti
                 if (response.playerId !== player.id) {
-                    console.log('Başka bir oyuncu taş çekti:', response.playerId);
+                    console.log('Başka bir oyuncu taş çekti:', response.playerId, response.fromDiscard);
+
+                    // Eğer atılan taşlardan çekildiyse, atılan taşlar listesinden kaldır
+                    if (response.fromDiscard) {
+                        // Hangi köşeden çekildiğini bilmiyoruz, bu yüzden tüm köşeleri kontrol etmeliyiz
+                        // Gerçek uygulamada, sunucudan hangi köşeden çekildiği bilgisi gelmeli
+                        setDiscardedTiles(prevDiscardedTiles => {
+                            const newDiscardedTiles = { ...prevDiscardedTiles };
+
+                            // Her köşede son taşı kaldır (basit bir yaklaşım)
+                            Object.keys(newDiscardedTiles).forEach(corner => {
+                                if (newDiscardedTiles[corner].length > 0) {
+                                    // Son taşı kaldır
+                                    newDiscardedTiles[corner] = newDiscardedTiles[corner].slice(0, -1);
+                                }
+                            });
+
+                            return newDiscardedTiles;
+                        });
+                    }
                 }
             }
         });

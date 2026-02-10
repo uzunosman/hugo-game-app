@@ -99,7 +99,16 @@ class SocketService {
             return;
         }
 
-        this.socket.emit('game:drawTile', { playerId: this.playerId, roomId, fromDiscard }, callback);
+        console.log('drawTile çağrılıyor:', {
+            playerId: this.playerId,
+            roomId,
+            fromDiscard
+        });
+
+        this.socket.emit('game:drawTile', { playerId: this.playerId, roomId, fromDiscard }, (response) => {
+            console.log('drawTile yanıtı:', response);
+            if (callback) callback(response);
+        });
     }
 
     discardTile(tileId, callback) {
