@@ -16,8 +16,8 @@ exports.config = {
     // Oyun yapılandırmaları
     game: {
         maxPlayers: 4,
-        minPlayers: 2,
-        maxRooms: 100,
+        minPlayers: 4,
+        maxRooms: 10,
         inactivityTimeout: 5 * 60 * 1000, // 5 dakika
         turnTimeout: 60 * 1000, // 1 dakika
         maxRounds: 9,

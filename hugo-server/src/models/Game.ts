@@ -24,6 +24,7 @@ export class Game {
     turnAction: TurnAction;
     indicatorTile: Tile | null;
     okeyTile: Tile | null;
+    lastDiscardPlayerId: string | null;
     createdAt: Date;
     lastActionTime: Date;
 
@@ -38,6 +39,7 @@ export class Game {
         this.turnAction = TurnAction.DRAW;
         this.indicatorTile = null;
         this.okeyTile = null;
+        this.lastDiscardPlayerId = null;
         this.createdAt = new Date();
         this.lastActionTime = new Date();
 
@@ -168,6 +170,11 @@ export class Game {
             return null;
         }
 
+        // İlk oyuncunun ilk el kuralı: 15 taşı varken taş çekemez, direkt atar
+        if (player.tiles.length === 15) {
+            return null;
+        }
+
         let drawnTile: Tile | undefined;
 
         if (fromDiscard && this.discardPile.length > 0) {
@@ -223,6 +230,7 @@ export class Game {
             discardedTile.setStatus(TileStatus.DISCARDED);
             discardedTile.setVisible(true);
             this.discardPile.push(discardedTile);
+            this.lastDiscardPlayerId = playerId;
             console.log(`[DEBUG] Taş atılan taşlar yığınına eklendi. Yeni yığın boyutu: ${this.discardPile.length}`);
 
             // Sırayı bir sonraki oyuncuya geçir
@@ -295,6 +303,7 @@ export class Game {
             round: this.round,
             turnAction: this.turnAction,
             indicatorTile: this.indicatorTile?.toJSON() || null,
+            lastDiscardPlayerId: this.lastDiscardPlayerId,
             isHugoRound: this.isHugoRound(),
             createdAt: this.createdAt
         };

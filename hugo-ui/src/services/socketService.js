@@ -170,6 +170,10 @@ class SocketService {
         this.socket.off('game:stateChange');
     }
 
+    requestTiles(playerId, callback) {
+        this.socket.emit('game:requestTiles', { playerId }, callback);
+    }
+
     offGameTiles() {
         this.socket.off('game:tiles');
     }

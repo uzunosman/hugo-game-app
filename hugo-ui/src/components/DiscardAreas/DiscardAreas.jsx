@@ -22,21 +22,25 @@ const DiscardAreas = ({
     turnAction,
     playerCorner,
     tilesLength,
-    currentPlayerIndex
+    currentPlayerIndex,
+    lastDiscardCorner
 }) => {
-    console.log("DiscardAreas render:", {
-        isMyTurn,
-        turnAction,
-        playerCorner,
-        tilesLength,
-        currentPlayerIndex,
-        discardedTiles
-    });
+
+    // Bir köşenin interaktif (pointer-events: all) olup olmayacağını belirle:
+    // 1. Kendi köşesi + discard aşaması → taş atma hedefi
+    // 2. lastDiscardCorner + draw aşaması → önceki oyuncunun taşını alma
+    const isCornerActive = (corner) => {
+        // İlk oyuncunun ilk el kuralı: 15 taş + draw → kendi köşesi atma için aktif
+        const isFirstHand = tilesLength === 15 && turnAction === 'draw';
+        const canDiscard = playerCorner === corner && isMyTurn && (turnAction === 'discard' || isFirstHand);
+        const canPickUp = corner === lastDiscardCorner && isMyTurn && turnAction === 'draw';
+        return canDiscard || canPickUp;
+    };
 
     // Köşe bırakma alanı için drag-drop işleyicileri
     const handleDragOver = (e, corner) => {
-        const isFirstTurn = tilesLength === 15 && turnAction === 'draw';
-        if (playerCorner === corner && isMyTurn && (turnAction === 'discard' || isFirstTurn)) {
+        const isFirstHand = tilesLength === 15 && turnAction === 'draw';
+        if (playerCorner === corner && isMyTurn && (turnAction === 'discard' || isFirstHand)) {
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
             e.currentTarget.classList.add('drag-over');
@@ -48,166 +52,81 @@ const DiscardAreas = ({
     };
 
     const handleDrop = (e, corner) => {
-        const isFirstTurn = tilesLength === 15 && turnAction === 'draw';
-        if (playerCorner === corner && isMyTurn && (turnAction === 'discard' || isFirstTurn)) {
+        const isFirstHand = tilesLength === 15 && turnAction === 'draw';
+        if (playerCorner === corner && isMyTurn && (turnAction === 'discard' || isFirstHand)) {
             e.preventDefault();
             e.currentTarget.classList.remove('drag-over');
             try {
-                const tileData = JSON.parse(e.dataTransfer.getData('tile'));
-                handleTileMove(tileData.sourceIndex, -1);
+                // 'tile' key bazı tarayıcılarda desteklenmeyebilir, text/plain fallback kullan
+                const raw = e.dataTransfer.getData('tile') || e.dataTransfer.getData('text/plain');
+                if (!raw) {
+                    console.error('Taş verisi alınamadı');
+                    return;
+                }
+                const tileData = JSON.parse(raw);
+                // Kendi ıstakasından sürüklenen taş olmalı (isDiscarded değil)
+                if (!tileData.isDiscarded) {
+                    handleTileMove(tileData.sourceIndex, -1);
+                }
             } catch (error) {
                 console.error('Taş bırakma sırasında hata:', error);
             }
         }
     };
 
-    // Atılan taşı sürükleyebilme koşulu
-    const canDragDiscardedTile = (corner) => {
-        // Sadece sıradaki oyuncu ve çekme aşamasında atılan taşlar sürüklenebilir
-        console.log("canDragDiscardedTile check:", {
-            isMyTurn,
-            turnAction,
-            corner
-        });
-
-        // Test için her zaman true döndür
-        return true;
-
-        // Sıradaki oyuncu ve çekme aşamasında ise true döndür
-        // return isMyTurn && turnAction === 'draw';
+    // Atılan taşı sürükleyebilme / alabilme koşulu:
+    // - Sıradaki oyuncu olmalı
+    // - Taş çekme aşamasında (draw) olmalı
+    // - Sadece bir önceki oyuncunun köşesindeki son taş alınabilir
+    const canTakeDiscardedTile = (corner, tileIndex) => {
+        if (!isMyTurn || turnAction !== 'draw') return false;
+        if (corner !== lastDiscardCorner) return false;
+        // Sadece köşedeki en son (üstteki) taş alınabilir
+        const cornerTiles = discardedTiles[corner] || [];
+        return tileIndex === cornerTiles.length - 1;
     };
 
     // Atılan taşa tıklama işleyicisi
     const handleDiscardedTileClick = (corner, tileIndex) => {
-        console.log('Atılan taşa tıklandı:', corner, tileIndex);
+        if (canTakeDiscardedTile(corner, tileIndex)) {
+            handleDrawDiscardedTile(corner, tileIndex);
+        }
+    };
 
-        // canDragDiscardedTile kontrolünü kaldıralım (test için)
-        // if (canDragDiscardedTile(corner)) {
-        // Atılan taşı çek
-        handleDrawDiscardedTile(corner, tileIndex);
-        // }
+    // Her köşe için yalnızca son atılan taşı render et
+    const renderCorner = (corner, positionClass) => {
+        const tiles = discardedTiles[corner] || [];
+        const lastTile = tiles.length > 0 ? tiles[tiles.length - 1] : null;
+        const lastIndex = tiles.length - 1;
+        const canDrag = lastTile ? canTakeDiscardedTile(corner, lastIndex) : false;
+
+        return (
+            <div
+                className={`tile-drop-zone ${positionClass} ${isCornerActive(corner) ? 'active' : ''}`}
+                onDragOver={(e) => handleDragOver(e, corner)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, corner)}
+            >
+                {lastTile && (
+                    <Tile
+                        tile={lastTile}
+                        onClick={() => handleDiscardedTileClick(corner, lastIndex)}
+                        isDiscarded={true}
+                        canDrag={canDrag}
+                        discardedFrom={corner}
+                        index={lastIndex}
+                    />
+                )}
+            </div>
+        );
     };
 
     return (
         <>
-            {/* Üst Sol Köşe */}
-            <div
-                className={`tile-drop-zone top-left ${playerCorner === 'topLeft' && isMyTurn && (turnAction === 'discard' || tilesLength === 15) ? 'active' : ''}`}
-                onDragOver={(e) => handleDragOver(e, 'topLeft')}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, 'topLeft')}
-            >
-                {discardedTiles.topLeft && discardedTiles.topLeft.length > 0 && (
-                    <div className="discarded-tiles">
-                        {discardedTiles.topLeft.map((tile, index) => {
-                            const canDrag = canDragDiscardedTile('topLeft');
-                            return (
-                                <div key={index} className="discarded-tile-wrapper">
-                                    <Tile
-                                        tile={tile}
-                                        onClick={() => handleDiscardedTileClick('topLeft', index)}
-                                        isDiscarded={true}
-                                        canDrag={canDrag}
-                                        discardedFrom="topLeft"
-                                        index={index}
-                                    />
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
-            </div>
-
-            {/* Üst Sağ Köşe */}
-            <div
-                className={`tile-drop-zone top-right ${playerCorner === 'topRight' && isMyTurn && (turnAction === 'discard' || tilesLength === 15) ? 'active' : ''}`}
-                onDragOver={(e) => handleDragOver(e, 'topRight')}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, 'topRight')}
-            >
-                {discardedTiles.topRight && discardedTiles.topRight.length > 0 && (
-                    <div className="discarded-tiles">
-                        {discardedTiles.topRight.map((tile, index) => {
-                            const canDrag = canDragDiscardedTile('topRight');
-                            return (
-                                <div key={index} className="discarded-tile-wrapper">
-                                    <Tile
-                                        tile={tile}
-                                        onClick={() => handleDiscardedTileClick('topRight', index)}
-                                        isDiscarded={true}
-                                        canDrag={canDrag}
-                                        discardedFrom="topRight"
-                                        index={index}
-                                    />
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
-            </div>
-
-            {/* Alt Sağ Köşe */}
-            <div
-                className={`tile-drop-zone bottom-right ${playerCorner === 'bottomRight' && isMyTurn && (turnAction === 'discard' || tilesLength === 15) ? 'active' : ''}`}
-                onDragOver={(e) => handleDragOver(e, 'bottomRight')}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, 'bottomRight')}
-            >
-                {discardedTiles.bottomRight && discardedTiles.bottomRight.length > 0 && (
-                    <div className="discarded-tiles">
-                        {discardedTiles.bottomRight.map((tile, index) => {
-                            const canDrag = canDragDiscardedTile('bottomRight');
-                            return (
-                                <div key={index} className="discarded-tile-wrapper">
-                                    <Tile
-                                        tile={tile}
-                                        onClick={() => handleDiscardedTileClick('bottomRight', index)}
-                                        isDiscarded={true}
-                                        canDrag={canDrag}
-                                        discardedFrom="bottomRight"
-                                        index={index}
-                                    />
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
-            </div>
-
-            {/* Alt Sol Köşe */}
-            <div
-                className={`tile-drop-zone bottom-left ${playerCorner === 'bottomLeft' && isMyTurn && (turnAction === 'discard' || tilesLength === 15) ? 'active' : ''}`}
-                onDragOver={(e) => handleDragOver(e, 'bottomLeft')}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, 'bottomLeft')}
-            >
-                {discardedTiles.bottomLeft && discardedTiles.bottomLeft.length > 0 && (
-                    <div className="discarded-tiles">
-                        {discardedTiles.bottomLeft.map((tile, index) => {
-                            const canDrag = canDragDiscardedTile('bottomLeft');
-                            console.log("Rendering discarded tile:", {
-                                tile,
-                                corner: 'bottomLeft',
-                                canDrag,
-                                isMyTurn,
-                                turnAction
-                            });
-                            return (
-                                <div key={index} className="discarded-tile-wrapper">
-                                    <Tile
-                                        tile={tile}
-                                        onClick={() => handleDiscardedTileClick('bottomLeft', index)}
-                                        isDiscarded={true}
-                                        canDrag={canDrag}
-                                        discardedFrom="bottomLeft"
-                                        index={index}
-                                    />
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
-            </div>
+            {renderCorner('topLeft', 'top-left')}
+            {renderCorner('topRight', 'top-right')}
+            {renderCorner('bottomRight', 'bottom-right')}
+            {renderCorner('bottomLeft', 'bottom-left')}
         </>
     );
 };

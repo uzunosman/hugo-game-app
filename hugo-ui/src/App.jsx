@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Login from './components/Login'
 import Lobby from './components/Lobby'
 import Room from './components/Room'
+import socketService from './services/socketService'
 import './assets/css/global.css';
 
 function App() {
@@ -19,6 +20,37 @@ function App() {
   const handleLeaveRoom = () => {
     setCurrentRoom(null)
   }
+
+  // --- TEST: Otomatik giriş, oda katılımı ve hazır olma ---
+  // Bu blok test amaçlıdır, üretimde kaldırılacak.
+  useEffect(() => {
+    const randomName = `Player_${Math.floor(100 + Math.random() * 900)}`;
+
+    socketService.connect();
+
+    socketService.registerPlayer(randomName, (registerResponse) => {
+      if (!registerResponse.success) return;
+
+      const playerData = registerResponse.player;
+      setPlayer(playerData);
+
+      socketService.getRooms((roomsResponse) => {
+        const rooms = roomsResponse?.rooms ?? [];
+        if (rooms.length === 0) return;
+
+        const firstRoom = rooms[0];
+
+        socketService.joinRoom(firstRoom.id, (joinResponse) => {
+          if (!joinResponse.success) return;
+
+          setCurrentRoom(joinResponse.room);
+
+          socketService.setReady(firstRoom.id, true, () => {});
+        });
+      });
+    });
+  }, []);
+  // --- TEST SONU ---
 
   // Kullanıcı giriş yapmadıysa Login bileşenini göster
   if (!player) {

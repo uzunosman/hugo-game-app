@@ -26,6 +26,7 @@ class Game {
         this.turnAction = TurnAction.DRAW;
         this.indicatorTile = null;
         this.okeyTile = null;
+        this.lastDiscardPlayerId = null;
         this.createdAt = new Date();
         this.lastActionTime = new Date();
         // Oyunu başlat
@@ -55,9 +56,9 @@ class Game {
                 this.deck.push(new Tile_1.Tile(color, value));
             }
         });
-        // 2 adet joker taşı ekle
-        this.deck.push(new Tile_1.Tile(Tile_1.TileColor.JOKER, 0, true));
-        this.deck.push(new Tile_1.Tile(Tile_1.TileColor.JOKER, 0, true));
+        // 2 adet joker taşı ekle (mor renkte ve "H" değerinde)
+        this.deck.push(new Tile_1.Tile(Tile_1.TileColor.PURPLE, 'H', true));
+        this.deck.push(new Tile_1.Tile(Tile_1.TileColor.PURPLE, 'H', true));
     }
     shuffleDeck() {
         // Fisher-Yates algoritması ile taşları karıştır
@@ -90,15 +91,19 @@ class Game {
         if (!this.indicatorTile || this.indicatorTile.isJoker)
             return;
         // Gösterge taşının bir üstü okey olur
-        let okeyValue = this.indicatorTile.value + 1;
-        // Eğer gösterge 13 ise, okey 1 olur
-        if (okeyValue > 13) {
-            okeyValue = 1;
-        }
-        // Okey taşını bul (aynı renkte ve bir üst değerde)
-        const okeyTile = this.deck.find(tile => tile.color === this.indicatorTile?.color && tile.value === okeyValue);
-        if (okeyTile) {
-            this.okeyTile = okeyTile;
+        let okeyValue;
+        // Eğer gösterge taşının değeri sayı ise
+        if (typeof this.indicatorTile.value === 'number') {
+            okeyValue = this.indicatorTile.value + 1;
+            // Eğer gösterge 13 ise, okey 1 olur
+            if (okeyValue > 13) {
+                okeyValue = 1;
+            }
+            // Okey taşını bul (aynı renkte ve bir üst değerde)
+            const okeyTile = this.deck.find(tile => tile.color === this.indicatorTile?.color && tile.value === okeyValue);
+            if (okeyTile) {
+                this.okeyTile = okeyTile;
+            }
         }
     }
     dealTiles() {
@@ -128,6 +133,10 @@ class Game {
         if (!player || !this.isPlayerTurn(playerId) || this.turnAction !== TurnAction.DRAW) {
             return null;
         }
+        // İlk oyuncunun ilk el kuralı: 15 taşı varken taş çekemez, direkt atar
+        if (player.tiles.length === 15) {
+            return null;
+        }
         let drawnTile;
         if (fromDiscard && this.discardPile.length > 0) {
             // Atılan taşlardan çek
@@ -146,22 +155,42 @@ class Game {
         return null;
     }
     discardTile(playerId, tileId) {
+        console.log(`[DEBUG] discardTile çağrıldı - playerId: ${playerId}, tileId: ${tileId}`);
         // Oyuncunun sırası mı kontrol et
         const player = this.getPlayerById(playerId);
-        if (!player || !this.isPlayerTurn(playerId) || this.turnAction !== TurnAction.DISCARD) {
+        console.log(`[DEBUG] Oyuncu bulundu mu: ${!!player}`);
+        if (!player) {
+            console.log(`[DEBUG] Oyuncu bulunamadı: ${playerId}`);
+            return null;
+        }
+        const isPlayerTurn = this.isPlayerTurn(playerId);
+        console.log(`[DEBUG] Oyuncunun sırası mı: ${isPlayerTurn}`);
+        console.log(`[DEBUG] Mevcut aksiyon: ${this.turnAction}`);
+        // İlk tur kontrolü - oyuncunun 15 taşı varsa ve sırası geldiyse taş atabilir
+        const isFirstTurn = player.tiles.length === 15 && this.turnAction === TurnAction.DRAW;
+        console.log(`[DEBUG] İlk tur mu: ${isFirstTurn}, Taş sayısı: ${player.tiles.length}`);
+        if (!isPlayerTurn || (this.turnAction !== TurnAction.DISCARD && !isFirstTurn)) {
+            console.log(`[DEBUG] Oyuncunun sırası değil veya taş atma aksiyonu değil`);
             return null;
         }
         // Taşı oyuncudan çıkar
         const discardedTile = player.removeTile(tileId);
+        console.log(`[DEBUG] Taş oyuncudan çıkarıldı mı: ${!!discardedTile}`);
         if (discardedTile) {
             // Taşı atılan taşlar yığınına ekle
             discardedTile.setStatus(Tile_1.TileStatus.DISCARDED);
             discardedTile.setVisible(true);
             this.discardPile.push(discardedTile);
+            this.lastDiscardPlayerId = playerId;
+            console.log(`[DEBUG] Taş atılan taşlar yığınına eklendi. Yeni yığın boyutu: ${this.discardPile.length}`);
             // Sırayı bir sonraki oyuncuya geçir
             this.nextTurn();
+            console.log(`[DEBUG] Sıra bir sonraki oyuncuya geçti. Yeni oyuncu indeksi: ${this.currentPlayerIndex}`);
             this.lastActionTime = new Date();
             return discardedTile;
+        }
+        else {
+            console.log(`[DEBUG] Taş oyuncudan çıkarılamadı. Taş ID: ${tileId}`);
         }
         return null;
     }
@@ -183,7 +212,7 @@ class Game {
     }
     isHugoRound() {
         // 1., 5. ve 9. turlar Hugo turudur
-        return this.round === 1 || this.round === 5 || this.round === 9;
+        return [1, 5, 9].includes(this.round);
     }
     toJSON() {
         return {
@@ -214,6 +243,7 @@ class Game {
             round: this.round,
             turnAction: this.turnAction,
             indicatorTile: this.indicatorTile?.toJSON() || null,
+            lastDiscardPlayerId: this.lastDiscardPlayerId,
             isHugoRound: this.isHugoRound(),
             createdAt: this.createdAt
         };

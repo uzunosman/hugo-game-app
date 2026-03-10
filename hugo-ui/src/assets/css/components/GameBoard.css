@@ -15,10 +15,11 @@
     align-items: center;
     background-color: rgba(0, 0, 0, 0.1);
     width: calc(100% - 60px);
-    height: calc(100vh - 200px);
-    min-height: 400px;
+    /* TileHolder fixed+bottom:0, ~155px yükseklik → board aşağıda çakışmasın */
+    height: calc(100vh - 230px);
+    min-height: 360px;
     max-height: 600px;
-    margin: 30px 30px 170px 30px;
+    margin: 20px 30px 165px 30px;
     box-sizing: border-box;
 }
 
@@ -35,29 +36,38 @@
 
 .tile-drop-zone {
     position: absolute;
-    width: 40px;
-    height: 60px;
+    width: 50px;
+    height: 70px;
     border: 2px dashed rgba(255, 255, 255, 0.15);
-    border-radius: 4px;
+    border-radius: 6px;
     display: flex;
     justify-content: center;
     align-items: center;
     transition: all 0.2s ease;
     background-color: rgba(255, 255, 255, 0.02);
-    z-index: 100;
+    /* Pasif zonlar TileHolder'ın altında kalır */
+    z-index: 50;
     pointer-events: none;
+    overflow: visible;
 }
 
 .tile-drop-zone.active {
-    border-color: rgba(255, 255, 255, 0.3);
-    background-color: rgba(255, 255, 255, 0.05);
+    /* Aktif zon TileHolder (z-index:100) ve diğer her şeyin üstünde */
+    z-index: 300;
     pointer-events: all;
+    /* Aktifken daha büyük ve görünür hedef alanı */
+    width: 80px;
+    height: 100px;
+    border-color: rgba(255, 255, 255, 0.45);
+    background-color: rgba(255, 255, 255, 0.06);
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.08);
 }
 
 .tile-drop-zone.active.drag-over {
-    background-color: rgba(255, 255, 255, 0.15);
-    border-color: rgba(255, 255, 255, 0.6);
+    background-color: rgba(255, 255, 255, 0.18);
+    border-color: rgba(255, 255, 255, 0.8);
     transform: scale(1.05);
+    box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.15);
 }
 
 .tile-drop-zone.top-left {
@@ -70,6 +80,8 @@
     right: var(--spacing-lg);
 }
 
+/* Alt köşeler: TileHolder (fixed, ~150px yükseklik) ile çakışmaması için
+   board'un alt kenarından yeteri kadar içeride tutulur */
 .tile-drop-zone.bottom-left {
     bottom: var(--spacing-lg);
     left: var(--spacing-lg);
@@ -142,21 +154,24 @@
 
 @media (max-width: 1280px) {
     .board-content {
-        width: 900px;
+        width: 100%;
     }
 }
 
-@media (max-height: 900px) {
+/* Küçük yükseklikte drop zone'ların TileHolder ile çakışmaması için
+   board margin-bottom TileHolder yüksekliğinden büyük tutulur */
+@media (max-height: 700px) {
     .game-board {
         height: calc(100vh - 200px);
-        margin: 30px 30px 170px 30px;
+        min-height: 280px;
+        margin: 10px 20px 160px 20px;
     }
 }
 
-@media (min-height: 901px) {
+@media (min-height: 701px) {
     .game-board {
-        height: calc(100vh - 200px);
-        margin: 30px 30px 170px 30px;
+        height: calc(100vh - 230px);
+        margin: 20px 30px 165px 30px;
         max-height: 600px;
     }
 

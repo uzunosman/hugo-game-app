@@ -26,13 +26,25 @@ const GameBoard = ({
     discardedTiles,
     handleTileClick,
     handleTileMove,
+    handleTileDoubleClick,
     handleDrawTile,
     handleDrawDiscardedTile,
+    handleDrawFromDeck,
     isMyTurn,
     turnAction,
     playerCorner,
-    currentPlayerIndex
+    currentPlayerIndex,
+    lastDiscardCorner,
+    deckCount,
+    indicatorTile,
+    gameRound
 }) => {
+    // İlk oyuncunun ilk el kuralı: oyunun ilk turu (15 taş + draw aşaması).
+    // Bu durumda oyuncu desteden çekemez, direkt taş atar.
+    // Sonraki turlarda player.tiles 14'e düşer → bu engel bir daha tetiklenmez.
+    const isFirstHandBlock = tiles.length === 15 && turnAction === 'draw';
+    const canDrawFromDeck = isMyTurn && turnAction === 'draw' && !isFirstHandBlock;
+
     return (
         <div className="game-board">
             <div className="board-content">
@@ -46,12 +58,16 @@ const GameBoard = ({
                     playerCorner={playerCorner}
                     tilesLength={tiles.length}
                     currentPlayerIndex={currentPlayerIndex}
+                    lastDiscardCorner={lastDiscardCorner}
                 />
 
                 {/* Merkez Alan */}
                 <CenterArea
                     onDrawTile={() => handleDrawTile(false)}
-                    canDraw={isMyTurn && turnAction === 'draw'}
+                    canDrawTile={canDrawFromDeck}
+                    remainingTiles={Array(deckCount ?? 0).fill(null)}
+                    openTile={indicatorTile}
+                    gameRound={gameRound}
                 />
 
                 {/* Oyuncunun Taşları */}
@@ -60,7 +76,9 @@ const GameBoard = ({
                     tilePositions={tilePositions}
                     onTileClick={handleTileClick}
                     onTileMove={handleTileMove}
+                    onTileDoubleClick={handleTileDoubleClick}
                     onDrawDiscardedTile={handleDrawDiscardedTile}
+                    onDrawFromDeck={handleDrawFromDeck}
                 />
             </div>
         </div>

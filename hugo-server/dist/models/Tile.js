@@ -9,6 +9,7 @@ var TileColor;
     TileColor["BLUE"] = "blue";
     TileColor["BLACK"] = "black";
     TileColor["JOKER"] = "joker";
+    TileColor["PURPLE"] = "purple";
 })(TileColor || (exports.TileColor = TileColor = {}));
 var TileStatus;
 (function (TileStatus) {

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import '../../assets/css/components/Tile.css';
 
-const Tile = ({ value, color, onClick, index, tile, isDiscarded, canDrag, discardedFrom }) => {
+const Tile = ({ value, color, onClick, onDoubleClick, index, tile, isDiscarded, canDrag, discardedFrom }) => {
     const tileRef = useRef(null);
     const [prevIndex, setPrevIndex] = useState(index);
 
@@ -31,11 +31,11 @@ const Tile = ({ value, color, onClick, index, tile, isDiscarded, canDrag, discar
             discardedFrom
         });
 
-        // Sürükleme kontrolünü kaldıralım (test için)
-        // if (isDiscarded && !canDrag) {
-        //     e.preventDefault();
-        //     return;
-        // }
+        // Atılan taşlar sadece canDrag=true olduğunda sürüklenebilir
+        if (isDiscarded && !canDrag) {
+            e.preventDefault();
+            return;
+        }
 
         try {
             const rect = e.target.getBoundingClientRect();
@@ -116,6 +116,7 @@ const Tile = ({ value, color, onClick, index, tile, isDiscarded, canDrag, discar
             ref={tileRef}
             className={`tile ${tileColor} ${isDiscarded ? 'discarded' : ''} ${canDrag && isDiscarded ? 'can-drag' : ''}`}
             onClick={handleClick}
+            onDoubleClick={onDoubleClick}
             draggable="true"
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}

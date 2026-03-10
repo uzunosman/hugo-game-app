@@ -103,11 +103,15 @@
     background-color: #FFC107;
 }
 
-.draggable-tile {
+.deck-tile-wrapper {
+    display: inline-flex;
+}
+
+.deck-tile-wrapper .center-tile.closed {
     cursor: grab;
 }
 
-.draggable-tile:active {
+.deck-tile-wrapper .center-tile.closed:active {
     cursor: grabbing;
 }
 
@@ -117,7 +121,7 @@
 }
 
 .center-tile.disabled,
-.draggable-tile.disabled {
+.deck-tile-wrapper.disabled .center-tile.closed {
     opacity: 0.5;
     cursor: not-allowed;
     pointer-events: none;

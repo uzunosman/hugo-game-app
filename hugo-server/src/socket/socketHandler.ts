@@ -365,6 +365,31 @@ export const setupSocketHandlers = (io: Server) => {
             }
         });
 
+        // Oyuncu taşlarını talep eder (game:tiles event'ini kaçıran istemciler için)
+        socket.on('game:requestTiles', (data: { playerId: string }, callback) => {
+            try {
+                const { playerId } = data;
+
+                const player = gameManager.getPlayerById(playerId);
+                if (!player || !player.roomId) {
+                    return callback({ success: false, error: 'Oyuncu bulunamadı' });
+                }
+
+                const room = gameManager.getRoomById(player.roomId);
+                if (!room || !room.game) {
+                    return callback({ success: false, error: 'Aktif oyun bulunamadı' });
+                }
+
+                callback({
+                    success: true,
+                    tiles: player.tiles.map((tile: any) => tile.toJSON())
+                });
+            } catch (error) {
+                console.error('game:requestTiles hatası:', error);
+                callback({ success: false, error: 'Taşlar alınırken bir hata oluştu' });
+            }
+        });
+
         socket.on('game:drawTile', (data: { playerId: string, fromDiscard: boolean }, callback) => {
             try {
                 const { playerId, fromDiscard } = data;
@@ -385,6 +410,9 @@ export const setupSocketHandlers = (io: Server) => {
                     });
                 }
 
+                // fromDiscard ise kimin taşını çektiğini kaydet
+                const fromDiscardOfPlayerId = fromDiscard ? room.game.lastDiscardPlayerId : null;
+
                 // Taş çek
                 const drawnTile = gameManager.drawTile(playerId, fromDiscard);
 
@@ -399,12 +427,14 @@ export const setupSocketHandlers = (io: Server) => {
                 socket.to(player.roomId).emit('game:tileDraw', {
                     success: true,
                     playerId,
-                    fromDiscard
+                    fromDiscard,
+                    fromDiscardOfPlayerId
                 });
 
                 callback({
                     success: true,
-                    tile: drawnTile.toJSON()
+                    tile: drawnTile.toJSON(),
+                    fromDiscardOfPlayerId
                 });
             } catch (error) {
                 console.error('Taş çekme hatası:', error);
@@ -445,6 +475,9 @@ export const setupSocketHandlers = (io: Server) => {
                     });
                 }
 
+                // Sıradaki oyuncuyu belirle
+                const nextPlayer = room.players.find(p => p.isTurn);
+
                 // Tüm oyunculara atılan taşı bildir
                 io.to(player.roomId).emit('game:tileDiscard', {
                     success: true,
@@ -455,17 +488,15 @@ export const setupSocketHandlers = (io: Server) => {
                     }
                 });
 
-                // Sıradaki oyuncuya bildir
-                const nextPlayer = room.players.find(p => p.isTurn);
-                if (nextPlayer) {
-                    io.to(player.roomId).emit('game:nextTurn', {
-                        success: true,
-                        playerId: nextPlayer.id
-                    });
-                }
+                // Sıra değişimini bildir
+                io.to(player.roomId).emit('game:nextTurn', {
+                    currentPlayerId: nextPlayer?.id || null,
+                    turnAction: 'draw'
+                });
 
                 callback({
-                    success: true
+                    success: true,
+                    nextPlayerId: nextPlayer?.id || null
                 });
             } catch (error) {
                 console.error('Taş atma hatası:', error);

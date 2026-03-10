@@ -21,32 +21,49 @@ const useGameState = (player, room) => {
         bottomRight: [],
         bottomLeft: []
     });
+    // En son taş atan oyuncunun ID'si (hangi köşeden çekilebileceğini belirlemek için)
+    const [lastDiscardPlayerId, setLastDiscardPlayerId] = useState(room.game?.lastDiscardPlayerId || null);
+
+    // Gelen taş listesini state'e ve pozisyonlara uygula
+    const applyTiles = (tileList) => {
+        setTiles(tileList);
+        const newTilePositions = Array(30).fill(null);
+        tileList.forEach((tile, index) => {
+            if (index < 30) {
+                newTilePositions[index] = tile.id;
+            }
+        });
+        setTilePositions(newTilePositions);
+    };
 
     useEffect(() => {
         // Taşları dinle
         socketService.onGameTiles((response) => {
             if (response.success) {
-                // Taşları al
-                setTiles(response.tiles);
-
-                // Taşları ıstakaya yerleştir
-                const newTilePositions = Array(30).fill(null);
-                response.tiles.forEach((tile, index) => {
-                    // İlk 15 taşı ilk satıra, sonraki taşları ikinci satıra yerleştir
-                    if (index < 30) {
-                        newTilePositions[index] = tile.id;
-                    }
-                });
-                setTilePositions(newTilePositions);
+                applyTiles(response.tiles);
             } else {
                 setError(response.error || 'Taşlar alınırken bir hata oluştu');
             }
         });
 
-        // Oyun durumunu dinle
-        socketService.onNextTurn((newGameState) => {
-            console.log('Oyun durumu güncellendi:', newGameState);
-            setGameState(newGameState);
+        // game:tiles event'i mount öncesi gelmiş olabilir (race condition).
+        // Oyun zaten başlamışsa sunucudan taşları talep et.
+        if (room.game && room.status === 'playing') {
+            socketService.requestTiles(player.id, (response) => {
+                if (response.success && response.tiles?.length > 0) {
+                    applyTiles(response.tiles);
+                }
+            });
+        }
+
+        // Oyun durumunu dinle — sadece ilgili alanları güncelle
+        socketService.onNextTurn((data) => {
+            console.log('Sıra değişti:', data);
+            setGameState(prevState => ({
+                ...prevState,
+                currentPlayerId: data.currentPlayerId,
+                turnAction: data.turnAction || 'draw'
+            }));
         });
 
         // Taş çekme işlemini dinle
@@ -56,23 +73,26 @@ const useGameState = (player, room) => {
                 if (response.playerId !== player.id) {
                     console.log('Başka bir oyuncu taş çekti:', response.playerId, response.fromDiscard);
 
-                    // Eğer atılan taşlardan çekildiyse, atılan taşlar listesinden kaldır
-                    if (response.fromDiscard) {
-                        // Hangi köşeden çekildiğini bilmiyoruz, bu yüzden tüm köşeleri kontrol etmeliyiz
-                        // Gerçek uygulamada, sunucudan hangi köşeden çekildiği bilgisi gelmeli
-                        setDiscardedTiles(prevDiscardedTiles => {
-                            const newDiscardedTiles = { ...prevDiscardedTiles };
+                    // Desteden çekildiyse deckCount'u düşür
+                    if (!response.fromDiscard) {
+                        setGameState(prevState => ({
+                            ...prevState,
+                            deckCount: Math.max(0, (prevState.deckCount ?? 0) - 1)
+                        }));
+                    }
 
-                            // Her köşede son taşı kaldır (basit bir yaklaşım)
-                            Object.keys(newDiscardedTiles).forEach(corner => {
+                    // Atılan taşlardan çekildiyse, o oyuncunun köşesinden son taşı kaldır
+                    if (response.fromDiscard && response.fromDiscardOfPlayerId) {
+                        const corner = getCornerByPlayerId(response.fromDiscardOfPlayerId);
+                        if (corner) {
+                            setDiscardedTiles(prevDiscardedTiles => {
+                                const newDiscardedTiles = { ...prevDiscardedTiles };
                                 if (newDiscardedTiles[corner].length > 0) {
-                                    // Son taşı kaldır
                                     newDiscardedTiles[corner] = newDiscardedTiles[corner].slice(0, -1);
                                 }
+                                return newDiscardedTiles;
                             });
-
-                            return newDiscardedTiles;
-                        });
+                        }
                     }
                 }
             }
@@ -81,11 +101,13 @@ const useGameState = (player, room) => {
         // Taş atma işlemini dinle
         socketService.onTileDiscard((response) => {
             if (response.success) {
-                // Başka bir oyuncu taş attı
+                // En son atan oyuncuyu güncelle (kendimiz dahil)
+                setLastDiscardPlayerId(response.playerId);
+
+                // Başka bir oyuncu taş attıysa köşeye ekle (kendi taşımızı handler'da zaten ekliyoruz)
                 if (response.playerId !== player.id) {
                     console.log('Başka bir oyuncu taş attı:', response.playerId, response.tile);
 
-                    // Atılan taşı köşeye ekle
                     const discardedTile = response.tile;
                     const corner = getCornerByPlayerId(response.playerId);
 
@@ -170,7 +192,9 @@ const useGameState = (player, room) => {
         tilePositions,
         setTilePositions,
         discardedTiles,
-        setDiscardedTiles
+        setDiscardedTiles,
+        lastDiscardPlayerId,
+        setLastDiscardPlayerId
     };
 };
 

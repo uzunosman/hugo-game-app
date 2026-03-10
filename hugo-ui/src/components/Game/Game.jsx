@@ -31,7 +31,8 @@ function Game({ player, room }) {
         tilePositions,
         setTilePositions,
         discardedTiles,
-        setDiscardedTiles
+        setDiscardedTiles,
+        lastDiscardPlayerId
     } = useGameState(player, room);
 
     // Socket işlevlerini al
@@ -42,6 +43,14 @@ function Game({ player, room }) {
     const currentPlayerIndex = getCurrentPlayerIndex(players, gameState.currentPlayerId);
     const isMyTurn = gameState.currentPlayerId === player.id;
     const myCorner = getPlayerCorner(0); // Kendimiz her zaman 0. indeksteyiz
+
+    // En son taş atan oyuncunun köşesini hesapla (sıradaki oyuncunun çekebileceği köşe)
+    const lastDiscardCorner = (() => {
+        if (!lastDiscardPlayerId) return null;
+        const idx = players.findIndex(p => p.id === lastDiscardPlayerId);
+        if (idx === -1) return null;
+        return getPlayerCorner(idx);
+    })();
 
     // Debug için log
     console.log('Game render:', {
@@ -62,8 +71,8 @@ function Game({ player, room }) {
         }
     };
 
-    // Taş çekme işleyicisi
-    const onDrawTile = (fromDiscard) => {
+    // Taş çekme işleyicisi (tıklama veya sürükle-bırak)
+    const onDrawTile = (fromDiscard, targetIndex) => {
         handleDrawTile({
             gameState,
             playerId: player.id,
@@ -72,8 +81,14 @@ function Game({ player, room }) {
             setGameState,
             setError,
             fromDiscard,
-            setTilePositions
+            setTilePositions,
+            targetIndex
         });
+    };
+
+    // Desteden sürükle-bırak ile taş çekme
+    const onDrawFromDeck = (targetIndex) => {
+        onDrawTile(false, targetIndex);
     };
 
     // Atılan taşı çekme işleyicisi
@@ -123,6 +138,11 @@ function Game({ player, room }) {
         });
     };
 
+    // Taşa çift tıklandığında köşeye at (targetIndex = -1 → sürükle-bırak köşe atma ile aynı mantık)
+    const onTileDoubleClick = (positionIndex) => {
+        onTileMove(positionIndex, -1);
+    };
+
     // Taş taşıma işleyicisi
     const onTileMove = (sourceIndex, targetIndex) => {
         handleTileMove({
@@ -133,10 +153,12 @@ function Game({ player, room }) {
             gameState,
             playerId: player.id,
             socketService,
+            setTiles,
             setTilePositions,
             setDiscardedTiles,
             setLoading,
             setError,
+            setGameState,
             getPlayerCorner: (index) => getPlayerCorner(index),
             currentPlayerIndex
         });
@@ -171,12 +193,18 @@ function Game({ player, room }) {
                 discardedTiles={discardedTiles}
                 handleTileClick={handleTileClick}
                 handleTileMove={onTileMove}
+                handleTileDoubleClick={onTileDoubleClick}
                 handleDrawTile={onDrawTile}
                 handleDrawDiscardedTile={onDrawDiscardedTile}
+                handleDrawFromDeck={onDrawFromDeck}
                 isMyTurn={isMyTurn}
                 turnAction={gameState.turnAction}
                 playerCorner={myCorner}
                 currentPlayerIndex={currentPlayerIndex}
+                lastDiscardCorner={lastDiscardCorner}
+                deckCount={gameState.deckCount}
+                indicatorTile={gameState.indicatorTile}
+                gameRound={gameState.round}
             />
         </div>
     );

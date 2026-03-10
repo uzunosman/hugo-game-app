@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import Tile from '../Tile/Tile';
 import '../../assets/css/components/TileHolder.css';
 
-const TileHolder = ({ tiles, tilePositions, onTileClick, onTileMove, onDrawDiscardedTile }) => {
+const TileHolder = ({ tiles, tilePositions, onTileClick, onTileMove, onTileDoubleClick, onDrawDiscardedTile, onDrawFromDeck }) => {
     const firstRowRef = useRef(null);
     const secondRowRef = useRef(null);
 
@@ -63,8 +63,22 @@ const TileHolder = ({ tiles, tilePositions, onTileClick, onTileMove, onDrawDisca
                 return;
             }
 
+            const tileData = JSON.parse(tileDataString);
+
+            // Desteden sürüklenerek bırakılan taş — cell olmasa bile ilk boş slota yerleştir
+            if (tileData.isFromDeck) {
+                let targetIndex = tilePositions.findIndex(pos => pos === null);
+                if (cell) {
+                    let cellIndex = parseInt(cell.dataset.index);
+                    if (row === secondRowRef.current) cellIndex += CELLS_PER_ROW;
+                    if (!tilePositions[cellIndex]) targetIndex = cellIndex;
+                }
+                if (targetIndex === -1) return;
+                if (onDrawFromDeck) onDrawFromDeck(targetIndex);
+                return;
+            }
+
             if (cell) {
-                const tileData = JSON.parse(tileDataString);
                 let targetIndex = parseInt(cell.dataset.index);
 
                 // İkinci satır için offset ekle
@@ -81,27 +95,17 @@ const TileHolder = ({ tiles, tilePositions, onTileClick, onTileMove, onDrawDisca
                     return;
                 }
 
-                // Eğer atılan bir taş ise, atılan taşı çek
+                // Köşeden sürüklenerek bırakılan atılan taş
                 if (tileData.isDiscarded) {
-                    console.log('Atılan taş ıstakaya bırakılıyor:', tileData);
-
-                    // Hedef hücre dolu mu kontrol et
                     if (tilePositions[targetIndex]) {
-                        console.log('Hedef hücre dolu:', targetIndex, tilePositions[targetIndex]);
-                        // Dolu hücreye bırakılamaz, boş bir hücre bul
                         const emptyIndex = tilePositions.findIndex(pos => pos === null);
                         if (emptyIndex !== -1) {
-                            // Boş hücre bulundu, oraya bırak
-                            console.log(`Hedef hücre dolu, boş hücre bulundu: ${emptyIndex}`);
                             targetIndex = emptyIndex;
                         } else {
-                            // Boş hücre bulunamadı, işlemi iptal et
                             console.error('Boş hücre bulunamadı, taş bırakılamaz');
                             return;
                         }
                     }
-
-                    console.log('onDrawDiscardedTile çağrılıyor:', tileData.discardedFrom, tileData.sourceIndex, targetIndex);
                     onDrawDiscardedTile(tileData.discardedFrom, tileData.sourceIndex, targetIndex);
                     return;
                 }
@@ -145,6 +149,7 @@ const TileHolder = ({ tiles, tilePositions, onTileClick, onTileMove, onDrawDisca
                         value={tile.value}
                         color={tile.color}
                         onClick={() => onTileClick(index)}
+                        onDoubleClick={() => onTileDoubleClick && onTileDoubleClick(index)}
                     />
                 )}
             </div>
