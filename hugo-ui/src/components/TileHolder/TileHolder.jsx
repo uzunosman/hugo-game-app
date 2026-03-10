@@ -20,14 +20,10 @@ const TileHolder = ({ tiles, tilePositions, onTileClick, onTileMove, onTileDoubl
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
 
-        // Hedef hücreyi bul ve vurgula
         const cell = e.target.closest('.tile-cell');
         if (cell) {
-            // Önceki vurguları temizle
             const row = cell.closest('.tile-row');
             row.querySelectorAll('.tile-cell').forEach(c => c.classList.remove('drag-over'));
-
-            // Yeni hücreyi vurgula
             cell.classList.add('drag-over');
         }
     };

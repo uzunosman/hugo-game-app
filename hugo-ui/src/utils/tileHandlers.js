@@ -162,6 +162,77 @@ export const handleDiscardTile = ({
  * @param {Number} params.currentPlayerIndex - Mevcut oyuncunun indeksi
  * @returns {void}
  */
+/**
+ * Gerçekçi zincir kaydırma (chain-shift):
+ * Taş kaynak konumdan alınır; hedefe doğru olan tüm taşlar (ve boşluklar)
+ * bir adım kaydırılır; taş hedefe yerleşir. Tıpkı fiziksel bir raf gibi.
+ * Satır sınırları aşılmaz. Farklı satırlar için hedef satırda yer açılır.
+ * @param {Array} positions - Mevcut pozisyon dizisi (mutate edilmez)
+ * @param {Number} sourceIdx - Kaynak pozisyon indeksi
+ * @param {Number} targetIdx - Hedef pozisyon indeksi
+ * @returns {Array} Güncellenmiş pozisyon dizisi
+ */
+const insertShift = (positions, sourceIdx, targetIdx) => {
+    const newPos = [...positions];
+    const tileId = newPos[sourceIdx];
+    newPos[sourceIdx] = null;
+
+    if (sourceIdx === targetIdx) return newPos;
+
+    // Hedef boşsa doğrudan yerleştir
+    if (newPos[targetIdx] === null) {
+        newPos[targetIdx] = tileId;
+        return newPos;
+    }
+
+    const sourceRow = sourceIdx < 15 ? 0 : 1;
+    const targetRow = targetIdx < 15 ? 0 : 1;
+
+    if (sourceRow === targetRow) {
+        // Aynı satır: zincir kaydırma (hareket yönünde tüm ara elemanlar kayar)
+        if (targetIdx > sourceIdx) {
+            // Sağa hareket: sourceIdx..targetIdx-1 arası sola kayar
+            for (let i = sourceIdx; i < targetIdx; i++) {
+                newPos[i] = newPos[i + 1];
+            }
+        } else {
+            // Sola hareket: targetIdx+1..sourceIdx arası sağa kayar
+            for (let i = sourceIdx; i > targetIdx; i--) {
+                newPos[i] = newPos[i - 1];
+            }
+        }
+        newPos[targetIdx] = tileId;
+    } else {
+        // Farklı satır: hedef satırda en yakın boşluğu bul ve oraya yerleştir
+        const rowMin = targetRow * 15;
+        const rowMax = rowMin + 14;
+
+        let emptySlot = -1;
+        for (let offset = 0; offset <= 15; offset++) {
+            if (targetIdx + offset <= rowMax && newPos[targetIdx + offset] === null) {
+                emptySlot = targetIdx + offset;
+                break;
+            }
+            if (offset > 0 && targetIdx - offset >= rowMin && newPos[targetIdx - offset] === null) {
+                emptySlot = targetIdx - offset;
+                break;
+            }
+        }
+
+        if (emptySlot !== -1) {
+            // Hedef satır içinde yer açmak için kaydır
+            if (emptySlot > targetIdx) {
+                for (let i = emptySlot; i > targetIdx; i--) newPos[i] = newPos[i - 1];
+            } else {
+                for (let i = emptySlot; i < targetIdx; i++) newPos[i] = newPos[i + 1];
+            }
+            newPos[targetIdx] = tileId;
+        }
+    }
+
+    return newPos;
+};
+
 export const handleTileMove = ({
     sourceIndex,
     targetIndex,
@@ -291,21 +362,8 @@ export const handleTileMove = ({
         return;
     }
 
-    // Taşları taşı
-    setTilePositions(prevPositions => {
-        const newPositions = [...prevPositions];
-        const tileId = newPositions[sourceIndex];
-
-        // Hedef pozisyonda zaten bir taş varsa, yer değiştir
-        if (newPositions[targetIndex]) {
-            newPositions[sourceIndex] = newPositions[targetIndex];
-        } else {
-            newPositions[sourceIndex] = null;
-        }
-
-        newPositions[targetIndex] = tileId;
-        return newPositions;
-    });
+    // Zincir kaydırma ile yerleştir
+    setTilePositions(prevPositions => insertShift(prevPositions, sourceIndex, targetIndex));
 };
 
 /**
