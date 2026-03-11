@@ -10,6 +10,30 @@
     --spacing-lg: 20px;
     --font-family: 'Roboto', sans-serif;
     --game-size: 720px;
+
+    /* Taş boyutları — mobil için media query ile ezilir */
+    --tile-w: 40px;
+    --tile-h: 60px;
+    --tile-font: 28px;
+    --tile-pb: 15px;
+    --tile-dot: 8px;
+    --tile-dot-b: 8px;
+    /* TileHolder yaklaşık yüksekliği (PlayerPanel konumu için) */
+    --tileholder-h: 160px;
+}
+
+/* Mobil: tile boyutlarını ekran genişliğine göre dinamik hesapla
+   Formül: (100vw - tile-holder padding 10px - gap toplamı 14px) / 15 sütun */
+@media (max-width: 640px) {
+    :root {
+        --tile-w: calc((100vw - 24px) / 15);
+        --tile-h: calc(var(--tile-w) * 1.5);
+        --tile-font: calc(var(--tile-w) * 0.52);
+        --tile-pb: calc(var(--tile-w) * 0.25);
+        --tile-dot: 3px;
+        --tile-dot-b: 3px;
+        --tileholder-h: calc(var(--tile-h) * 2 + 30px);
+    }
 }
 
 * {

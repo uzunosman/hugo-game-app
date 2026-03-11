@@ -15,6 +15,19 @@
     padding: var(--spacing-lg);
     justify-content: center;
     align-items: center;
+    touch-action: manipulation;
+}
+
+@media (max-width: 640px) {
+    .center-tiles {
+        padding: var(--spacing-sm);
+        gap: 3px;
+    }
+
+    .round-indicator {
+        font-size: 11px;
+        padding: 3px 8px;
+    }
 }
 
 .round-indicator {

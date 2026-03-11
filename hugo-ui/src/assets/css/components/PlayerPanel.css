@@ -58,11 +58,34 @@
 
 .player-panel.current-player {
     position: fixed;
-    bottom: calc(160px + 1px);
+    bottom: calc(var(--tileholder-h, 160px) + 1px);
     left: 50%;
     transform: translateX(-50%);
     background-color: rgba(128, 128, 128, 0.9);
     z-index: 10;
+}
+
+@media (max-width: 640px) {
+    .player-panel {
+        font-size: 10px;
+        padding: 4px 6px;
+    }
+
+    .player-panel.current-player {
+        height: 24px;
+        width: auto;
+        min-width: 120px;
+    }
+
+    .player-panel.right,
+    .player-panel.left {
+        width: 22px;
+    }
+
+    .player-panel.top {
+        height: 24px;
+        padding: 4px 8px;
+    }
 }
 
 .player-panel.top {

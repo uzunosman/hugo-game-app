@@ -183,6 +183,31 @@
     }
 }
 
+/* Mobil layout */
+@media (max-width: 640px) {
+    .game-board {
+        width: calc(100% - 60px);
+        height: calc(100vh - var(--tileholder-h, 100px) - 70px);
+        min-height: 200px;
+        max-height: none;
+        margin: 10px 30px calc(var(--tileholder-h, 100px) + 10px) 30px;
+    }
+
+    .tile-drop-zone {
+        width: 44px;
+        height: 60px;
+    }
+
+    .tile-drop-zone.active {
+        width: 60px;
+        height: 80px;
+    }
+
+    .discarded-tiles {
+        max-width: 120px;
+    }
+}
+
 /* Hata animasyonu */
 @keyframes errorPulse {
     0% {

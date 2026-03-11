@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import Tile from '../Tile/Tile';
 import '../../assets/css/components/TileHolder.css';
 
-const TileHolder = ({ tiles, tilePositions, onTileClick, onTileMove, onTileDoubleClick, onDrawDiscardedTile, onDrawFromDeck }) => {
+const TileHolder = ({ tiles, tilePositions, onTileClick, onTileMove, onTileDoubleClick, onDrawDiscardedTile, onDrawFromDeck, selectedTileIndex }) => {
     const firstRowRef = useRef(null);
     const secondRowRef = useRef(null);
 
@@ -124,6 +124,13 @@ const TileHolder = ({ tiles, tilePositions, onTileClick, onTileMove, onTileDoubl
         }
     };
 
+    // Boş hücreye dokunma/tıklama — seçili taş varsa oraya taşı
+    const handleEmptyCellClick = (index) => {
+        if (selectedTileIndex !== null && selectedTileIndex !== undefined) {
+            onTileClick(index);
+        }
+    };
+
     const renderCell = (index) => {
         // İndeksi kontrol et
         if (index < 0 || index >= TOTAL_CELLS) {
@@ -132,18 +139,21 @@ const TileHolder = ({ tiles, tilePositions, onTileClick, onTileMove, onTileDoubl
 
         const tileId = tilePositions[index];
         const tile = tileId ? tilesMap[tileId] : null;
+        const isSelected = selectedTileIndex === index;
 
         return (
             <div
                 key={index}
-                className={`tile-cell ${!tile ? 'empty-cell' : ''}`}
+                className={`tile-cell ${!tile ? 'empty-cell' : ''} ${isSelected ? 'cell-selected' : ''}`}
                 data-index={index % CELLS_PER_ROW}
+                onClick={!tile ? () => handleEmptyCellClick(index) : undefined}
             >
                 {tile && (
                     <Tile
                         index={index}
                         value={tile.value}
                         color={tile.color}
+                        isSelected={isSelected}
                         onClick={() => onTileClick(index)}
                         onDoubleClick={() => onTileDoubleClick && onTileDoubleClick(index)}
                     />

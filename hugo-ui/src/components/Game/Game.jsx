@@ -61,14 +61,20 @@ function Game({ player, room }) {
         players
     });
 
-    // Taş tıklama işleyicisi
+    // Taş tıklama işleyicisi — mobil tap-to-select-then-move desteği
     const handleTileClick = (tileIndex) => {
-        // Taş seçme/bırakma işlemi
-        if (selectedTile === tileIndex) {
+        if (selectedTile !== null && selectedTile !== tileIndex) {
+            // Seçili taşı bu konuma taşı
+            onTileMove(selectedTile, tileIndex);
             setSelectedTile(null);
-        } else {
+        } else if (selectedTile === tileIndex) {
+            // Aynı taşa tekrar tıklanınca seçimi kaldır
+            setSelectedTile(null);
+        } else if (tilePositions[tileIndex]) {
+            // Taş olan hücreye tıklanınca seç
             setSelectedTile(tileIndex);
         }
+        // Seçim yokken boş hücreye tıklanırsa hiçbir şey yapma
     };
 
     // Taş çekme işleyicisi (tıklama veya sürükle-bırak)
@@ -205,6 +211,7 @@ function Game({ player, room }) {
                 deckCount={gameState.deckCount}
                 indicatorTile={gameState.indicatorTile}
                 gameRound={gameState.round}
+                selectedTile={selectedTile}
             />
         </div>
     );

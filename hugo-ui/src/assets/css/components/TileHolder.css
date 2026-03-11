@@ -14,18 +14,19 @@
 .tile-holder {
     background: #ffbd59;
     border-radius: 4px 4px 0 0;
-    padding: 8px 10px;
+    padding: 8px 5px;
     display: flex;
     flex-direction: column;
     gap: 0;
-    min-width: calc((41px * 15) + (1px * 14));
+    width: calc(var(--tile-w, 40px) * 15 + 14px + 10px);
+    min-width: 0;
 }
 
 .tile-row {
     display: grid;
-    grid-template-columns: repeat(15, 40px);
+    grid-template-columns: repeat(15, var(--tile-w, 40px));
     gap: 1px;
-    min-height: 65px;
+    min-height: calc(var(--tile-h, 60px) + 4px);
     align-items: center;
     padding: 1px;
     position: relative;
@@ -33,13 +34,14 @@
 }
 
 .tile-cell {
-    width: 40px;
-    height: 60px;
+    width: var(--tile-w, 40px);
+    height: var(--tile-h, 60px);
     display: flex;
     justify-content: center;
     align-items: center;
     position: relative;
     transition: all 0.3s ease;
+    touch-action: manipulation;
 }
 
 .tile-cell.animated {

@@ -1,20 +1,29 @@
 .tile {
-    width: 40px;
-    height: 60px;
+    width: var(--tile-w, 40px);
+    height: var(--tile-h, 60px);
     background-color: var(--tile-bg);
     border-radius: 2px;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    font-size: 28px;
+    font-size: var(--tile-font, 28px);
     font-weight: bold;
     cursor: pointer;
     user-select: none;
     position: relative;
-    padding-bottom: 15px;
+    padding-bottom: var(--tile-pb, 15px);
     z-index: 101;
     transition: transform 0.3s ease, opacity 0.3s ease;
+    /* manipulation: double-tap zoom engeli. none yerine bu kullanılır çünkü
+       gerçek sürükleme document-level touch handler'larla yönetilir. */
+    touch-action: manipulation;
+}
+
+/* Sürükleme sırasında scroll'u önlemek için — JS tarafında isDragging=true
+   olduğunda e.preventDefault() zaten çağrılır; bu CSS ek güvence sağlar. */
+.tile-holder .tile {
+    touch-action: none;
 }
 
 .tile.animated {
@@ -68,10 +77,17 @@
 .tile::after {
     content: '';
     position: absolute;
-    bottom: 8px;
-    width: 8px;
-    height: 8px;
+    bottom: var(--tile-dot-b, 8px);
+    width: var(--tile-dot, 8px);
+    height: var(--tile-dot, 8px);
     border-radius: 50%;
+}
+
+/* Seçili taş vurgusu (mobil tap-to-select için) */
+.tile.selected {
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9), 0 0 10px rgba(255, 255, 255, 0.4);
+    transform: translateY(-4px) scale(1.05);
+    z-index: 102;
 }
 
 .tile.red::after {

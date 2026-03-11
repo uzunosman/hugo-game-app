@@ -39,6 +39,7 @@
     align-items: center;
     padding-bottom: 0;
     cursor: pointer;
+    touch-action: manipulation;
 }
 
 .remaining-count {
@@ -109,10 +110,15 @@
 
 .deck-tile-wrapper .center-tile.closed {
     cursor: grab;
+    touch-action: none;
 }
 
 .deck-tile-wrapper .center-tile.closed:active {
     cursor: grabbing;
+}
+
+.tile.can-drag {
+    touch-action: none;
 }
 
 .indicator-tile {

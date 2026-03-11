@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import '../../assets/css/components/Tile.css';
 
-const Tile = ({ value, color, onClick, onDoubleClick, index, tile, isDiscarded, canDrag, discardedFrom }) => {
+const Tile = ({ value, color, onClick, onDoubleClick, index, tile, isDiscarded, canDrag, discardedFrom, isSelected }) => {
     const tileRef = useRef(null);
     const [prevIndex, setPrevIndex] = useState(index);
 
@@ -114,7 +114,7 @@ const Tile = ({ value, color, onClick, onDoubleClick, index, tile, isDiscarded, 
     return (
         <div
             ref={tileRef}
-            className={`tile ${tileColor} ${isDiscarded ? 'discarded' : ''} ${canDrag && isDiscarded ? 'can-drag' : ''}`}
+            className={`tile ${tileColor} ${isDiscarded ? 'discarded' : ''} ${canDrag && isDiscarded ? 'can-drag' : ''} ${isSelected ? 'selected' : ''}`}
             onClick={handleClick}
             onDoubleClick={onDoubleClick}
             draggable="true"
