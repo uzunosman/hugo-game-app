@@ -10,6 +10,10 @@ export class Player {
     isReady: boolean;
     isTurn: boolean;
     roomId: string | null;
+    isOpen: boolean;
+    lastOpenedValue: number;
+    openedTotal: number;
+    penaltyScore: number;
 
     constructor(name: string, socketId: string) {
         this.id = uuidv4();
@@ -20,6 +24,10 @@ export class Player {
         this.isReady = false;
         this.isTurn = false;
         this.roomId = null;
+        this.isOpen = false;
+        this.lastOpenedValue = 0;
+        this.openedTotal = 0;
+        this.penaltyScore = 0;
     }
 
     addTile(tile: Tile): void {
@@ -61,8 +69,13 @@ export class Player {
         this.score += points;
     }
 
+    addPenalty(points: number): void {
+        this.penaltyScore += points;
+    }
+
     resetScore(): void {
         this.score = 0;
+        this.penaltyScore = 0;
     }
 
     clearTiles(): void {
@@ -88,8 +101,12 @@ export class Player {
             name: this.name,
             tilesCount: this.tiles.length,
             score: this.score,
+            penaltyScore: this.penaltyScore,
             isReady: this.isReady,
-            isTurn: this.isTurn
+            isTurn: this.isTurn,
+            isOpen: this.isOpen,
+            lastOpenedValue: this.lastOpenedValue,
+            openedTotal: this.openedTotal
         };
     }
 } 

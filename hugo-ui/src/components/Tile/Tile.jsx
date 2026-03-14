@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import '../../assets/css/components/Tile.css';
 
-const Tile = ({ value, color, onClick, onDoubleClick, index, tile, isDiscarded, canDrag, discardedFrom, isSelected }) => {
+const Tile = ({ value, color, onClick, onDoubleClick, index, tile, isDiscarded, canDrag, discardedFrom, isSelected, tileId, onDragStartCallback, onDragEndCallback }) => {
     const tileRef = useRef(null);
     const [prevIndex, setPrevIndex] = useState(index);
 
@@ -57,9 +57,14 @@ const Tile = ({ value, color, onClick, onDoubleClick, index, tile, isDiscarded, 
             const tileDataString = JSON.stringify(tileData);
             e.dataTransfer.setData('text/plain', tileDataString);
             e.dataTransfer.setData('tile', tileDataString);
+            if (tileId) {
+                e.dataTransfer.setData('text/tile-id', tileId);
+            }
 
             // Sürükleme efektini ayarla
             e.dataTransfer.effectAllowed = 'move';
+
+            if (onDragStartCallback) onDragStartCallback();
 
             // Sürükleme sırasında taşı gizle
             setTimeout(() => {
@@ -77,6 +82,7 @@ const Tile = ({ value, color, onClick, onDoubleClick, index, tile, isDiscarded, 
         if (tileRef.current) {
             tileRef.current.style.visibility = 'visible';
         }
+        if (onDragEndCallback) onDragEndCallback();
     };
 
     const handleClick = (e) => {

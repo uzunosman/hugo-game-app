@@ -2,6 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import TileHolder from '../TileHolder/TileHolder';
 import CenterArea from '../CenterArea/CenterArea';
 import DiscardAreas from '../DiscardAreas/DiscardAreas';
+import OpenSetsArea from '../OpenSetsArea/OpenSetsArea';
 import '../../assets/css/components/GameBoard.css';
 
 /**
@@ -33,7 +34,14 @@ const GameBoard = ({
     deckCount,
     indicatorTile,
     gameRound,
-    selectedTile
+    selectedTile,
+    tableSets,
+    orderedPlayers,
+    selectedTileId,
+    activeTile,
+    onAddTileToSet,
+    onTileDragStart,
+    onTileDragEnd
 }) => {
     const isFirstHandBlock = tiles.length === 15 && turnAction === 'draw';
     const canDrawFromDeck = isMyTurn && turnAction === 'draw' && !isFirstHandBlock;
@@ -50,6 +58,9 @@ const GameBoard = ({
     const handleDrawFromDeckRef    = useRef(handleDrawFromDeck);
     const handleDrawDiscardedTileRef = useRef(handleDrawDiscardedTile);
     const canDrawFromDeckRef  = useRef(canDrawFromDeck);
+    const onAddTileToSetRef   = useRef(onAddTileToSet);
+    const onTileDragStartRef  = useRef(onTileDragStart);
+    const onTileDragEndRef    = useRef(onTileDragEnd);
 
     useEffect(() => { tilesRef.current            = tiles;            }, [tiles]);
     useEffect(() => { tilePositionsRef.current    = tilePositions;    }, [tilePositions]);
@@ -59,6 +70,9 @@ const GameBoard = ({
     useEffect(() => { handleDrawFromDeckRef.current    = handleDrawFromDeck;    }, [handleDrawFromDeck]);
     useEffect(() => { handleDrawDiscardedTileRef.current = handleDrawDiscardedTile; }, [handleDrawDiscardedTile]);
     useEffect(() => { canDrawFromDeckRef.current  = canDrawFromDeck;  }, [canDrawFromDeck]);
+    useEffect(() => { onAddTileToSetRef.current   = onAddTileToSet;   }, [onAddTileToSet]);
+    useEffect(() => { onTileDragStartRef.current  = onTileDragStart;  }, [onTileDragStart]);
+    useEffect(() => { onTileDragEndRef.current    = onTileDragEnd;    }, [onTileDragEnd]);
 
     // ─────────────────────────────────────────────────
     // Touch DnD — bir kez mount edilir
@@ -69,6 +83,7 @@ const GameBoard = ({
 
         let drag = null;   // aktif sürükleme durumu
         let ghost = null;  // takip eden görsel klon
+        let expandedSetEl = null; // touch hover ile genişletilmiş set grubu
 
         // ── Ghost yönetimi ──────────────────────────
         const createGhost = (sourceEl, cx, cy) => {
@@ -119,6 +134,7 @@ const GameBoard = ({
                 const srcIdx   = dataIdx + (isSecond ? CELLS_PER_ROW : 0);
                 drag = { type: 'tile', srcIdx, sourceEl: tileEl,
                          startX: touch.clientX, startY: touch.clientY };
+                onTileDragStartRef.current?.(srcIdx);
                 return;
             }
 
@@ -158,6 +174,20 @@ const GameBoard = ({
             if (drag.isDragging) {
                 e.preventDefault(); // scroll'u engelle
                 moveGhost(touch.clientX, touch.clientY);
+
+                // Touch hover: parmak setin üzerindeyse genişlet
+                if (drag.type === 'tile') {
+                    const elUnder = document.elementFromPoint(touch.clientX, touch.clientY);
+                    const setGroup = elUnder?.closest('.open-set-group');
+                    if (setGroup && setGroup !== expandedSetEl) {
+                        if (expandedSetEl) expandedSetEl.classList.remove('expanded');
+                        setGroup.classList.add('expanded');
+                        expandedSetEl = setGroup;
+                    } else if (!setGroup && expandedSetEl) {
+                        expandedSetEl.classList.remove('expanded');
+                        expandedSetEl = null;
+                    }
+                }
             }
         };
 
@@ -181,7 +211,15 @@ const GameBoard = ({
             destroyGhost();
             const target = document.elementFromPoint(touch.clientX, touch.clientY);
 
+            // Genişletilmiş seti kapat
+            if (expandedSetEl) {
+                expandedSetEl.classList.remove('expanded');
+                expandedSetEl = null;
+            }
+
             if (type === 'tile') {
+                onTileDragEndRef.current?.();
+
                 // Hedef: TileHolder hücresi
                 const dropCell = target?.closest('.tile-cell');
                 if (dropCell) {
@@ -189,6 +227,37 @@ const GameBoard = ({
                     const isSecond = !!dropCell.closest('.second-row');
                     const tgtIdx   = di + (isSecond ? CELLS_PER_ROW : 0);
                     if (tgtIdx !== srcIdx) handleTileMoveRef.current(srcIdx, tgtIdx);
+                    drag = null; return;
+                }
+                // Hedef: okey taşı (doğrudan swap)
+                const okeyTile = target?.closest('.open-set-tile.is-okey');
+                if (okeyTile) {
+                    const setId = okeyTile.dataset.setId;
+                    const tileId = tilePositionsRef.current[srcIdx];
+                    if (setId && tileId && onAddTileToSetRef.current) {
+                        onAddTileToSetRef.current(tileId, setId, 'end');
+                    }
+                    drag = null; return;
+                }
+                // Hedef: insertion slot (pozisyonel işleme)
+                const slot = target?.closest('.insertion-slot');
+                if (slot) {
+                    const setId = slot.dataset.setId;
+                    const position = slot.dataset.position;
+                    const tileId = tilePositionsRef.current[srcIdx];
+                    if (setId && position && tileId && onAddTileToSetRef.current) {
+                        onAddTileToSetRef.current(tileId, setId, position);
+                    }
+                    drag = null; return;
+                }
+                // Hedef: masadaki açık set (fallback — pozisyon 'end')
+                const setGroup = target?.closest('.open-set-group');
+                if (setGroup) {
+                    const setId = setGroup.dataset.setId;
+                    const tileId = tilePositionsRef.current[srcIdx];
+                    if (setId && tileId && onAddTileToSetRef.current) {
+                        onAddTileToSetRef.current(tileId, setId, 'end');
+                    }
                     drag = null; return;
                 }
                 // Hedef: köşe drop-zone (taş at)
@@ -241,6 +310,8 @@ const GameBoard = ({
 
         const onTouchCancel = () => {
             if (drag?.sourceEl) drag.sourceEl.style.opacity = '1';
+            if (expandedSetEl) { expandedSetEl.classList.remove('expanded'); expandedSetEl = null; }
+            onTileDragEndRef.current?.();
             destroyGhost();
             drag = null;
         };
@@ -276,6 +347,15 @@ const GameBoard = ({
                     lastDiscardCorner={lastDiscardCorner}
                 />
 
+                {/* Masadaki Açık Setler */}
+                <OpenSetsArea
+                    tableSets={tableSets || []}
+                    players={orderedPlayers || []}
+                    selectedTileId={selectedTileId}
+                    activeTile={activeTile}
+                    onAddTileToSet={onAddTileToSet}
+                />
+
                 {/* Merkez Alan */}
                 <CenterArea
                     onDrawTile={() => handleDrawTile(false)}
@@ -295,6 +375,8 @@ const GameBoard = ({
                     onDrawDiscardedTile={handleDrawDiscardedTile}
                     onDrawFromDeck={handleDrawFromDeck}
                     selectedTileIndex={selectedTile}
+                    onTileDragStart={onTileDragStart}
+                    onTileDragEnd={onTileDragEnd}
                 />
             </div>
         </div>

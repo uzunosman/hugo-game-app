@@ -201,6 +201,48 @@ export class GameManager {
         return room.game.discardTile(playerId, tileId);
     }
 
+    public openHand(playerId: string, setTileIds: string[][]) {
+        const player = this.players.get(playerId);
+        if (!player || !player.roomId) {
+            return { success: false, error: 'Oyuncu bulunamadı' };
+        }
+
+        const room = this.rooms.get(player.roomId);
+        if (!room || !room.game) {
+            return { success: false, error: 'Aktif oyun bulunamadı' };
+        }
+
+        return room.game.openHand(playerId, setTileIds);
+    }
+
+    public addTileToSet(playerId: string, tileId: string, targetSetId: string, position: 'start' | 'end') {
+        const player = this.players.get(playerId);
+        if (!player || !player.roomId) {
+            return { success: false, error: 'Oyuncu bulunamadı' };
+        }
+
+        const room = this.rooms.get(player.roomId);
+        if (!room || !room.game) {
+            return { success: false, error: 'Aktif oyun bulunamadı' };
+        }
+
+        return room.game.addTileToSet(playerId, tileId, targetSetId, position);
+    }
+
+    public dropPer(playerId: string, setTileIds: string[][]) {
+        const player = this.players.get(playerId);
+        if (!player || !player.roomId) {
+            return { success: false, error: 'Oyuncu bulunamadı' };
+        }
+
+        const room = this.rooms.get(player.roomId);
+        if (!room || !room.game) {
+            return { success: false, error: 'Aktif oyun bulunamadı' };
+        }
+
+        return room.game.dropPer(playerId, setTileIds);
+    }
+
     // Yardımcı Metodlar
     public getPlayerRoom(playerId: string): Room | undefined {
         const player = this.players.get(playerId);

@@ -185,6 +185,48 @@ class SocketService {
     offTileDiscard() {
         this.socket.off('game:tileDiscard');
     }
+
+    openHand(sets, callback) {
+        this.socket.emit('game:openHand', { playerId: this.playerId, sets }, (response) => {
+            if (callback) callback(response);
+        });
+    }
+
+    onHandOpened(callback) {
+        this.socket.on('game:handOpened', callback);
+    }
+
+    offHandOpened() {
+        this.socket.off('game:handOpened');
+    }
+
+    addTileToSet(tileId, targetSetId, position, callback) {
+        this.socket.emit('game:addTileToSet', { playerId: this.playerId, tileId, targetSetId, position }, (response) => {
+            if (callback) callback(response);
+        });
+    }
+
+    onTileAddedToSet(callback) {
+        this.socket.on('game:tileAddedToSet', callback);
+    }
+
+    offTileAddedToSet() {
+        this.socket.off('game:tileAddedToSet');
+    }
+
+    dropPer(sets, callback) {
+        this.socket.emit('game:dropPer', { playerId: this.playerId, sets }, (response) => {
+            if (callback) callback(response);
+        });
+    }
+
+    onPerDropped(callback) {
+        this.socket.on('game:perDropped', callback);
+    }
+
+    offPerDropped() {
+        this.socket.off('game:perDropped');
+    }
 }
 
 // Singleton örneği oluştur

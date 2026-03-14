@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import PlayerPanel from '../PlayerPanel/PlayerPanel';
 import GameBoard from '../GameBoard/GameBoard';
 import useGameState from '../../hooks/useGameState';
 import useGameSocket from '../../hooks/useGameSocket';
-import { getOrderedPlayers, getPlayerPosition, getPlayerCorner, getCurrentPlayerIndex } from '../../utils/gameUtils';
+import { getOrderedPlayers, getPlayerPosition, getPlayerCorner, getCurrentPlayerIndex, calculateHandScore, getConsecutiveGroups, validateSet } from '../../utils/gameUtils';
 import { handleDrawTile, handleDiscardTile, handleTileMove, handleDrawDiscardedTile } from '../../utils/tileHandlers';
 import '../../assets/css/components/GameBoard.css';
 
@@ -32,11 +32,17 @@ function Game({ player, room }) {
         setTilePositions,
         discardedTiles,
         setDiscardedTiles,
-        lastDiscardPlayerId
+        lastDiscardPlayerId,
+        tableSets,
+        setTableSets,
+        playerOpenStates
     } = useGameState(player, room);
 
     // Socket işlevlerini al
     const socketService = useGameSocket(player, room, setError);
+
+    // Sürüklenen taş bilgisi (işleme için activeTile hesaplamada kullanılır)
+    const [draggingTile, setDraggingTile] = useState(null);
 
     // Oyuncuları sırala
     const players = getOrderedPlayers(room.players, player.id);
@@ -176,21 +182,217 @@ function Game({ player, room }) {
         hasDrawnTile[index] = p.id === gameState.currentPlayerId && gameState.turnAction === 'discard';
     });
 
+    // Mevcut oyuncunun set ve per hesabını yap
+    const handScore = calculateHandScore(tilePositions, tiles, gameState.indicatorTile);
+
+    // El açma durumu
+    const isFirstHandBlock = tiles.length === 15 && gameState.turnAction === 'draw';
+
+    // Masadaki en yüksek açılış değeri (tüm oyuncuların max'ı)
+    const maxOpenedValue = Object.values(playerOpenStates).reduce(
+        (max, s) => (s.lastOpenedValue > max ? s.lastOpenedValue : max), 0
+    );
+
+    const canOpenHand = isMyTurn
+        && (gameState.turnAction === 'discard' || isFirstHandBlock)
+        && handScore.setTotal > 0
+        && handScore.validSetCount > 0
+        && (maxOpenedValue === 0
+            ? handScore.setTotal >= 51
+            : handScore.setTotal > maxOpenedValue);
+
+    const myOpenState = playerOpenStates[player.id] || { isOpen: false, openedTotal: 0 };
+    const openHandLabel = myOpenState.isOpen ? 'Taş Oyna' : 'El Aç';
+
+    // İşleme: seçili taşın gerçek ID'si (OpenSetsArea'ya iletilir)
+    const selectedTileId = (selectedTile !== null && tilePositions[selectedTile] && myOpenState.isOpen && isMyTurn
+        && (gameState.turnAction === 'discard' || isFirstHandBlock))
+        ? tilePositions[selectedTile]
+        : null;
+
+    // activeTile: seçili veya sürüklenen taşın tam bilgisi (OpenSetsArea'da slot hesabı için)
+    const activeTile = (() => {
+        const id = draggingTile?.id || selectedTileId;
+        if (!id) return null;
+        if (draggingTile) return draggingTile;
+        const t = tiles.find(t => t.id === id);
+        return t || null;
+    })();
+
+    // Sürükleme başlangıç/bitiş callback'leri (TileHolder'a iletilir)
+    const handleTileDragStart = useCallback((tileIndex) => {
+        const tid = tilePositions[tileIndex];
+        if (!tid) return;
+        const t = tiles.find(t => t.id === tid);
+        if (t) setDraggingTile(t);
+    }, [tilePositions, tiles]);
+
+    const handleTileDragEnd = useCallback(() => {
+        setDraggingTile(null);
+    }, []);
+
+    // İşleme handler'ı — seç & tıkla veya sürükle & bırak (pozisyon dahil)
+    const onAddTileToSet = (tileId, targetSetId, position) => {
+        if (!myOpenState.isOpen || !isMyTurn) return;
+
+        socketService.addTileToSet(tileId, targetSetId, position, (response) => {
+            if (response.success) {
+                const remaining = response.remainingTiles || [];
+                setTiles(remaining);
+                setTilePositions(prev => prev.map(id => id === tileId ? null : id));
+
+                // Okey swap: yeni gelen okey'i ilk boş slota yerleştir
+                if (response.swappedOkeyTile) {
+                    const okeyTile = response.swappedOkeyTile;
+                    setTilePositions(prev => {
+                        const next = [...prev];
+                        const emptyIdx = next.findIndex(id => id === null);
+                        if (emptyIdx !== -1) {
+                            next[emptyIdx] = okeyTile.id;
+                        }
+                        return next;
+                    });
+                }
+
+                setSelectedTile(null);
+                setDraggingTile(null);
+            } else {
+                setError(response.error || 'İşleme yapılamadı');
+            }
+        });
+    };
+
+    // Per indirme: eli açık, sırası gelmiş, geçerli setler var
+    const canDropPer = isMyTurn
+        && (gameState.turnAction === 'discard' || isFirstHandBlock)
+        && myOpenState.isOpen
+        && handScore.validSetCount > 0;
+
+    // Per indirme işleyicisi
+    const onDropPer = () => {
+        if (!canDropPer) return;
+
+        const groups = getConsecutiveGroups(tilePositions, tiles);
+        const validSets = [];
+        for (const group of groups) {
+            const score = validateSet(group);
+            if (score > 0) {
+                validSets.push(group.map(t => t.id));
+            }
+        }
+        if (validSets.length === 0) return;
+
+        const droppedTileIds = new Set(validSets.flat());
+
+        socketService.dropPer(validSets, (response) => {
+            if (response.success) {
+                const remaining = response.remainingTiles || [];
+                setTiles(remaining);
+                setTilePositions(prev => prev.map(id =>
+                    id && droppedTileIds.has(id) ? null : id
+                ));
+            } else {
+                setError(response.error || 'Per indirilemedi');
+            }
+        });
+    };
+
+    // El açma işleyicisi
+    const onOpenHand = () => {
+        if (!canOpenHand) return;
+
+        // Geçerli setleri tespit et
+        const groups = getConsecutiveGroups(tilePositions, tiles);
+        const validSets = [];
+        for (const group of groups) {
+            const score = validateSet(group);
+            if (score > 0) {
+                validSets.push(group.map(t => t.id));
+            }
+        }
+
+        if (validSets.length === 0) return;
+
+        // Açılacak taş ID'lerini düz listeye çevir
+        const openedTileIds = new Set(validSets.flat());
+
+        socketService.openHand(validSets, (response) => {
+            if (response.success) {
+                // Kalan taşları güncelle
+                const remaining = response.remainingTiles || [];
+                setTiles(remaining);
+
+                // Mevcut pozisyonları koru, sadece açılan taşları kaldır
+                setTilePositions(prev => prev.map(id =>
+                    id && openedTileIds.has(id) ? null : id
+                ));
+            } else {
+                setError(response.error || 'El açılamadı');
+            }
+        });
+    };
+
     return (
         <div className="game-container">
             {error && <div style={{ color: 'red', textAlign: 'center', padding: '10px', display: 'none' }}>{error}</div>}
 
             {/* Oyuncu Panelleri */}
-            {players.map((p, index) => (
-                <PlayerPanel
-                    key={index}
-                    name={p.name}
-                    score={0}
-                    position={getPlayerPosition(index)}
-                    isCurrentPlayer={p.id === gameState.currentPlayerId}
-                    timeLeft={p.id === gameState.currentPlayerId ? timeLeft : null}
-                />
-            ))}
+            {players.map((p, index) => {
+                const openState = playerOpenStates[p.id];
+                return (
+                    <PlayerPanel
+                        key={index}
+                        name={p.name}
+                        score={0}
+                        position={getPlayerPosition(index)}
+                        isCurrentPlayer={p.id === gameState.currentPlayerId}
+                        timeLeft={p.id === gameState.currentPlayerId ? timeLeft : null}
+                        setScore={index === 0 ? handScore.setTotal : null}
+                        isOpen={openState?.isOpen}
+                        openedTotal={openState?.openedTotal}
+                        penaltyScore={openState?.penaltyScore || 0}
+                    />
+                );
+            })}
+
+            {/* El Aç / Taş Oyna ve Per İndir Butonları */}
+            {isMyTurn && (gameState.turnAction === 'discard' || isFirstHandBlock) && (
+                <div className="action-buttons">
+                    {!myOpenState.isOpen && (
+                        <button
+                            className={`open-hand-btn ${canOpenHand ? 'active' : 'disabled'}`}
+                            onClick={onOpenHand}
+                            disabled={!canOpenHand}
+                        >
+                            {openHandLabel}
+                            {handScore.setTotal > 0 && (
+                                <span className="open-hand-score">{handScore.setTotal}</span>
+                            )}
+                        </button>
+                    )}
+                    {myOpenState.isOpen && (
+                        <>
+                            <button
+                                className={`open-hand-btn ${canOpenHand ? 'active' : 'disabled'}`}
+                                onClick={onOpenHand}
+                                disabled={!canOpenHand}
+                            >
+                                Taş Oyna
+                                {handScore.setTotal > 0 && (
+                                    <span className="open-hand-score">{handScore.setTotal}</span>
+                                )}
+                            </button>
+                            <button
+                                className={`open-hand-btn drop-per ${canDropPer ? 'active' : 'disabled'}`}
+                                onClick={onDropPer}
+                                disabled={!canDropPer}
+                            >
+                                Per İndir
+                            </button>
+                        </>
+                    )}
+                </div>
+            )}
 
             {/* Oyun Tahtası */}
             <GameBoard
@@ -212,6 +414,13 @@ function Game({ player, room }) {
                 indicatorTile={gameState.indicatorTile}
                 gameRound={gameState.round}
                 selectedTile={selectedTile}
+                tableSets={tableSets}
+                orderedPlayers={players}
+                selectedTileId={selectedTileId}
+                activeTile={activeTile}
+                onAddTileToSet={onAddTileToSet}
+                onTileDragStart={handleTileDragStart}
+                onTileDragEnd={handleTileDragEnd}
             />
         </div>
     );

@@ -1,0 +1,147 @@
+.open-sets-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 5;
+}
+
+.open-sets-area {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    pointer-events: auto;
+    max-width: 45%;
+    max-height: 40%;
+    overflow: visible;
+}
+
+/* Oyuncu alanları — game board içinde konumlandırılır */
+.open-sets-bottom {
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    align-items: center;
+}
+
+.open-sets-top {
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    align-items: center;
+}
+
+.open-sets-right {
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    align-items: flex-end;
+}
+
+.open-sets-left {
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    align-items: flex-start;
+}
+
+/* Setler alt alta sıralanır */
+.open-sets-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.open-set-group {
+    display: flex;
+    align-items: center;
+    gap: 1px;
+    border-radius: 4px;
+    padding: 3px;
+    transition: transform 0.3s ease;
+    transform-origin: center center;
+    position: relative;
+}
+
+.open-set-group.droppable {
+    cursor: pointer;
+}
+
+/* ── Mini taşlar (varsayılan küçük boyut) ────────────── */
+.open-set-tile {
+    width: 22px;
+    height: 32px;
+    background-color: var(--tile-bg, #f5f0e1);
+    border-radius: 2px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 13px;
+    font-weight: bold;
+    user-select: none;
+    position: relative;
+}
+
+.open-set-tile.red { color: #FF0000; }
+.open-set-tile.black { color: #000000; }
+.open-set-tile.blue { color: #00BCD4; }
+.open-set-tile.yellow { color: #FFC107; }
+
+.open-set-group.expanded .open-set-tile.is-okey {
+    cursor: pointer;
+    opacity: 0.7;
+}
+.open-set-tile.purple { color: #9C27B0; }
+
+/* ── Genişlemiş durum: scale ile büyür, diğer setler hareket etmez ── */
+.open-set-group.expanded {
+    transform: scale(1.5);
+    z-index: 10;
+    gap: 2px;
+}
+
+/* ── Insertion slot ───── */
+.insertion-slot {
+    width: 22px;
+    height: 32px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.08);
+    cursor: pointer;
+    transition: background 0.2s ease;
+    user-select: none;
+}
+
+.insertion-slot:hover {
+    background: rgba(255, 255, 255, 0.18);
+}
+
+/* ── Mobil ─────────────────────────────────────────── */
+@media (max-width: 640px) {
+    .open-sets-area {
+        max-width: 50%;
+        max-height: 35%;
+    }
+
+    .open-set-tile {
+        width: 18px;
+        height: 26px;
+        font-size: 11px;
+    }
+
+    .open-set-group {
+        gap: 0px;
+        padding: 2px;
+    }
+
+    .open-set-group.expanded {
+        transform: scale(1.4);
+    }
+
+    .insertion-slot {
+        width: 18px;
+        height: 26px;
+    }
+}

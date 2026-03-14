@@ -155,3 +155,120 @@
     align-items: center;
     gap: 2px;
 }
+
+.opened-badge {
+    margin-left: auto;
+    font-size: 11px;
+    font-weight: bold;
+    color: #4CAF50;
+    background: rgba(76, 175, 80, 0.15);
+    border: 1px solid rgba(76, 175, 80, 0.3);
+    border-radius: 3px;
+    padding: 1px 5px;
+    min-width: 18px;
+    text-align: center;
+}
+
+.penalty-badge {
+    font-size: 11px;
+    font-weight: bold;
+    color: #F44336;
+    background: rgba(244, 67, 54, 0.15);
+    border: 1px solid rgba(244, 67, 54, 0.3);
+    border-radius: 3px;
+    padding: 1px 5px;
+    min-width: 18px;
+    text-align: center;
+}
+
+.set-score {
+    font-size: 13px;
+    font-weight: bold;
+    color: #FF9800;
+    min-width: 20px;
+    text-align: center;
+}
+
+.set-score.valid {
+    color: #4CAF50;
+}
+
+/* Aksiyon butonları konteyneri */
+.action-buttons {
+    position: fixed;
+    bottom: calc(var(--tileholder-h, 160px) + 38px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* El Aç / Taş Oyna / Per İndir butonları */
+.open-hand-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.open-hand-btn.active {
+    background: linear-gradient(135deg, #4CAF50, #43A047);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(76, 175, 80, 0.4);
+}
+
+.open-hand-btn.active:hover {
+    box-shadow: 0 4px 14px rgba(76, 175, 80, 0.5);
+    transform: scale(1.03);
+}
+
+.open-hand-btn.drop-per.active {
+    background: linear-gradient(135deg, #FF9800, #F57C00);
+    box-shadow: 0 2px 8px rgba(255, 152, 0, 0.4);
+}
+
+.open-hand-btn.drop-per.active:hover {
+    box-shadow: 0 4px 14px rgba(255, 152, 0, 0.5);
+}
+
+.open-hand-btn.disabled {
+    background: rgba(128, 128, 128, 0.4);
+    color: rgba(255, 255, 255, 0.4);
+    cursor: not-allowed;
+}
+
+.open-hand-score {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-size: 12px;
+}
+
+@media (max-width: 640px) {
+    .set-score {
+        font-size: 11px;
+    }
+
+    .opened-badge {
+        font-size: 9px;
+        padding: 0 3px;
+    }
+
+    .action-buttons {
+        bottom: calc(var(--tileholder-h, 100px) + 32px);
+    }
+
+    .open-hand-btn {
+        font-size: 11px;
+        padding: 5px 12px;
+    }
+}

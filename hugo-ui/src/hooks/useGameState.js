@@ -23,6 +23,16 @@ const useGameState = (player, room) => {
     });
     // En son taş atan oyuncunun ID'si (hangi köşeden çekilebileceğini belirlemek için)
     const [lastDiscardPlayerId, setLastDiscardPlayerId] = useState(room.game?.lastDiscardPlayerId || null);
+    // Masadaki açık setler
+    const [tableSets, setTableSets] = useState(room.game?.tableSets || []);
+    // Oyuncu açık durumları { playerId: { isOpen, openedTotal, lastOpenedValue } }
+    const [playerOpenStates, setPlayerOpenStates] = useState(() => {
+        const states = {};
+        room.players.forEach(p => {
+            states[p.id] = { isOpen: p.isOpen || false, openedTotal: p.openedTotal || 0, lastOpenedValue: p.lastOpenedValue || 0, penaltyScore: p.penaltyScore || 0 };
+        });
+        return states;
+    });
 
     // Gelen taş listesini state'e ve pozisyonlara uygula
     const applyTiles = (tileList) => {
@@ -125,12 +135,64 @@ const useGameState = (player, room) => {
             }
         });
 
+        // El açma işlemini dinle
+        socketService.onHandOpened((response) => {
+            if (response.success) {
+                // Masadaki setlere yeni setleri ekle
+                if (response.newSets) {
+                    setTableSets(prev => [...prev, ...response.newSets]);
+                }
+                // Oyuncu açık durumunu güncelle
+                setPlayerOpenStates(prev => ({
+                    ...prev,
+                    [response.playerId]: {
+                        isOpen: response.isOpen,
+                        openedTotal: response.openedTotal,
+                        lastOpenedValue: response.lastOpenedValue
+                    }
+                }));
+            }
+        });
+
+        // İşleme işlemini dinle — masadaki set güncellenir, ceza yazılır
+        socketService.onTileAddedToSet((response) => {
+            if (response.success && response.updatedSet) {
+                setTableSets(prev => prev.map(s =>
+                    s.id === response.updatedSet.id ? response.updatedSet : s
+                ));
+                // Ceza varsa oyuncu state'ini güncelle
+                if (response.penalty) {
+                    setPlayerOpenStates(prev => {
+                        const target = prev[response.penalty.targetPlayerId];
+                        if (!target) return prev;
+                        return {
+                            ...prev,
+                            [response.penalty.targetPlayerId]: {
+                                ...target,
+                                penaltyScore: (target.penaltyScore || 0) + response.penalty.amount
+                            }
+                        };
+                    });
+                }
+            }
+        });
+
+        // Per indirme işlemini dinle — sadece masaya set eklenir, skor değişmez
+        socketService.onPerDropped((response) => {
+            if (response.success && response.newSets) {
+                setTableSets(prev => [...prev, ...response.newSets]);
+            }
+        });
+
         // Temizleme işlemi
         return () => {
             socketService.offGameTiles();
             socketService.offNextTurn();
             socketService.offTileDraw();
             socketService.offTileDiscard();
+            socketService.offHandOpened();
+            socketService.offTileAddedToSet();
+            socketService.offPerDropped();
         };
     }, [player.id]);
 
@@ -194,7 +256,11 @@ const useGameState = (player, room) => {
         discardedTiles,
         setDiscardedTiles,
         lastDiscardPlayerId,
-        setLastDiscardPlayerId
+        setLastDiscardPlayerId,
+        tableSets,
+        setTableSets,
+        playerOpenStates,
+        setPlayerOpenStates
     };
 };
 

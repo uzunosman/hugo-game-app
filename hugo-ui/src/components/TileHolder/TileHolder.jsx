@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import Tile from '../Tile/Tile';
 import '../../assets/css/components/TileHolder.css';
 
-const TileHolder = ({ tiles, tilePositions, onTileClick, onTileMove, onTileDoubleClick, onDrawDiscardedTile, onDrawFromDeck, selectedTileIndex }) => {
+const TileHolder = ({ tiles, tilePositions, onTileClick, onTileMove, onTileDoubleClick, onDrawDiscardedTile, onDrawFromDeck, selectedTileIndex, onTileDragStart, onTileDragEnd }) => {
     const firstRowRef = useRef(null);
     const secondRowRef = useRef(null);
 
@@ -151,11 +151,14 @@ const TileHolder = ({ tiles, tilePositions, onTileClick, onTileMove, onTileDoubl
                 {tile && (
                     <Tile
                         index={index}
+                        tileId={tileId}
                         value={tile.value}
                         color={tile.color}
                         isSelected={isSelected}
                         onClick={() => onTileClick(index)}
                         onDoubleClick={() => onTileDoubleClick && onTileDoubleClick(index)}
+                        onDragStartCallback={() => onTileDragStart?.(index)}
+                        onDragEndCallback={() => onTileDragEnd?.()}
                     />
                 )}
             </div>

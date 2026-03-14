@@ -507,6 +507,177 @@ export const setupSocketHandlers = (io: Server) => {
             }
         });
 
+        // El Açma / Taş Oynama
+        socket.on('game:openHand', (data: { playerId: string, sets: string[][] }, callback) => {
+            try {
+                const { playerId, sets } = data;
+
+                const player = gameManager.getPlayerById(playerId);
+                if (!player || !player.roomId) {
+                    return callback({
+                        success: false,
+                        error: 'Oyuncu bulunamadı veya bir odada değil'
+                    });
+                }
+
+                const room = gameManager.getRoomById(player.roomId);
+                if (!room || !room.game) {
+                    return callback({
+                        success: false,
+                        error: 'Oda veya oyun bulunamadı'
+                    });
+                }
+
+                const result = gameManager.openHand(playerId, sets);
+
+                if (!result.success) {
+                    return callback({
+                        success: false,
+                        error: result.error
+                    });
+                }
+
+                // Tüm oyunculara bildirimi gönder
+                io.to(player.roomId).emit('game:handOpened', {
+                    success: true,
+                    playerId,
+                    newSets: result.newSets?.map(s => ({
+                        id: s.id,
+                        playerId: s.playerId,
+                        tiles: s.tiles.map(t => t.toJSON()),
+                        value: s.value
+                    })),
+                    openedTotal: result.openedTotal,
+                    isOpen: player.isOpen,
+                    lastOpenedValue: player.lastOpenedValue
+                });
+
+                // İsteği yapan oyuncuya kalan taşlarını bildir
+                callback({
+                    success: true,
+                    remainingTiles: result.remainingTiles,
+                    openedTotal: result.openedTotal
+                });
+            } catch (error) {
+                console.error('El açma hatası:', error);
+                callback({
+                    success: false,
+                    error: 'El açılırken bir hata oluştu'
+                });
+            }
+        });
+
+        // İşleme (Taş Ekleme)
+        socket.on('game:addTileToSet', (data: { playerId: string, tileId: string, targetSetId: string, position: 'start' | 'end' }, callback) => {
+            try {
+                const { playerId, tileId, targetSetId, position } = data;
+
+                const player = gameManager.getPlayerById(playerId);
+                if (!player || !player.roomId) {
+                    return callback({
+                        success: false,
+                        error: 'Oyuncu bulunamadı veya bir odada değil'
+                    });
+                }
+
+                const room = gameManager.getRoomById(player.roomId);
+                if (!room || !room.game) {
+                    return callback({
+                        success: false,
+                        error: 'Oda veya oyun bulunamadı'
+                    });
+                }
+
+                const result = gameManager.addTileToSet(playerId, tileId, targetSetId, position);
+
+                if (!result.success) {
+                    return callback({
+                        success: false,
+                        error: result.error
+                    });
+                }
+
+                // Tüm oyunculara güncellenen seti ve ceza bilgisini bildir
+                io.to(player.roomId).emit('game:tileAddedToSet', {
+                    success: true,
+                    playerId,
+                    updatedSet: result.updatedSet,
+                    penalty: result.penalty,
+                    swappedOkey: !!result.swappedOkeyTile
+                });
+
+                // İsteği yapan oyuncuya kalan taşlarını ve swap edilen okey'i bildir
+                callback({
+                    success: true,
+                    remainingTiles: result.remainingTiles,
+                    swappedOkeyTile: result.swappedOkeyTile,
+                    updatedSet: result.updatedSet,
+                    penalty: result.penalty
+                });
+            } catch (error) {
+                console.error('İşleme hatası:', error);
+                callback({
+                    success: false,
+                    error: 'İşleme yapılırken bir hata oluştu'
+                });
+            }
+        });
+
+        // Per İndirme
+        socket.on('game:dropPer', (data: { playerId: string, sets: string[][] }, callback) => {
+            try {
+                const { playerId, sets } = data;
+
+                const player = gameManager.getPlayerById(playerId);
+                if (!player || !player.roomId) {
+                    return callback({
+                        success: false,
+                        error: 'Oyuncu bulunamadı veya bir odada değil'
+                    });
+                }
+
+                const room = gameManager.getRoomById(player.roomId);
+                if (!room || !room.game) {
+                    return callback({
+                        success: false,
+                        error: 'Oda veya oyun bulunamadı'
+                    });
+                }
+
+                const result = gameManager.dropPer(playerId, sets);
+
+                if (!result.success) {
+                    return callback({
+                        success: false,
+                        error: result.error
+                    });
+                }
+
+                // Tüm oyunculara masaya eklenen setleri bildir
+                io.to(player.roomId).emit('game:perDropped', {
+                    success: true,
+                    playerId,
+                    newSets: result.newSets?.map(s => ({
+                        id: s.id,
+                        playerId: s.playerId,
+                        tiles: s.tiles.map(t => t.toJSON()),
+                        value: s.value
+                    }))
+                });
+
+                callback({
+                    success: true,
+                    remainingTiles: result.remainingTiles
+                });
+            } catch (error) {
+                console.error('Per indirme hatası:', error);
+                callback({
+                    success: false,
+                    error: 'Per indirilirken bir hata oluştu'
+                });
+            }
+        });
+
         // Bağlantı Kesme
         socket.on('disconnect', () => {
             console.log(`Bağlantı kesildi: ${socket.id}`);

@@ -13,6 +13,13 @@ export enum TurnAction {
     DISCARD = 'discard'
 }
 
+export interface TableSet {
+    id: string;
+    playerId: string;
+    tiles: Tile[];
+    value: number;
+}
+
 export class Game {
     id: string;
     players: Player[];
@@ -25,6 +32,8 @@ export class Game {
     indicatorTile: Tile | null;
     okeyTile: Tile | null;
     lastDiscardPlayerId: string | null;
+    tableSets: TableSet[];
+    okeyPlayedThisTurn: boolean;
     createdAt: Date;
     lastActionTime: Date;
 
@@ -40,6 +49,8 @@ export class Game {
         this.indicatorTile = null;
         this.okeyTile = null;
         this.lastDiscardPlayerId = null;
+        this.okeyPlayedThisTurn = false;
+        this.tableSets = [];
         this.createdAt = new Date();
         this.lastActionTime = new Date();
 
@@ -258,6 +269,7 @@ export class Game {
 
         // Tur aksiyonunu sıfırla
         this.turnAction = TurnAction.DRAW;
+        this.okeyPlayedThisTurn = false;
     }
 
     isPlayerTurn(playerId: string): boolean {
@@ -268,9 +280,441 @@ export class Game {
         return this.players.find(player => player.id === playerId);
     }
 
+    // ── El Açma / Taş Oynama ───────────────────────────────
+
+    openHand(playerId: string, setTileIds: string[][]): {
+        success: boolean;
+        error?: string;
+        newSets?: TableSet[];
+        openedTotal?: number;
+        remainingTiles?: Record<string, any>[];
+    } {
+        const player = this.getPlayerById(playerId);
+        if (!player || !this.isPlayerTurn(playerId)) {
+            return { success: false, error: 'Sıra bu oyuncuda değil' };
+        }
+
+        // Taş çektikten sonra veya ilk el (15 taş) ise açılabilir
+        const isFirstTurn = player.tiles.length === 15 && this.turnAction === TurnAction.DRAW;
+        if (this.turnAction !== TurnAction.DISCARD && !isFirstTurn) {
+            return { success: false, error: 'Önce taş çekilmeli' };
+        }
+
+        if (!setTileIds || setTileIds.length === 0) {
+            return { success: false, error: 'En az bir set gerekli' };
+        }
+
+        // Her set'i doğrula
+        let totalValue = 0;
+        const validatedSets: { tiles: Tile[]; value: number }[] = [];
+
+        for (const tileIds of setTileIds) {
+            if (tileIds.length < 3) {
+                return { success: false, error: 'Her sette en az 3 taş olmalı' };
+            }
+
+            const tiles: Tile[] = [];
+            for (const id of tileIds) {
+                const tile = player.tiles.find(t => t.id === id);
+                if (!tile) {
+                    return { success: false, error: 'Taş oyuncunun elinde bulunamadı' };
+                }
+                tiles.push(tile);
+            }
+
+            const setValue = this.validateSetTiles(tiles);
+            if (setValue === 0) {
+                return { success: false, error: 'Geçersiz set' };
+            }
+
+            validatedSets.push({ tiles, value: setValue });
+            totalValue += setValue;
+        }
+
+        // Masadaki en yüksek açılış değerini bul (tüm oyuncular)
+        const maxOpenedValue = this.players.reduce((max, p) =>
+            p.lastOpenedValue > max ? p.lastOpenedValue : max, 0
+        );
+
+        // Minimum değer kontrolü
+        if (maxOpenedValue === 0 && totalValue < 51) {
+            return { success: false, error: 'İlk açılış için minimum 51 puan gerekli' };
+        }
+        if (maxOpenedValue > 0 && totalValue <= maxOpenedValue) {
+            return { success: false, error: `Masadaki en yüksek değerden (${maxOpenedValue}) büyük olmalı` };
+        }
+
+        // Taşları elden masaya taşı
+        const newSets: TableSet[] = [];
+        for (const { tiles, value } of validatedSets) {
+            const setId = uuidv4();
+            for (const tile of tiles) {
+                player.removeTile(tile.id);
+                tile.setStatus(TileStatus.ON_TABLE);
+                tile.setVisible(true);
+            }
+            const tableSet: TableSet = { id: setId, playerId, tiles, value };
+            this.tableSets.push(tableSet);
+            newSets.push(tableSet);
+        }
+
+        player.isOpen = true;
+        player.lastOpenedValue = totalValue;
+        player.openedTotal += totalValue;
+        this.lastActionTime = new Date();
+
+        return {
+            success: true,
+            newSets,
+            openedTotal: player.openedTotal,
+            remainingTiles: player.tiles.map(t => t.toJSON())
+        };
+    }
+
+    // ── İşleme (Taş Ekleme) ─────────────────────────────────
+    // Eli açık oyuncu, masadaki mevcut bir sete taş ekleyebilir.
+    // Normal ekleme: set sahibine taş değeri × 10 ceza (farklı oyuncu ise)
+    // Okey swap: set sahibine 100 ceza
+    // Erkek per: okey almak için tüm eksik renkler önce tamamlanmalı (set 4 taşlı olmalı)
+    // Sıralı per: tek taş ile okey swap yapılabilir
+    // position: client taşın bırakıldığı yeri belirtir ('start' | 'end')
+
+    addTileToSet(playerId: string, tileId: string, targetSetId: string, position: 'start' | 'end'): {
+        success: boolean;
+        error?: string;
+        updatedSet?: Record<string, any>;
+        swappedOkeyTile?: Record<string, any>;
+        penalty?: { targetPlayerId: string; amount: number };
+        remainingTiles?: Record<string, any>[];
+    } {
+        const player = this.getPlayerById(playerId);
+        if (!player || !this.isPlayerTurn(playerId)) {
+            return { success: false, error: 'Sıra bu oyuncuda değil' };
+        }
+
+        if (!player.isOpen) {
+            return { success: false, error: 'Önce el açılmalı' };
+        }
+
+        const isFirstTurn = player.tiles.length === 15 && this.turnAction === TurnAction.DRAW;
+        if (this.turnAction !== TurnAction.DISCARD && !isFirstTurn) {
+            return { success: false, error: 'Önce taş çekilmeli' };
+        }
+
+        const tile = player.tiles.find(t => t.id === tileId);
+        if (!tile) {
+            return { success: false, error: 'Taş oyuncunun elinde bulunamadı' };
+        }
+
+        const targetSet = this.tableSets.find(s => s.id === targetSetId);
+        if (!targetSet) {
+            return { success: false, error: 'Hedef set bulunamadı' };
+        }
+
+        const setOwner = this.getPlayerById(targetSet.playerId);
+
+        // 1. Okey swap denemesi — sette joker varsa yerine gerçek taşı koy
+        // Bu turda okey işlemiş oyuncu tekrar okey alamaz
+        const okeyIndex = targetSet.tiles.findIndex(t => t.isJoker);
+        if (okeyIndex !== -1 && !this.okeyPlayedThisTurn && !tile.isJoker) {
+            // Erkek per (aynı sayı seti): okey swap ancak set 4 taşla doluyken
+            // Sıralı per: tek taş ile swap mümkün
+            const isSameNumber = this.isSameNumberSet(targetSet.tiles);
+            const canSwapOkey = !isSameNumber || targetSet.tiles.length === 4;
+
+            if (canSwapOkey) {
+                const testTiles = [...targetSet.tiles];
+                testTiles[okeyIndex] = tile;
+
+                const newValue = this.validateSetTiles(testTiles);
+                if (newValue > 0) {
+                    const okeyTile = targetSet.tiles[okeyIndex];
+
+                    player.removeTile(tileId);
+                    tile.setStatus(TileStatus.ON_TABLE);
+                    tile.setVisible(true);
+
+                    targetSet.tiles[okeyIndex] = tile;
+                    targetSet.value = newValue;
+
+                    okeyTile.setStatus(TileStatus.IN_HAND);
+                    player.addTile(okeyTile);
+
+                    // Set sahibine 100 puan ceza
+                    let penalty: { targetPlayerId: string; amount: number } | undefined;
+                    if (setOwner) {
+                        setOwner.addPenalty(100);
+                        penalty = { targetPlayerId: setOwner.id, amount: 100 };
+                    }
+
+                    this.lastActionTime = new Date();
+
+                    return {
+                        success: true,
+                        updatedSet: this.tableSetToJSON(targetSet),
+                        swappedOkeyTile: okeyTile.toJSON(),
+                        penalty,
+                        remainingTiles: player.tiles.map(t => t.toJSON())
+                    };
+                }
+            }
+        }
+
+        // 2. Normal ekleme — client'ın belirttiği pozisyona ekle
+        const testTiles = position === 'start'
+            ? [tile, ...targetSet.tiles]
+            : [...targetSet.tiles, tile];
+
+        const newValue = this.validateSetTiles(testTiles);
+        if (newValue <= 0) {
+            return { success: false, error: 'Bu taş bu pozisyona eklenemez' };
+        }
+
+        player.removeTile(tileId);
+        tile.setStatus(TileStatus.ON_TABLE);
+        tile.setVisible(true);
+
+        if (position === 'start') {
+            targetSet.tiles.unshift(tile);
+        } else {
+            targetSet.tiles.push(tile);
+        }
+        targetSet.value = newValue;
+
+        // Okey (joker) işlendiyse bu turda geri alınamaz
+        if (tile.isJoker) {
+            this.okeyPlayedThisTurn = true;
+        }
+
+        // Ceza: sadece başka oyuncunun setine ekleme → taş değeri × 10
+        // Joker için pozisyondaki etkin değeri hesapla
+        let penalty: { targetPlayerId: string; amount: number } | undefined;
+        if (setOwner && setOwner.id !== playerId) {
+            let effectiveValue: number;
+            if (tile.isJoker) {
+                effectiveValue = this.calculateEffectiveValue(targetSet.tiles, tile, position);
+            } else {
+                effectiveValue = typeof tile.value === 'number' ? tile.value : 0;
+            }
+            const penaltyAmount = effectiveValue * 10;
+            setOwner.addPenalty(penaltyAmount);
+            penalty = { targetPlayerId: setOwner.id, amount: penaltyAmount };
+        }
+
+        this.lastActionTime = new Date();
+
+        return {
+            success: true,
+            updatedSet: this.tableSetToJSON(targetSet),
+            penalty,
+            remainingTiles: player.tiles.map(t => t.toJSON())
+        };
+    }
+
+    // Joker'in sete eklendiği pozisyondaki etkin değerini hesapla
+    private calculateEffectiveValue(tilesAfterInsert: Tile[], jokerTile: Tile, position: 'start' | 'end'): number {
+        // Sıralı set ise pozisyona göre değer çıkar
+        const normalTiles = tilesAfterInsert.filter(t => !t.isJoker && typeof t.value === 'number');
+        if (normalTiles.length === 0) return 0;
+
+        // Aynı sayı seti ise tüm taşlar aynı değerde
+        if (this.isSameNumberSet(tilesAfterInsert)) {
+            return normalTiles[0].value as number;
+        }
+
+        // Sıralı set: joker başa eklendiyse ilk normal taştan -1, sona eklendiyse son normal taştan +1
+        if (position === 'start') {
+            const firstNormal = normalTiles.reduce((min, t) =>
+                (t.value as number) < (min.value as number) ? t : min, normalTiles[0]);
+            return (firstNormal.value as number) - 1;
+        } else {
+            const lastNormal = normalTiles.reduce((max, t) =>
+                (t.value as number) > (max.value as number) ? t : max, normalTiles[0]);
+            return (lastNormal.value as number) + 1;
+        }
+    }
+
+    private tableSetToJSON(set: TableSet): Record<string, any> {
+        return {
+            id: set.id,
+            playerId: set.playerId,
+            tiles: set.tiles.map(t => t.toJSON()),
+            value: set.value
+        };
+    }
+
+    // ── Per İndirme ────────────────────────────────────────
+    // Eli açık oyuncu, sırası geldiğinde geçerli setlerini
+    // skor etkisi olmadan masaya indirebilir.
+
+    dropPer(playerId: string, setTileIds: string[][]): {
+        success: boolean;
+        error?: string;
+        newSets?: TableSet[];
+        remainingTiles?: Record<string, any>[];
+    } {
+        const player = this.getPlayerById(playerId);
+        if (!player || !this.isPlayerTurn(playerId)) {
+            return { success: false, error: 'Sıra bu oyuncuda değil' };
+        }
+
+        if (!player.isOpen) {
+            return { success: false, error: 'Önce el açılmalı' };
+        }
+
+        const isFirstTurn = player.tiles.length === 15 && this.turnAction === TurnAction.DRAW;
+        if (this.turnAction !== TurnAction.DISCARD && !isFirstTurn) {
+            return { success: false, error: 'Önce taş çekilmeli' };
+        }
+
+        if (!setTileIds || setTileIds.length === 0) {
+            return { success: false, error: 'En az bir set gerekli' };
+        }
+
+        const validatedSets: { tiles: Tile[]; value: number }[] = [];
+
+        for (const tileIds of setTileIds) {
+            if (tileIds.length < 3) {
+                return { success: false, error: 'Her sette en az 3 taş olmalı' };
+            }
+
+            const tiles: Tile[] = [];
+            for (const id of tileIds) {
+                const tile = player.tiles.find(t => t.id === id);
+                if (!tile) {
+                    return { success: false, error: 'Taş oyuncunun elinde bulunamadı' };
+                }
+                tiles.push(tile);
+            }
+
+            const setValue = this.validateSetTiles(tiles);
+            if (setValue === 0) {
+                return { success: false, error: 'Geçersiz set' };
+            }
+
+            validatedSets.push({ tiles, value: setValue });
+        }
+
+        // Taşları elden masaya taşı — skor güncellenmez
+        const newSets: TableSet[] = [];
+        for (const { tiles, value } of validatedSets) {
+            const setId = uuidv4();
+            for (const tile of tiles) {
+                player.removeTile(tile.id);
+                tile.setStatus(TileStatus.ON_TABLE);
+                tile.setVisible(true);
+            }
+            const tableSet: TableSet = { id: setId, playerId, tiles, value };
+            this.tableSets.push(tableSet);
+            newSets.push(tableSet);
+        }
+
+        this.lastActionTime = new Date();
+
+        return {
+            success: true,
+            newSets,
+            remainingTiles: player.tiles.map(t => t.toJSON())
+        };
+    }
+
+    // ── Server-side Set Doğrulama ────────────────────────
+
+    private isSameNumberSet(tiles: Tile[]): boolean {
+        const normalTiles = tiles.filter(t => !t.isJoker);
+        if (normalTiles.length === 0) return false;
+        const value = normalTiles[0].value;
+        return normalTiles.every(t => t.value === value);
+    }
+
+    private validateSetTiles(tiles: Tile[]): number {
+        if (tiles.length < 3) return 0;
+
+        const sameNumberScore = this.validateSameNumberSetTiles(tiles);
+        if (sameNumberScore > 0) return sameNumberScore;
+
+        const sequentialScore = this.validateSequentialSetTiles(tiles);
+        if (sequentialScore > 0) return sequentialScore;
+
+        return 0;
+    }
+
+    private validateSameNumberSetTiles(tiles: Tile[]): number {
+        if (tiles.length < 3 || tiles.length > 4) return 0;
+
+        const normalTiles = tiles.filter(t => !t.isJoker);
+        if (normalTiles.length === 0) return 0;
+
+        const value = normalTiles[0].value;
+        if (typeof value !== 'number') return 0;
+
+        const colors = new Set<string>();
+        for (const tile of normalTiles) {
+            if (tile.value !== value) return 0;
+            if (colors.has(tile.color)) return 0;
+            colors.add(tile.color);
+        }
+
+        return (value as number) * tiles.length;
+    }
+
+    private validateSequentialSetTiles(tiles: Tile[]): number {
+        if (tiles.length < 3) return 0;
+
+        const normalTiles = tiles.filter(t => !t.isJoker);
+        if (normalTiles.length === 0) return 0;
+
+        const color = normalTiles[0].color;
+        for (const tile of normalTiles) {
+            if (tile.color !== color) return 0;
+            if (typeof tile.value !== 'number') return 0;
+        }
+
+        // Artan (+1) ve azalan (-1) dene
+        for (const direction of [1, -1]) {
+            let anchorIdx = -1;
+            let anchorVal = 0;
+
+            for (let i = 0; i < tiles.length; i++) {
+                if (!tiles[i].isJoker) {
+                    anchorIdx = i;
+                    anchorVal = tiles[i].value as number;
+                    break;
+                }
+            }
+
+            let sum = 0;
+            let valid = true;
+
+            for (let i = 0; i < tiles.length; i++) {
+                const expectedVal = anchorVal + (i - anchorIdx) * direction;
+                if (expectedVal < 1 || expectedVal > 13) { valid = false; break; }
+
+                if (!tiles[i].isJoker) {
+                    if (tiles[i].value !== expectedVal || tiles[i].color !== color) {
+                        valid = false; break;
+                    }
+                }
+                sum += expectedVal;
+            }
+
+            if (valid) return sum;
+        }
+
+        return 0;
+    }
+
+    getTableSetsByPlayer(playerId: string): TableSet[] {
+        return this.tableSets.filter(s => s.playerId === playerId);
+    }
+
     isHugoRound(): boolean {
         // 1., 5. ve 9. turlar Hugo turudur
         return [1, 5, 9].includes(this.round);
+    }
+
+    private tableSetsToJSON(): Record<string, any>[] {
+        return this.tableSets.map(set => this.tableSetToJSON(set));
     }
 
     toJSON(): Record<string, any> {
@@ -285,6 +729,7 @@ export class Game {
             turnAction: this.turnAction,
             indicatorTile: this.indicatorTile?.toJSON() || null,
             okeyTile: this.okeyTile?.toJSON() || null,
+            tableSets: this.tableSetsToJSON(),
             isHugoRound: this.isHugoRound(),
             createdAt: this.createdAt,
             lastActionTime: this.lastActionTime
@@ -304,6 +749,7 @@ export class Game {
             turnAction: this.turnAction,
             indicatorTile: this.indicatorTile?.toJSON() || null,
             lastDiscardPlayerId: this.lastDiscardPlayerId,
+            tableSets: this.tableSetsToJSON(),
             isHugoRound: this.isHugoRound(),
             createdAt: this.createdAt
         };

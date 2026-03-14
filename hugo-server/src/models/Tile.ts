@@ -14,6 +14,7 @@ export enum TileStatus {
     IN_HAND = 'in_hand',
     DISCARDED = 'discarded',
     IN_SET = 'in_set',
+    ON_TABLE = 'on_table',
     INDICATOR = 'indicator'
 }
 

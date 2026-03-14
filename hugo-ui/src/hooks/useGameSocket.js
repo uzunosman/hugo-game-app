@@ -38,9 +38,24 @@ const useGameSocket = (player, room, setError) => {
         socketService.discardTile(tileId, callback);
     };
 
+    const openHand = (sets, callback) => {
+        socketService.openHand(sets, callback);
+    };
+
+    const dropPer = (sets, callback) => {
+        socketService.dropPer(sets, callback);
+    };
+
+    const addTileToSet = (tileId, targetSetId, position, callback) => {
+        socketService.addTileToSet(tileId, targetSetId, position, callback);
+    };
+
     return {
         drawTile,
-        discardTile
+        discardTile,
+        openHand,
+        dropPer,
+        addTileToSet
     };
 };
 
