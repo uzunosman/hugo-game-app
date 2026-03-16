@@ -7,8 +7,8 @@ last_updated: "2026-03-16T20:01:40.637Z"
 progress:
   total_phases: 2
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 4
+  completed_plans: 4
   percent: 100
 ---
 
@@ -29,7 +29,7 @@ progress:
 ## Current Position
 
 **Phase:** 1 (Fix Scoring Multipliers)
-**Plan:** 3 of 3 (COMPLETE)
+**Plan:** 4 of 4 (COMPLETE)
 **Status:** Ready to plan
 **Progress:** [██████████] 100%
 
@@ -58,6 +58,7 @@ progress:
 9. **openingScore guard (===0) in openHand():** ensures only first open counts for star eligibility; safe because openingScore resets to 0 in resetForNewRound()
 10. **Star multiplier formula:** finisher earns 1 × jokerStarMult × hugoStarMult × closedStarMult; non-finisher earns 1 star if openingScore >= 100, else 0
 11. **roundTotal = Math.max(0, preMult - stars*100):** star deduction applied after hugoMult, minimum 0 prevents negative scores
+12. **stars broadcast gap closure:** game:roundEnd results.map() needed explicit stars: r.stars to wire through already-computed star data from endRound()
 
 ### Tech Context
 - Backend: Node.js/TypeScript (hugo-server)
@@ -86,7 +87,7 @@ None identified
 
 ## Session Continuity
 
-**Last completed:** Plan 01-03 (star system backend — Player.openingScore, RoundResult.stars, endRound() star calculation)
+**Last completed:** Plan 01-04 (gap closure — stars field wired into game:roundEnd socket broadcast)
 **Next step:** Phase 2 (UI and flow — RoundSummary display with stars, Scoreboard with multiplier indicators, game end screen)
 **Context files:**
 - .planning/PROJECT.md

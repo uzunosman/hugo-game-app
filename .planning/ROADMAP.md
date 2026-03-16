@@ -30,12 +30,13 @@
 4. Round-end game state includes explicit multiplier field (e.g., `multiplier: 4`) for downstream UI consumption
 5. Star system implemented: finisher earns stars based on bonus conditions (joker/Hugo/kimse açmadan), other players earn 1 star for 100+ point openings; each star deducts 100 from that round's roundTotal
 
-**Plans:** 3/3 plans complete
+**Plans:** 4/4 plans complete
 
 Plans:
 - [x] 01-01-PLAN.md — RoundResult interface + endRound() scoring logic in Game.ts
 - [x] 01-02-PLAN.md — game:finishRound socket handler + game:roundEnd broadcast in socketHandler.ts
-- [ ] 01-03-PLAN.md — Star system: Player.openingScore field + RoundResult.stars + endRound() star calculation
+- [x] 01-03-PLAN.md — Star system: Player.openingScore field + RoundResult.stars + endRound() star calculation
+- [x] 01-04-PLAN.md — Gap closure: stars field wired into game:roundEnd socket broadcast
 
 ---
 
@@ -62,7 +63,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Fix Scoring Multipliers | 3/3 | Complete   | 2026-03-16 |
+| 1. Fix Scoring Multipliers | 4/4 | Complete   | 2026-03-16 |
 | 2. Complete Scoring UI & Game Flow | 0/? | Not started | — |
 
 ---
