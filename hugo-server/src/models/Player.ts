@@ -14,6 +14,10 @@ export class Player {
     lastOpenedValue: number;
     openedTotal: number;
     penaltyScore: number;
+    penaltyEntries: number[];
+    roundScores: number[];
+    per100PlusCount: number;
+    openingScore: number;
 
     constructor(name: string, socketId: string) {
         this.id = uuidv4();
@@ -28,6 +32,10 @@ export class Player {
         this.lastOpenedValue = 0;
         this.openedTotal = 0;
         this.penaltyScore = 0;
+        this.penaltyEntries = [];
+        this.roundScores = [];
+        this.per100PlusCount = 0;
+        this.openingScore = 0;
     }
 
     addTile(tile: Tile): void {
@@ -71,11 +79,27 @@ export class Player {
 
     addPenalty(points: number): void {
         this.penaltyScore += points;
+        this.penaltyEntries.push(points);
     }
 
     resetScore(): void {
         this.score = 0;
         this.penaltyScore = 0;
+    }
+
+    resetForNewRound(): void {
+        this.tiles = [];
+        this.isOpen = false;
+        this.lastOpenedValue = 0;
+        this.openedTotal = 0;
+        this.penaltyScore = 0;
+        this.openingScore = 0;
+        this.penaltyEntries = [];
+        this.isTurn = false;
+    }
+
+    getTotalScore(): number {
+        return this.roundScores.reduce((sum, s) => sum + s, 0);
     }
 
     clearTiles(): void {
@@ -102,11 +126,16 @@ export class Player {
             tilesCount: this.tiles.length,
             score: this.score,
             penaltyScore: this.penaltyScore,
+            penaltyEntries: this.penaltyEntries,
             isReady: this.isReady,
             isTurn: this.isTurn,
             isOpen: this.isOpen,
             lastOpenedValue: this.lastOpenedValue,
-            openedTotal: this.openedTotal
+            openedTotal: this.openedTotal,
+            roundScores: this.roundScores,
+            totalScore: this.getTotalScore(),
+            per100PlusCount: this.per100PlusCount,
+            openingScore: this.openingScore,
         };
     }
 } 
