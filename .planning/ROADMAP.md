@@ -17,7 +17,7 @@
 
 ### Phase 1: Fix Scoring Multipliers
 
-**Goal:** Implement joker finishing penalty multiplier (×2), Hugo round multiplier (×4 combined), and unified multiplier calculation so all combinations produce correct results.
+**Goal:** Implement joker finishing penalty multiplier (×2), Hugo round multiplier (×4 combined), unified multiplier calculation, and star system (stars reduce roundTotal by 100 each).
 
 **Depends on:** Nothing (foundation phase)
 
@@ -28,12 +28,14 @@
 2. When a player finishes with joker in a Hugo round (1st, 5th, 9th), multiplier calculates as ×4 (Hugo ×2 + joker ×2)
 3. Multiplier calculation is centralized in game logic (single source of truth), and all combinations (Hugo only, joker only, Hugo+joker) produce mathematically correct results
 4. Round-end game state includes explicit multiplier field (e.g., `multiplier: 4`) for downstream UI consumption
+5. Star system implemented: finisher earns stars based on bonus conditions (joker/Hugo/kimse açmadan), other players earn 1 star for 100+ point openings; each star deducts 100 from that round's roundTotal
 
-**Plans:** 2 plans
+**Plans:** 3 plans
 
 Plans:
 - [x] 01-01-PLAN.md — RoundResult interface + endRound() scoring logic in Game.ts
-- [ ] 01-02-PLAN.md — game:finishRound socket handler + game:roundEnd broadcast in socketHandler.ts
+- [x] 01-02-PLAN.md — game:finishRound socket handler + game:roundEnd broadcast in socketHandler.ts
+- [ ] 01-03-PLAN.md — Star system: Player.openingScore field + RoundResult.stars + endRound() star calculation
 
 ---
 
@@ -60,7 +62,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Fix Scoring Multipliers | 1/2 | In progress | — |
+| 1. Fix Scoring Multipliers | 2/3 | In progress | — |
 | 2. Complete Scoring UI & Game Flow | 0/? | Not started | — |
 
 ---
@@ -68,6 +70,6 @@ Plans:
 ## Context
 
 - Phases derived from 8 v1 requirements in Scoring System and Game Flow categories
-- Phase 1 fixes backend logic (multiplier calculation); Phase 2 builds UI and completes game flow
+- Phase 1 fixes backend logic (multiplier calculation + star system); Phase 2 builds UI and completes game flow
 - Natural dependency: UI cannot correctly display multipliers until calculation is fixed
 - Coarse granularity applied: Two phases instead of one-per-requirement compression
