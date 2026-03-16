@@ -1,3 +1,17 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+status: executing
+last_updated: "2026-03-16T18:20:23.613Z"
+progress:
+  total_phases: 2
+  completed_phases: 1
+  total_plans: 2
+  completed_plans: 2
+  percent: 100
+---
+
 # Hugo Oyunu - State & Context
 
 **Initialized:** 2026-03-16
@@ -15,9 +29,9 @@
 ## Current Position
 
 **Phase:** 1 (Fix Scoring Multipliers)
-**Plan:** 2 of 2
-**Status:** In progress
-**Progress:** ▰▰▰▰▰▱▱▱▱▱ 38% (3/8 requirements completed)
+**Plan:** 2 of 2 (COMPLETE)
+**Status:** Phase 1 complete
+**Progress:** [██████████] 100%
 
 ---
 
@@ -39,6 +53,8 @@
 4. **endRound() as single source of truth:** All multiplier logic centralized — never compute round scores outside this method
 5. **finisherPlayerId optional parameter:** Backward-compatible signature allows socketHandler.ts migration in Plan 02 without breaking compilation
 6. **jokerMult on handScore only:** Penalty score not affected by joker multiplier — isolated component calculation
+7. **Capture finishedWithJoker from results array:** game.finishedWithJoker is reset to false by endRound() — read value from results[0].finishedWithJoker for broadcast
+8. **completedRound calculation:** endRound() increments round internally — use game.round - 1 when status is not 'finished', game.round when 'finished'
 
 ### Tech Context
 - Backend: Node.js/TypeScript (hugo-server)
@@ -67,8 +83,8 @@ None identified
 
 ## Session Continuity
 
-**Last completed:** Plan 01-01 (endRound() scoring implementation in Game.ts)
-**Next step:** Execute Plan 01-02 (socketHandler.ts integration + finishedWithJoker trigger)
+**Last completed:** Plan 01-02 (game:finishRound socket handler — scoring pipeline fully wired)
+**Next step:** Phase 2 (UI and flow — RoundSummary display, Scoreboard with multiplier indicators, game end screen)
 **Context files:**
 - .planning/PROJECT.md
 - .planning/REQUIREMENTS.md
