@@ -29,7 +29,11 @@
 3. Multiplier calculation is centralized in game logic (single source of truth), and all combinations (Hugo only, joker only, Hugo+joker) produce mathematically correct results
 4. Round-end game state includes explicit multiplier field (e.g., `multiplier: 4`) for downstream UI consumption
 
-**Plans:** TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — RoundResult interface + endRound() scoring logic in Game.ts
+- [ ] 01-02-PLAN.md — game:finishRound socket handler + game:roundEnd broadcast in socketHandler.ts
 
 ---
 
@@ -56,7 +60,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Fix Scoring Multipliers | 0/? | Not started | — |
+| 1. Fix Scoring Multipliers | 0/2 | Not started | — |
 | 2. Complete Scoring UI & Game Flow | 0/? | Not started | — |
 
 ---
