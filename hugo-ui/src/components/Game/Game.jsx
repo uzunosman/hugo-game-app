@@ -1,6 +1,8 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import PlayerPanel from '../PlayerPanel/PlayerPanel';
 import GameBoard from '../GameBoard/GameBoard';
+import Scoreboard from '../Scoreboard/Scoreboard';
+import RoundSummary from '../RoundSummary/RoundSummary';
 import useGameState from '../../hooks/useGameState';
 import useGameSocket from '../../hooks/useGameSocket';
 import { getOrderedPlayers, getPlayerPosition, getPlayerCorner, getCurrentPlayerIndex, calculateHandScore, getConsecutiveGroups, validateSet } from '../../utils/gameUtils';
@@ -35,7 +37,9 @@ function Game({ player, room }) {
         lastDiscardPlayerId,
         tableSets,
         setTableSets,
-        playerOpenStates
+        playerOpenStates,
+        roundEndResults,
+        setRoundEndResults
     } = useGameState(player, room);
 
     // Socket işlevlerini al
@@ -43,6 +47,13 @@ function Game({ player, room }) {
 
     // Sürüklenen taş bilgisi (işleme için activeTile hesaplamada kullanılır)
     const [draggingTile, setDraggingTile] = useState(null);
+
+    // Okey taşlarına sağ tıkla - ters çevrilmiş görünsün
+    const [flippedTileIds, setFlippedTileIds] = useState(() => new Set());
+
+    useEffect(() => {
+        setFlippedTileIds(new Set());
+    }, [gameState.round]);
 
     // Oyuncuları sırala
     const players = getOrderedPlayers(room.players, player.id);
@@ -183,7 +194,7 @@ function Game({ player, room }) {
     });
 
     // Mevcut oyuncunun set ve per hesabını yap
-    const handScore = calculateHandScore(tilePositions, tiles, gameState.indicatorTile);
+    const handScore = calculateHandScore(tilePositions, tiles, gameState.indicatorTile, gameState.okeyTile, gameState.round);
 
     // El açma durumu
     const isFirstHandBlock = tiles.length === 15 && gameState.turnAction === 'draw';
@@ -231,6 +242,15 @@ function Game({ player, room }) {
         setDraggingTile(null);
     }, []);
 
+    const handleOkeyFlip = useCallback((tileId) => {
+        setFlippedTileIds(prev => {
+            const next = new Set(prev);
+            if (next.has(tileId)) next.delete(tileId);
+            else next.add(tileId);
+            return next;
+        });
+    }, []);
+
     // İşleme handler'ı — seç & tıkla veya sürükle & bırak (pozisyon dahil)
     const onAddTileToSet = (tileId, targetSetId, position) => {
         if (!myOpenState.isOpen || !isMyTurn) return;
@@ -273,9 +293,10 @@ function Game({ player, room }) {
         if (!canDropPer) return;
 
         const groups = getConsecutiveGroups(tilePositions, tiles);
+        const opts = { okeyTile: gameState.okeyTile, round: gameState.round };
         const validSets = [];
         for (const group of groups) {
-            const score = validateSet(group);
+            const score = validateSet(group, opts);
             if (score > 0) {
                 validSets.push(group.map(t => t.id));
             }
@@ -303,9 +324,10 @@ function Game({ player, room }) {
 
         // Geçerli setleri tespit et
         const groups = getConsecutiveGroups(tilePositions, tiles);
+        const opts = { okeyTile: gameState.okeyTile, round: gameState.round };
         const validSets = [];
         for (const group of groups) {
-            const score = validateSet(group);
+            const score = validateSet(group, opts);
             if (score > 0) {
                 validSets.push(group.map(t => t.id));
             }
@@ -412,6 +434,7 @@ function Game({ player, room }) {
                 lastDiscardCorner={lastDiscardCorner}
                 deckCount={gameState.deckCount}
                 indicatorTile={gameState.indicatorTile}
+                okeyTile={gameState.okeyTile}
                 gameRound={gameState.round}
                 selectedTile={selectedTile}
                 tableSets={tableSets}
@@ -421,7 +444,24 @@ function Game({ player, room }) {
                 onAddTileToSet={onAddTileToSet}
                 onTileDragStart={handleTileDragStart}
                 onTileDragEnd={handleTileDragEnd}
+                flippedTileIds={flippedTileIds}
+                onOkeyFlip={handleOkeyFlip}
             />
+
+            {/* Tabela */}
+            <Scoreboard
+                players={players}
+                playerOpenStates={playerOpenStates}
+            />
+
+            {/* Tur Sonu Ekranı */}
+            {roundEndResults && (
+                <RoundSummary
+                    roundData={roundEndResults}
+                    isLastRound={roundEndResults.round >= 9}
+                    onClose={() => setRoundEndResults(null)}
+                />
+            )}
         </div>
     );
 }

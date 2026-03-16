@@ -227,6 +227,22 @@ class SocketService {
     offPerDropped() {
         this.socket.off('game:perDropped');
     }
+
+    onRoundEnded(callback) {
+        this.socket.on('game:roundEnded', callback);
+    }
+
+    offRoundEnded() {
+        this.socket.off('game:roundEnded');
+    }
+
+    onRoundStarted(callback) {
+        this.socket.on('game:roundStarted', callback);
+    }
+
+    offRoundStarted() {
+        this.socket.off('game:roundStarted');
+    }
 }
 
 // Singleton örneği oluştur

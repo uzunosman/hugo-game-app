@@ -1,0 +1,216 @@
+.round-summary-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 300;
+    background: rgba(0, 0, 0, 0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.round-summary-modal {
+    background: #1a1a2e;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    min-width: 320px;
+    max-width: 92vw;
+    max-height: 88vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+    animation: slideUp 0.35s ease;
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.round-summary-header {
+    padding: 18px 22px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.round-summary-title {
+    color: #fff;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.hugo-tag {
+    display: inline-block;
+    background: #e74c3c;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 4px;
+    padding: 2px 8px;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
+.round-summary-cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 8px 18px 14px;
+    justify-content: center;
+}
+
+.summary-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 14px 16px;
+    min-width: 150px;
+    flex: 1;
+    max-width: 200px;
+}
+
+.summary-card.best {
+    border-color: rgba(76, 175, 80, 0.4);
+    background: rgba(76, 175, 80, 0.06);
+}
+
+.summary-rank {
+    color: rgba(255, 255, 255, 0.35);
+    font-size: 11px;
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+.summary-card.best .summary-rank {
+    color: #4CAF50;
+}
+
+.summary-name {
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.summary-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.breakdown-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.breakdown-row.penalty span:last-child {
+    color: #e74c3c;
+}
+
+.breakdown-row.bonus span:last-child {
+    color: #4CAF50;
+}
+
+.breakdown-row.multiplier span:last-child {
+    color: #FFC107;
+    font-weight: 700;
+}
+
+.summary-scores {
+    display: flex;
+    gap: 14px;
+}
+
+.round-score,
+.total-score {
+    flex: 1;
+}
+
+.summary-scores .label {
+    display: block;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.35);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+}
+
+.summary-scores .value {
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+    font-variant-numeric: tabular-nums;
+}
+
+.summary-scores .value.negative {
+    color: #4CAF50;
+}
+
+.round-summary-footer {
+    padding: 12px 22px 18px;
+    text-align: center;
+}
+
+.round-summary-close {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+}
+
+.round-summary-close:hover {
+    color: #fff;
+}
+
+.round-summary-continue-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #fff;
+    padding: 8px 28px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.round-summary-continue-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.game-over-text {
+    color: #FFC107;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+@media (max-width: 640px) {
+    .round-summary-cards {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .summary-card {
+        max-width: 100%;
+        width: 100%;
+    }
+}

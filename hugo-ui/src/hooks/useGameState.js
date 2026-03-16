@@ -25,11 +25,13 @@ const useGameState = (player, room) => {
     const [lastDiscardPlayerId, setLastDiscardPlayerId] = useState(room.game?.lastDiscardPlayerId || null);
     // Masadaki açık setler
     const [tableSets, setTableSets] = useState(room.game?.tableSets || []);
+    // Tur sonu sonuçları (null = tur devam ediyor)
+    const [roundEndResults, setRoundEndResults] = useState(null);
     // Oyuncu açık durumları { playerId: { isOpen, openedTotal, lastOpenedValue } }
     const [playerOpenStates, setPlayerOpenStates] = useState(() => {
         const states = {};
         room.players.forEach(p => {
-            states[p.id] = { isOpen: p.isOpen || false, openedTotal: p.openedTotal || 0, lastOpenedValue: p.lastOpenedValue || 0, penaltyScore: p.penaltyScore || 0 };
+            states[p.id] = { isOpen: p.isOpen || false, openedTotal: p.openedTotal || 0, lastOpenedValue: p.lastOpenedValue || 0, penaltyScore: p.penaltyScore || 0, penaltyEntries: p.penaltyEntries || [] };
         });
         return states;
     });
@@ -151,6 +153,10 @@ const useGameState = (player, room) => {
                         lastOpenedValue: response.lastOpenedValue
                     }
                 }));
+                // İlk turda direkt açan oyuncu için turnAction: discard (tekrar taş çekemesin)
+                if (response.turnAction) {
+                    setGameState(prev => ({ ...prev, turnAction: response.turnAction }));
+                }
             }
         });
 
@@ -169,7 +175,8 @@ const useGameState = (player, room) => {
                             ...prev,
                             [response.penalty.targetPlayerId]: {
                                 ...target,
-                                penaltyScore: (target.penaltyScore || 0) + response.penalty.amount
+                                penaltyScore: (target.penaltyScore || 0) + response.penalty.amount,
+                                penaltyEntries: [...(target.penaltyEntries || []), response.penalty.amount]
                             }
                         };
                     });
@@ -184,6 +191,47 @@ const useGameState = (player, room) => {
             }
         });
 
+        // Tur sonu
+        socketService.onRoundEnded((data) => {
+            console.log('Tur sonu:', data);
+            setRoundEndResults(data);
+        });
+
+        // Yeni tur başladı — tüm state'leri sıfırla ve yeniden yükle
+        socketService.onRoundStarted((data) => {
+            console.log('Yeni tur başladı:', data);
+
+            const g = data.game;
+            setGameState(g);
+            setTableSets(g.tableSets || []);
+            setDiscardedTiles({ topLeft: [], topRight: [], bottomRight: [], bottomLeft: [] });
+            setLastDiscardPlayerId(null);
+            setSelectedTile(null);
+
+            // Oyuncu açık durumlarını sıfırla
+            const states = {};
+            g.players.forEach(p => {
+                states[p.id] = {
+                    isOpen: p.isOpen || false,
+                    openedTotal: p.openedTotal || 0,
+                    lastOpenedValue: p.lastOpenedValue || 0,
+                    penaltyScore: p.penaltyScore || 0,
+                    penaltyEntries: p.penaltyEntries || [],
+                    roundScores: p.roundScores || [],
+                    totalScore: p.totalScore || 0,
+                    per100PlusCount: p.per100PlusCount || 0
+                };
+            });
+            setPlayerOpenStates(states);
+
+            // Taşları server'dan iste
+            socketService.requestTiles(player.id, (response) => {
+                if (response.success && response.tiles?.length > 0) {
+                    applyTiles(response.tiles);
+                }
+            });
+        });
+
         // Temizleme işlemi
         return () => {
             socketService.offGameTiles();
@@ -193,6 +241,8 @@ const useGameState = (player, room) => {
             socketService.offHandOpened();
             socketService.offTileAddedToSet();
             socketService.offPerDropped();
+            socketService.offRoundEnded();
+            socketService.offRoundStarted();
         };
     }, [player.id]);
 
@@ -260,7 +310,9 @@ const useGameState = (player, room) => {
         tableSets,
         setTableSets,
         playerOpenStates,
-        setPlayerOpenStates
+        setPlayerOpenStates,
+        roundEndResults,
+        setRoundEndResults
     };
 };
 

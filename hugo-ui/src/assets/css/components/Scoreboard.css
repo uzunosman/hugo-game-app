@@ -1,0 +1,134 @@
+/* Kıraathane tabelası — imajla birebir, sade grid */
+
+@import url('https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&display=swap');
+
+.scoreboard-toggle {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 100;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    color: #fff;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.scoreboard-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.scoreboard-modal.scoreboard-kiraathane {
+    position: relative;
+    background: #fff;
+    border: 1px solid #1a1a1a;
+    padding: 16px 20px;
+    max-width: 95vw;
+    max-height: 90vh;
+    overflow: auto;
+}
+
+.scoreboard-paper {
+    background: #fff;
+    font-family: 'Kalam', cursive;
+}
+
+.scoreboard-close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: none;
+    border: none;
+    color: #666;
+    font-size: 22px;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.scoreboard-close:hover {
+    color: #1a1a1a;
+}
+
+.scoreboard-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    color: #1a1a1a;
+}
+
+.scoreboard-table th,
+.scoreboard-table td {
+    border: 1px solid #1a1a1a;
+    padding: 8px 12px;
+    text-align: center;
+    font-family: 'Kalam', cursive;
+}
+
+/* ★ satırı */
+.star-row th {
+    padding: 6px 12px;
+    font-size: 16px;
+}
+
+/* Oyuncu adları */
+.name-row th {
+    padding: 8px 12px;
+    font-weight: 700;
+    font-size: 15px;
+    border-bottom: 2px solid #1a1a1a;
+}
+
+/* Tur numaraları */
+.round-num {
+    font-weight: 700;
+    min-width: 32px;
+    text-align: center;
+}
+
+.round-row td {
+    font-variant-numeric: tabular-nums;
+}
+
+.negative {
+    color: #0d5c0d;
+}
+
+/* Toplam satırı */
+.total-row {
+    border-top: 2px solid #1a1a1a;
+}
+
+.total-label {
+    font-weight: 700;
+    text-align: left;
+    padding-left: 12px;
+}
+
+.total-cell {
+    font-weight: 700;
+    font-size: 15px;
+    font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+    .scoreboard-modal.scoreboard-kiraathane {
+        padding: 12px 14px;
+    }
+
+    .scoreboard-table th,
+    .scoreboard-table td {
+        padding: 6px 8px;
+        font-size: 12px;
+    }
+}

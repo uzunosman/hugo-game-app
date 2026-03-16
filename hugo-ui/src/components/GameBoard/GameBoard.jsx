@@ -33,6 +33,7 @@ const GameBoard = ({
     lastDiscardCorner,
     deckCount,
     indicatorTile,
+    okeyTile,
     gameRound,
     selectedTile,
     tableSets,
@@ -41,7 +42,9 @@ const GameBoard = ({
     activeTile,
     onAddTileToSet,
     onTileDragStart,
-    onTileDragEnd
+    onTileDragEnd,
+    flippedTileIds,
+    onOkeyFlip
 }) => {
     const isFirstHandBlock = tiles.length === 15 && turnAction === 'draw';
     const canDrawFromDeck = isMyTurn && turnAction === 'draw' && !isFirstHandBlock;
@@ -354,6 +357,8 @@ const GameBoard = ({
                     selectedTileId={selectedTileId}
                     activeTile={activeTile}
                     onAddTileToSet={onAddTileToSet}
+                    okeyTile={okeyTile}
+                    round={gameRound}
                 />
 
                 {/* Merkez Alan */}
@@ -377,6 +382,10 @@ const GameBoard = ({
                     selectedTileIndex={selectedTile}
                     onTileDragStart={onTileDragStart}
                     onTileDragEnd={onTileDragEnd}
+                    okeyTile={okeyTile}
+                    round={gameRound}
+                    flippedTileIds={flippedTileIds || new Set()}
+                    onOkeyFlip={onOkeyFlip}
                 />
             </div>
         </div>

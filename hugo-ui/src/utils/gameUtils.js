@@ -61,6 +61,8 @@ export const getCurrentPlayerIndex = (players, currentPlayerId) => {
     return players.findIndex(p => p.id === currentPlayerId);
 };
 
+const HUGO_ROUNDS = [1, 5, 9];
+
 /**
  * Gösterge taşından okey değerini hesaplar
  * Okey = gösterge + 1 (13 ise 1 olur)
@@ -70,6 +72,18 @@ export const getCurrentPlayerIndex = (players, currentPlayerId) => {
 export const getOkeyValue = (indicatorTile) => {
     if (!indicatorTile || typeof indicatorTile.value !== 'number') return 0;
     return indicatorTile.value >= 13 ? 1 : indicatorTile.value + 1;
+};
+
+/**
+ * Taş okey (joker gibi wildcard) mı?
+ * Hugo: joker taşları okey. Hugo dışı: gösterge+1 taşı (okeyTile) okey.
+ */
+export const isOkeyTile = (tile, okeyTile, round) => {
+    if (!tile) return false;
+    const isHugo = HUGO_ROUNDS.includes(round || 1);
+    if (isHugo) return !!tile.isJoker;
+    if (!okeyTile) return false;
+    return tile.color === okeyTile.color && tile.value === okeyTile.value;
 };
 
 /**
@@ -108,15 +122,16 @@ export const getConsecutiveGroups = (tilePositions, tiles) => {
 /**
  * "Aynı sayı farklı renk" set kontrolü.
  * Min 3, max 4 taş. Tüm normal taşlar aynı sayıda ve farklı renklerde olmalı.
- * Jokerler eksik renkleri temsil eder.
+ * Joker/okey eksik renkleri temsil eder.
  *
  * @param {Array} group - Taş grubu
+ * @param {Function} isWildcard - (tile) => tile wildcard mı (joker veya okey)
  * @returns {number} - Geçerliyse set toplam değeri, değilse 0
  */
-const validateSameNumberSet = (group) => {
+const validateSameNumberSet = (group, isWildcard) => {
     if (group.length < 3 || group.length > 4) return 0;
 
-    const normalTiles = group.filter(t => !t.isJoker);
+    const normalTiles = group.filter(t => !isWildcard(t));
     if (normalTiles.length === 0) return 0;
 
     const value = normalTiles[0].value;
@@ -136,15 +151,16 @@ const validateSameNumberSet = (group) => {
  * "Aynı renk sıralı" set kontrolü.
  * Min 3 taş. Tüm normal taşlar aynı renkte olmalı.
  * Hem artan (3,4,5) hem azalan (5,4,3) sıra desteklenir.
- * Jokerler dizideki boşlukları doldurur.
+ * Joker/okey dizideki boşlukları doldurur.
  *
  * @param {Array} group - Taş grubu (holder'daki fiziksel sıra ile)
+ * @param {Function} isWildcard - (tile) => tile wildcard mı
  * @returns {number} - Geçerliyse set toplam değeri, değilse 0
  */
-const validateSequentialSet = (group) => {
+const validateSequentialSet = (group, isWildcard) => {
     if (group.length < 3) return 0;
 
-    const normalTiles = group.filter(t => !t.isJoker);
+    const normalTiles = group.filter(t => !isWildcard(t));
     if (normalTiles.length === 0) return 0;
 
     const color = normalTiles[0].color;
@@ -155,7 +171,7 @@ const validateSequentialSet = (group) => {
 
     // Artan sıra (+1) ve azalan sıra (-1) dene
     for (const direction of [1, -1]) {
-        const result = trySequentialDirection(group, color, direction);
+        const result = trySequentialDirection(group, color, direction, isWildcard);
         if (result > 0) return result;
     }
 
@@ -167,14 +183,15 @@ const validateSequentialSet = (group) => {
  * @param {Array} group - Taş grubu
  * @param {string} color - Beklenen renk
  * @param {number} direction - 1 (artan) veya -1 (azalan)
+ * @param {Function} isWildcard - (tile) => tile wildcard mı
  * @returns {number} - Geçerliyse toplam, değilse 0
  */
-const trySequentialDirection = (group, color, direction) => {
+const trySequentialDirection = (group, color, direction, isWildcard) => {
     let anchorIdx = -1;
     let anchorVal = 0;
 
     for (let i = 0; i < group.length; i++) {
-        if (!group[i].isJoker) {
+        if (!isWildcard(group[i])) {
             anchorIdx = i;
             anchorVal = group[i].value;
             break;
@@ -187,7 +204,7 @@ const trySequentialDirection = (group, color, direction) => {
 
         if (expectedVal < 1 || expectedVal > 13) return 0;
 
-        if (!group[i].isJoker) {
+        if (!isWildcard(group[i])) {
             if (group[i].value !== expectedVal) return 0;
             if (group[i].color !== color) return 0;
         }
@@ -203,15 +220,19 @@ const trySequentialDirection = (group, color, direction) => {
  * Önce "aynı sayı farklı renk", sonra "aynı renk sıralı" dener.
  *
  * @param {Array} group - Taş grubu
+ * @param {Object} opts - { okeyTile, round } Hugo dışında okey taşı wildcard
  * @returns {number} - Geçerliyse set toplam değeri, değilse 0
  */
-export const validateSet = (group) => {
+export const validateSet = (group, opts = {}) => {
     if (group.length < 3) return 0;
 
-    const sameNumberScore = validateSameNumberSet(group);
+    const { okeyTile, round } = opts;
+    const isWildcard = (t) => isOkeyTile(t, okeyTile, round);
+
+    const sameNumberScore = validateSameNumberSet(group, isWildcard);
     if (sameNumberScore > 0) return sameNumberScore;
 
-    const sequentialScore = validateSequentialSet(group);
+    const sequentialScore = validateSequentialSet(group, isWildcard);
     if (sequentialScore > 0) return sequentialScore;
 
     return 0;
@@ -224,29 +245,34 @@ export const validateSet = (group) => {
  * Geçerli setlerin toplam değeri (setTotal) ve
  * geçerli setlere dahil olmayan taşların toplam değeri (perTotal) hesaplanır.
  *
+ * Hugo: joker taşları okey. Hugo dışı: gösterge+1 taşı okey, hesaplamaya dahil.
+ *
  * Per kuralları (sete dahil olmayan taşlar):
  *  - Sayılı taşlar (1-13): yüz değeri
- *  - Joker ("H"): okey değeri kadar (gösterge + 1)
+ *  - Joker/okey: okey değeri kadar (gösterge + 1)
  *
  * @param {Array} tilePositions - 30 elemanlı pozisyon dizisi
  * @param {Array} tiles - Oyuncunun elindeki taş objeleri
  * @param {Object} indicatorTile - Gösterge taşı
+ * @param {Object} okeyTile - Okey taşı (Hugo dışı turlarda)
+ * @param {number} round - Tur numarası
  * @returns {{ setTotal: number, perTotal: number, validSetCount: number }}
  */
-export const calculateHandScore = (tilePositions, tiles, indicatorTile) => {
+export const calculateHandScore = (tilePositions, tiles, indicatorTile, okeyTile, round) => {
     if (!tiles || tiles.length === 0) {
         return { setTotal: 0, perTotal: 0, validSetCount: 0 };
     }
 
     const okeyValue = getOkeyValue(indicatorTile);
     const groups = getConsecutiveGroups(tilePositions, tiles);
+    const opts = { okeyTile, round };
 
     const tilesInSets = new Set();
     let setTotal = 0;
     let validSetCount = 0;
 
     for (const group of groups) {
-        const score = validateSet(group);
+        const score = validateSet(group, opts);
         if (score > 0) {
             setTotal += score;
             validSetCount++;
@@ -258,7 +284,7 @@ export const calculateHandScore = (tilePositions, tiles, indicatorTile) => {
     let perTotal = 0;
     for (const tile of tiles) {
         if (!tilesInSets.has(tile.id)) {
-            if (tile.isJoker) {
+            if (isOkeyTile(tile, okeyTile, round)) {
                 perTotal += okeyValue;
             } else if (typeof tile.value === 'number') {
                 perTotal += tile.value;
