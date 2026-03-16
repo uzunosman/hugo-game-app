@@ -48,6 +48,32 @@
 - Çarpanlar yine uygulanır: Hugo × 800 = 1600, Joker × 800 = 1600, Hugo+Joker × 800 = 3200
 - Bu özel durum şu an kodda yok — Phase 1'e eklenmeli
 
+### Yıldız Sistemi (Yeni — Backend)
+
+Yıldızlar her tur hesaplanır ve o turun `roundTotal`'inden düşülür.
+
+**Yıldız kazanma koşulları:**
+
+| Koşul | Yıldız |
+|-------|--------|
+| Tur açılışı 100+ puan | +1 |
+| Normal bitiş | +1 |
+| Joker ile bitiş | +2 (normal yerine) |
+| Hugo turunda bitiş | +2 (normal yerine) |
+| Kimse açmadan bitiş | +2 (normal yerine) |
+| Hugo + Joker ile bitiş | +4 |
+| Hugo + Kimse açmadan | +4 |
+| Joker + Kimse açmadan | +4 |
+| Hugo + Joker + Kimse açmadan | +8 |
+
+**Bitiş yıldızı çarpım kuralı:** Her bonus koşul ×2 yapar — tüm geçerli koşullar çarpılır (1 × 2 × 2 × 2 = 8 gibi).
+
+**Uygulama:** `roundTotal = rawTotal * hugoMult - stars * 100`
+→ Yıldız düşümü `hugoMult` uygulandıktan SONRA yapılır.
+→ `stars * 100` negatife gidemez (min 0 kontrolü).
+
+**RoundResult'a eklenmesi gereken alan:** `stars: number`
+
 ### roundTotal Formülü (Her Oyuncu İçin)
 
 ```
@@ -56,18 +82,24 @@ handScore = !player.isOpen ? closedHandPenalty : sum(tile.value * 10)
 // closedHandPenalty = (noOtherPlayersOpened ? 800 : 400)
 effectiveHandScore = handScore * jokerMult   // jokerMult: 2 if finishedWithJoker, else 1
 rawTotal = effectiveHandScore + penaltyScore + openBonus + finishBonus
-roundTotal = rawTotal * hugoMult             // hugoMult: 2 if Hugo round, else 1
+preMult = rawTotal * hugoMult                // hugoMult: 2 if Hugo round, else 1
+stars = (player.openingScore >= 100 ? 1 : 0) // yıldız: 100+ açma
+roundTotal = preMult - (stars * 100)         // yıldız düşümü
 multiplier = hugoMult * jokerMult            // for RoundResult display field
 
 // Finisher:
 rawTotal = 0 + penaltyScore + openBonus + finishBonus  // jokerMult doesn't apply
-roundTotal = rawTotal * hugoMult
+preMult = rawTotal * hugoMult
+stars = finishStars                          // jokerMult_star * hugoMult_star * closedMult_star
+// finishStars: 1 × (finishedWithJoker?2:1) × (isHugoRound?2:1) × (noOtherPlayersOpened?2:1)
+roundTotal = preMult - (stars * 100)
 multiplier = hugoMult * jokerMult
 ```
 
 ### RoundResult Interface Değişiklikleri
 
 - `multiplier: number` field korunur (combined multiplier: 1, 2 veya 4)
+- `stars: number` field eklenmeli (o tur kazanılan yıldız sayısı)
 - `finishedWithJoker` bilgisi endRound()'a parametre olarak iletilmeli (veya Game state'e eklenmeli)
 
 ### Claude'un İnisiyatifine Bırakılanlar
@@ -75,6 +107,7 @@ multiplier = hugoMult * jokerMult
 - `finishedWithJoker` flag'inin Game sınıfında nasıl tutulacağı (alan mı, parametre mi)
 - `noOtherPlayersOpened` kontrolünün endRound() içindeki yeri
 - `checkRoundEnd()` / `endRound()` method imzalarının refactor detayı
+- `openingScore` alanının Player'da nasıl takip edileceği (el açma anındaki skor)
 
 </decisions>
 
@@ -130,6 +163,8 @@ multiplier = hugoMult * jokerMult
 - "Hugo + joker: el taşları ×4, cezalar ×2" (ayrı bileşen çarpanları)
 - Kapalı el kuralı: "hiç kimse açmadan biten = 800 ceza" (400'ün iki katı)
 - Kullanıcı örnekleri: normal+kapalı=800, Hugo+kapalı=1600, normal+joker+kapalı=1600, Hugo+joker+kapalı=3200
+- Yıldız örnekleri: normal bitiş=1★, joker bitiş=2★, Hugo+joker bitiş=4★, Hugo+joker+kimse açmadan=8★
+- Scoreboard layout: en üst → yıldız ikonları | oyuncu adı altı → o el toplam ceza | bir alt → toplam (cezalar - yıldız×100) | en alt → tekil ceza kalemleri
 
 </specifics>
 
