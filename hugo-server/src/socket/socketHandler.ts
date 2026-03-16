@@ -781,6 +781,7 @@ export const setupSocketHandlers = (io: Server) => {
                         multiplier: r.multiplier,
                         isHugoRound: r.isHugoRound,
                         finishedWithJoker: r.finishedWithJoker,
+                        stars: r.stars,
                     })),
                     gameStatus: game.status,
                 });
