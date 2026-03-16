@@ -47,11 +47,11 @@
 | PUAN-01 | Phase 1 | Pending |
 | PUAN-02 | Phase 1 | Pending |
 | PUAN-03 | Phase 1 | Pending |
-| PUAN-04 | Phase 1 | Pending |
-| PUAN-05 | Phase 1 | Pending |
-| PUAN-06 | Phase 1 | Pending |
-| AKIS-01 | Phase 1 | Pending |
-| AKIS-02 | Phase 1 | Pending |
+| PUAN-04 | Phase 2 | Pending |
+| PUAN-05 | Phase 2 | Pending |
+| PUAN-06 | Phase 2 | Pending |
+| AKIS-01 | Phase 2 | Pending |
+| AKIS-02 | Phase 2 | Pending |
 
 **Coverage:**
 - v1 requirements: 8 total
@@ -60,4 +60,4 @@
 
 ---
 *Requirements defined: 2026-03-16*
-*Last updated: 2026-03-16 after initial definition*
+*Last updated: 2026-03-16 after roadmap initialization*
