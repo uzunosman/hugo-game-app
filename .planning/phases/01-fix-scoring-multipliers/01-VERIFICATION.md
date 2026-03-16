@@ -1,18 +1,26 @@
 ---
 phase: 01-fix-scoring-multipliers
-verified: 2026-03-16T18:45:00Z
+verified: 2026-03-16T23:45:00Z
 status: passed
 score: 7/7 must-haves verified
-re_verification: false
+re_verification: true
+previous_status: gaps_found
+previous_score: 6/7
+gaps_closed:
+  - "game:roundEnd broadcast now includes stars field from RoundResult (Plan 04)"
+gaps_remaining: []
+regressions: []
 ---
 
-# Phase 01: Fix Scoring Multipliers Verification Report
+# Phase 01: Fix Scoring Multipliers — Final Verification Report
 
-**Phase Goal:** Implement joker finishing penalty multiplier (×2), Hugo round multiplier (×4 combined), and unified multiplier calculation so all combinations produce correct results.
+**Phase Goal:** Implement joker finishing penalty multiplier (×2), Hugo round multiplier (×4 combined), unified multiplier calculation, and star system (stars reduce roundTotal by 100 each).
 
-**Verified:** 2026-03-16T18:45:00Z
-**Status:** PASSED — All must-haves verified
-**Re-verification:** No — initial verification
+**Verified:** 2026-03-16T23:45:00Z
+**Status:** PASSED — All must-haves verified, gap closure confirmed
+**Re-verification:** Yes — Previous verification found 1 gap (missing stars in socket broadcast); confirmed closed in Plan 04
+
+---
 
 ## Goal Achievement
 
@@ -20,13 +28,13 @@ re_verification: false
 
 | # | Truth | Status | Evidence |
 |---|-------|--------|----------|
-| 1 | When finisher uses joker, other players' hand scores (not penalty) are multiplied by 2 | ✓ VERIFIED | `endRound()` line 819: `effectiveHandScore = handScore * jokerMult` where `jokerMult = this.finishedWithJoker ? 2 : 1` (applies only to non-finisher, non-penaltyScore) |
-| 2 | Hugo rounds (1, 5, 9) multiply all player rawTotals by 2; Hugo+Joker combination yields ×4 multiplier | ✓ VERIFIED | `endRound()` line 789: `const hugoMult = this.isHugoRound() ? 2 : 1` applied to rawTotal at line 826; combined with jokerMult at line 827: `const multiplier = hugoMult * jokerMult` produces 1, 2, or 4 |
-| 3 | Closed hand penalty (400 or 800) applied correctly based on whether any non-finisher opened | ✓ VERIFIED | `endRound()` lines 793-795: `noOtherPlayersOpened` check determines `closedHandPenalty` (800 vs 400); used at line 810 |
-| 4 | RoundResult interface includes explicit multiplier field for downstream UI consumption | ✓ VERIFIED | `RoundResult` interface lines 12-26 includes `multiplier: number` field at line 23 |
-| 5 | All multiplier calculation centralized in endRound() method (single source of truth) | ✓ VERIFIED | `endRound()` lines 786-872 is sole method computing scores with multipliers; no competing score calculation logic elsewhere |
-| 6 | Hand tile scoring bug fixed (tile.value × 10 instead of × 2) | ✓ VERIFIED | `endRound()` line 815: `return sum + val * 10;` (correct); CONTEXT.md documented bug as `tile.value * 2` was wrong |
-| 7 | socket.io integration: game:finishRound handler sets finishedWithJoker flag and broadcasts game:roundEnd with RoundResult[] | ✓ VERIFIED | socketHandler.ts lines 730-813: handler at line 758 sets `game.finishedWithJoker = finishTile.isJoker === true`; line 761 calls `game.endRound(playerId)`; line 767 broadcasts `game:roundEnd` with results array including multiplier field |
+| 1 | When finisher uses joker, other players' hand scores multiplied by 2 | ✓ VERIFIED | Game.ts line 825: `effectiveHandScore = handScore * jokerMult` where `jokerMult = this.finishedWithJoker ? 2 : 1` (line 796) |
+| 2 | Hugo rounds (1, 5, 9) multiply rawTotal by 2; Hugo+Joker yields ×4 combined | ✓ VERIFIED | Game.ts line 795: `const hugoMult = this.isHugoRound() ? 2 : 1` applied at line 832: `const preMult = rawTotal * hugoMult`; jokerMult combined at line 833: `const multiplier = hugoMult * jokerMult` |
+| 3 | Closed hand penalty (400 or 800) applied correctly based on player opens | ✓ VERIFIED | Game.ts lines 800-801: `noOtherPlayersOpened` check; line 801: `closedHandPenalty = noOtherPlayersOpened ? 800 : 400`; used at line 816 |
+| 4 | Each player earns stars based on finish conditions; finisher multiplies by joker/Hugo/closed | ✓ VERIFIED | Game.ts lines 840-850: finisher stars = `1 * jokerStarMult * hugoStarMult * closedStarMult`; non-finisher = `player.openingScore >= 100 ? 1 : 0` |
+| 5 | roundTotal formula applies star deduction after hugoMult: Math.max(0, preMult - stars*100) | ✓ VERIFIED | Game.ts line 853: `const roundTotal = Math.max(0, preMult - (stars * 100))` |
+| 6 | RoundResult includes multiplier field | ✓ VERIFIED | Game.ts line 23: interface declares `multiplier: number`; line 869: returned in each RoundResult |
+| 7 | game:roundEnd socket broadcast includes all RoundResult fields needed by frontend | ✓ VERIFIED | socketHandler.ts line 784: `stars: r.stars,` now present in results.map() callback (closed in Plan 04) |
 
 **Score:** 7/7 truths verified
 
@@ -34,96 +42,120 @@ re_verification: false
 
 | Artifact | Expected | Status | Details |
 |----------|----------|--------|---------|
-| `hugo-server/src/models/Game.ts` | `RoundResult` interface exported with all scoring fields | ✓ VERIFIED | Lines 12-26: export interface includes playerId, playerName, isFinisher, handScore, effectiveHandScore, penaltyScore, openBonus, finishBonus, rawTotal, roundTotal, multiplier, isHugoRound, finishedWithJoker |
-| `hugo-server/src/models/Game.ts` | `finishedWithJoker: boolean` field on Game class | ✓ VERIFIED | Line 56: field declared in class; line 75: initialized to false in constructor |
-| `hugo-server/src/models/Game.ts` | `endRound(finisherPlayerId?: string): RoundResult[]` method | ✓ VERIFIED | Lines 786-872: method signature correct; includes full multiplier logic and state reset |
-| `hugo-server/src/models/Game.ts` | `private initializeRound(): void` helper method | ✓ VERIFIED | Lines 874-888: resets deck, shuffles, determines indicator, deals tiles, sets first player for next round |
-| `hugo-server/src/socket/socketHandler.ts` | `game:finishRound` socket event handler | ✓ VERIFIED | Lines 730-813: complete handler with validation, joker flag setting, endRound call, and broadcasts |
-| `hugo-server/src/socket/socketHandler.ts` | `RoundResult` import from Game.ts | ✓ VERIFIED | Line 4: `import { RoundResult } from '../models/Game'` |
+| `hugo-server/src/models/Game.ts` | RoundResult interface with stars field | ✓ VERIFIED | Lines 12-27: `export interface RoundResult` includes `stars: number` at line 26 |
+| `hugo-server/src/models/Game.ts` | endRound() with complete star calculation | ✓ VERIFIED | Lines 792-899: calculates finisher and non-finisher stars, includes in return (lines 839-850) |
+| `hugo-server/src/models/Player.ts` | openingScore field initialized and reset | ✓ VERIFIED | Lines 20, 38: field declared and initialized to 0; line 96: reset in resetForNewRound() |
+| `hugo-server/src/models/Game.ts` | openHand() sets player.openingScore on first open | ✓ VERIFIED | Lines 393-395: guard `if (player.openingScore === 0)` ensures only first opening sets value |
+| `hugo-server/src/socket/socketHandler.ts` | game:finishRound handler with RoundResult import | ✓ VERIFIED | Line 4: RoundResult imported; lines 730-813: handler validates, sets joker flag, calls endRound() |
+| `hugo-server/src/socket/socketHandler.ts` | game:roundEnd broadcast with complete RoundResult array | ✓ VERIFIED | Lines 767-787: broadcast emits all fields; lines 772-784 results.map includes `stars: r.stars` (line 784) |
 
 ### Key Link Verification
 
 | From | To | Via | Status | Details |
 |------|----|----|--------|---------|
-| `Game.endRound()` | `RoundResult[]` | returns array | ✓ WIRED | Lines 786-872: method returns results array with one RoundResult per player |
-| `Game.endRound()` | `player.addScore(roundTotal)` | method call | ✓ WIRED | Line 830: `player.addScore(roundTotal)` applies computed score to each player's cumulative total |
-| `socketHandler.ts game:finishRound handler` | `game.endRound()` | explicit call | ✓ WIRED | Line 761: `const results: RoundResult[] = game.endRound(playerId)` |
-| `socketHandler.ts handler` | `game:roundEnd` broadcast | io.to().emit() | ✓ WIRED | Lines 767-786: broadcasts game:roundEnd to entire room with results array |
-| `socketHandler.ts handler` | `game:tiles` broadcast | per-player emit | ✓ WIRED | Lines 790-797: conditionally emits new tiles for next round when game not finished |
-| `socketHandler.ts handler` | `game:newRound` broadcast | room broadcast | ✓ WIRED | Lines 800-806: conditionally broadcasts new round state when game not finished |
-| `finishedWithJoker flag` | multiplier calculation | jokerMult assignment | ✓ WIRED | Line 758: flag set before endRound(); line 790: used in `const jokerMult = this.finishedWithJoker ? 2 : 1` |
-| `isJoker property` | `finishedWithJoker` flag | tile lookup | ✓ WIRED | Line 752: `const finishTile = player.tiles.find(t => t.id === tileId)` followed by line 758: `game.finishedWithJoker = finishTile.isJoker === true` |
+| Game.endRound() | RoundResult[] with stars | returns array | ✓ WIRED | Line 872: each result includes `stars` field; line 898: returns results array |
+| socketHandler game:roundEnd emit | RoundResult fields to client | io.to().emit() | ✓ WIRED | Line 767: emit to room; lines 772-784: all 12 fields mapped including stars (line 784) |
+| Player.openingScore | endRound() star calculation | closure access | ✓ WIRED | Line 849: non-finisher branch reads `player.openingScore >= 100` |
+| Game.openHand() | Player.openingScore assignment | guard check | ✓ WIRED | Lines 393-395: sets value on first opening only; prevents double-write |
 
 ### Requirements Coverage
 
-| Requirement | Plan | Description | Status | Evidence |
-|-------------|------|-------------|--------|----------|
-| PUAN-01 | 01-01, 01-02 | Joker with finishing penalty multiplier (×2) | ✓ SATISFIED | Plan 01-01: endRound() line 819 applies jokerMult only to handScore. Plan 01-02: socketHandler.ts line 758 sets flag from tile.isJoker before call. Both plans together implement complete joker multiplier path from client to score calculation. |
-| PUAN-02 | 01-01, 01-02 | Hugo round multiplier (×4 combined) | ✓ SATISFIED | Plan 01-01: endRound() line 789 calculates hugoMult from isHugoRound(); line 827 computes multiplier = hugoMult × jokerMult (1, 2, or 4). Plan 01-02: socketHandler broadcasts computed multiplier in game:roundEnd. Correctly handles Hugo (×2) + Joker (×2) = ×4 combination. |
-| PUAN-03 | 01-01, 01-02 | Unified multiplier calculation (single source of truth) | ✓ SATISFIED | Plan 01-01: endRound() is sole scoring method; all multiplier logic centralized in lines 786-872. Plan 01-02: socketHandler calls endRound() once per round; no alternative scoring paths exist. Formulas documented in endRound() JSDoc (lines 768-785). |
+| Requirement | Source Plans | Description | Status | Evidence |
+|-------------|-------------|-------------|--------|----------|
+| PUAN-01 | 01-01, 01-02 | Joker finishing penalty multiplier (×2) | ✓ SATISFIED | Game.ts line 758: flag set from `finishTile.isJoker`; line 796: `jokerMult = this.finishedWithJoker ? 2 : 1`; line 825: applied to `handScore` only |
+| PUAN-02 | 01-01, 01-02 | Hugo round + joker combination multiplier (×4) | ✓ SATISFIED | Game.ts lines 795-833: `multiplier = hugoMult × jokerMult` produces 1, 2, or 4; Hugo (line 951-953) via `[1, 5, 9].includes(this.round)` |
+| PUAN-03 | 01-01, 01-02, 01-03 | Unified multiplier calculation (single source of truth) | ✓ SATISFIED | Game.ts lines 792-899: all scoring centralized in `endRound()` method; no competing multiplier logic elsewhere |
+
+**Requirement Traceability:** All three Phase 1 requirements are satisfied. PUAN-04, PUAN-05, PUAN-06 (UI display features) correctly mapped to Phase 2 in REQUIREMENTS.md.
 
 ### Anti-Patterns Found
 
 | File | Line | Pattern | Severity | Impact |
 |------|------|---------|----------|--------|
-| None detected | — | — | — | — |
+| None detected | — | — | — | TypeScript compiles cleanly; all logic properly centralized |
 
-### Typing & Compilation
+### Gap Closure Verification
 
-- **TypeScript:** `npx tsc --noEmit` exits 0 with no errors (verified 2026-03-16)
-- **Type Safety:** RoundResult interface fully specified; all return types correct
-- **Imports:** RoundResult properly exported from Game.ts and imported in socketHandler.ts
+**Previous Gap (from 2026-03-16T23:30:00Z):**
+- **Issue:** socketHandler.ts lines 772-784 did NOT include `stars` field in game:roundEnd broadcast mapping
+- **Status:** ✓ CLOSED in Plan 04
+- **Evidence:** socketHandler.ts line 784 now contains `stars: r.stars,`
+- **Verification:** File read confirms field present; TypeScript compilation passes
+
+### TypeScript Compilation
+
+- **Status:** ✓ PASS
+- **Command:** `npx tsc --noEmit`
+- **Output:** No errors (verified 2026-03-16T23:45:00Z)
+- **Files verified:**
+  - `hugo-server/src/models/Game.ts` — RoundResult interface and endRound() method compile
+  - `hugo-server/src/models/Player.ts` — openingScore field and resetForNewRound() compile
+  - `hugo-server/src/socket/socketHandler.ts` — RoundResult import and broadcast mapping compile
 
 ### Code Quality Observations
 
 **Strengths:**
-1. **Clear separation of concerns:** jokerMult applies only to handScore (not penaltyScore); hugoMult applies to entire rawTotal
-2. **Explicit multiplier field:** RoundResult includes `multiplier: 1|2|4` for direct UI consumption
-3. **Robust finisher logic:** Finisher gets 0 handScore; jokerMult does not apply to finisher's own score
-4. **Closed-hand penalty:** Correct 800/400 distinction based on noOtherPlayersOpened check
-5. **State reset:** endRound() properly resets all per-round flags (finishedWithJoker, tableSets, discardPile)
-6. **Defensive programming:** socketHandler validates player turn, checks tile existence, verifies room/game exist before operations
-7. **Documentation:** Comprehensive JSDoc in endRound() explaining every formula and multiplier rule
+1. **Multiplier logic:** Formula `multiplier = hugoMult * jokerMult` correctly produces 1, 2, or 4
+2. **Joker scope:** Applied only to handScore (line 825), not penaltyScore — matches requirement PUAN-01
+3. **Star calculation:** Finisher multiplier pattern (1 × joker × hugo × closed) matches CONTEXT.md exactly
+4. **openingScore tracking:** Guard check (line 393) prevents double-write; only first opening sets value
+5. **Star deduction:** `Math.max(0, preMult - stars*100)` prevents negative scores
+6. **Centralized scoring:** All multiplier and star logic in endRound(), no competing paths
+7. **Socket wiring:** RoundResult fully exported and broadcast includes all 12 fields
+8. **Hugo round detection:** `isHugoRound()` correctly identifies rounds 1, 5, 9
 
-**Potential Future Enhancements** (out of scope for Phase 1):
-- openBonus, finishBonus fields are reserved but unused (appropriate for Phase 2)
-- initializeRound() could consider refactoring if deck creation logic becomes complex
-
-### Human Verification Not Needed
-
-All verification points are deterministic code checks:
-- ✓ Interface structure verified by TypeScript compiler
-- ✓ Method signatures verified by imports and calls
-- ✓ Multiplier logic verified by formula inspection
-- ✓ Socket events verified by handler presence and broadcast structure
-- ✓ Compilation verified by tsc --noEmit
+**No Issues Detected:**
+- All requirements satisfied by backend implementation
+- Gap from previous verification has been closed
+- No anti-patterns, TODOs, stubs, or incomplete handlers
+- No orphaned code paths
 
 ---
 
 ## Summary
 
-**Phase Goal:** ✓ ACHIEVED
+**Phase Goal:** ✓ FULLY ACHIEVED
 
-All three success criteria from ROADMAP.md are satisfied:
+**Backend Implementation:** Complete and verified
+- Plan 01 (scoring engine): ✓ Complete — RoundResult interface, endRound() method, multiplier calculation
+- Plan 02 (socket handler): ✓ Complete — game:finishRound handler, game:roundEnd broadcast
+- Plan 03 (star system): ✓ Complete — star calculation, openingScore tracking, roundTotal formula
+- Plan 04 (broadcast wiring): ✓ Complete — stars field added to socket emit
 
-1. **Joker finish multiplier:** When finishTile.isJoker === true, endRound() applies ×2 to non-finisher handScores only (penaltyScore untouched). Verified in Game.ts lines 758, 790, 819.
+**Requirements Status:**
+- PUAN-01: ✓ SATISFIED — Joker finisher multiplier (×2) implemented and applied to handScore only
+- PUAN-02: ✓ SATISFIED — Hugo round + joker combination (×4) implemented via multiplier field
+- PUAN-03: ✓ SATISFIED — Unified multiplier calculation in centralized endRound() method
 
-2. **Hugo+Joker combination:** endRound() correctly calculates multiplier = hugoMult (2 for Hugo rounds 1, 5, 9) × jokerMult (2 if finishedWithJoker) = 1, 2, or 4. Verified in Game.ts lines 789, 827.
+**Gap Closure:**
+- Previous verification found 1 gap: missing `stars` field in game:roundEnd broadcast
+- Gap closed in Plan 04: `stars: r.stars` added at line 784 of socketHandler.ts
+- Verification confirms closure: field present in code, TypeScript compiles
 
-3. **Centralized calculation:** All scoring logic exclusively in endRound() method (lines 786-872). No competing score calculations. Single source of truth. Verified across both Game.ts and socketHandler.ts.
+**Blocking Issues:** None
 
-**Requirements Traceability:**
-- PUAN-01 (joker multiplier): ✓ Implemented in Plan 01-01 and wired in Plan 01-02
-- PUAN-02 (Hugo+joker combination): ✓ Implemented in Plan 01-01 and wired in Plan 01-02
-- PUAN-03 (unified calculation): ✓ Implemented in Plan 01-01 and wired in Plan 01-02
-
-**Backend Ready for Phase 2:**
-- RoundResult interface exported and includes multiplier field for UI consumption
-- game:roundEnd socket broadcast delivers complete scoring data to all players
-- Game state properly reset between rounds
-- No blocking issues; Phase 2 can consume game:roundEnd and game:newRound events
+**Frontend Readiness:**
+- Backend correctly calculates all scoring fields: handScore, effectiveHandScore, penaltyScore, rawTotal, roundTotal, multiplier, stars
+- Socket broadcast emits complete RoundResult array with all 12 fields
+- Phase 2 UI can consume game:roundEnd events and display scoring details, multiplier indicators, star counts
 
 ---
 
-_Verified: 2026-03-16T18:45:00Z_
+## Files Verified
+
+**Core Implementation:**
+- `/Users/osmanuzun/projects/hugo-game-app/hugo-server/src/models/Game.ts` (lines 12-27, 792-899, 951-953)
+- `/Users/osmanuzun/projects/hugo-game-app/hugo-server/src/models/Player.ts` (lines 20, 38, 96)
+- `/Users/osmanuzun/projects/hugo-game-app/hugo-server/src/socket/socketHandler.ts` (lines 4, 772-784, 730-813)
+
+**Plans Executed:**
+- `.planning/phases/01-fix-scoring-multipliers/01-01-PLAN.md` — RoundResult interface + endRound() method
+- `.planning/phases/01-fix-scoring-multipliers/01-02-PLAN.md` — Socket handler integration
+- `.planning/phases/01-fix-scoring-multipliers/01-03-PLAN.md` — Star system implementation
+- `.planning/phases/01-fix-scoring-multipliers/01-04-PLAN.md` — Socket broadcast wiring
+
+---
+
+_Verified: 2026-03-16T23:45:00Z_
 _Verifier: Claude (gsd-verifier)_
+_Mode: Re-verification after gap closure in Plan 04_
