@@ -8,7 +8,7 @@
 
 ## Phases
 
-- [ ] **Phase 1: Fix Scoring Multipliers** - Implement joker and Hugo round multipliers with unified calculation
+- [x] **Phase 1: Fix Scoring Multipliers** - Implement joker and Hugo round multipliers with unified calculation (completed 2026-03-16)
 - [ ] **Phase 2: Complete Scoring UI & Game Flow** - Display multipliers in UI and complete game flow (auto-Hugo, game end)
 
 ---
@@ -30,7 +30,7 @@
 4. Round-end game state includes explicit multiplier field (e.g., `multiplier: 4`) for downstream UI consumption
 5. Star system implemented: finisher earns stars based on bonus conditions (joker/Hugo/kimse açmadan), other players earn 1 star for 100+ point openings; each star deducts 100 from that round's roundTotal
 
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 
 Plans:
 - [x] 01-01-PLAN.md — RoundResult interface + endRound() scoring logic in Game.ts
@@ -62,7 +62,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Fix Scoring Multipliers | 2/3 | In progress | — |
+| 1. Fix Scoring Multipliers | 3/3 | Complete   | 2026-03-16 |
 | 2. Complete Scoring UI & Game Flow | 0/? | Not started | — |
 
 ---

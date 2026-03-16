@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-last_updated: "2026-03-16T18:23:26.281Z"
+last_updated: "2026-03-16T20:01:40.637Z"
 progress:
   total_phases: 2
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 3
+  completed_plans: 3
   percent: 100
 ---
 
@@ -29,7 +29,7 @@ progress:
 ## Current Position
 
 **Phase:** 1 (Fix Scoring Multipliers)
-**Plan:** 2 of 2 (COMPLETE)
+**Plan:** 3 of 3 (COMPLETE)
 **Status:** Ready to plan
 **Progress:** [██████████] 100%
 
@@ -55,6 +55,9 @@ progress:
 6. **jokerMult on handScore only:** Penalty score not affected by joker multiplier — isolated component calculation
 7. **Capture finishedWithJoker from results array:** game.finishedWithJoker is reset to false by endRound() — read value from results[0].finishedWithJoker for broadcast
 8. **completedRound calculation:** endRound() increments round internally — use game.round - 1 when status is not 'finished', game.round when 'finished'
+9. **openingScore guard (===0) in openHand():** ensures only first open counts for star eligibility; safe because openingScore resets to 0 in resetForNewRound()
+10. **Star multiplier formula:** finisher earns 1 × jokerStarMult × hugoStarMult × closedStarMult; non-finisher earns 1 star if openingScore >= 100, else 0
+11. **roundTotal = Math.max(0, preMult - stars*100):** star deduction applied after hugoMult, minimum 0 prevents negative scores
 
 ### Tech Context
 - Backend: Node.js/TypeScript (hugo-server)
@@ -83,8 +86,8 @@ None identified
 
 ## Session Continuity
 
-**Last completed:** Plan 01-02 (game:finishRound socket handler — scoring pipeline fully wired)
-**Next step:** Phase 2 (UI and flow — RoundSummary display, Scoreboard with multiplier indicators, game end screen)
+**Last completed:** Plan 01-03 (star system backend — Player.openingScore, RoundResult.stars, endRound() star calculation)
+**Next step:** Phase 2 (UI and flow — RoundSummary display with stars, Scoreboard with multiplier indicators, game end screen)
 **Context files:**
 - .planning/PROJECT.md
 - .planning/REQUIREMENTS.md
