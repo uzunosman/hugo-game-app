@@ -32,7 +32,7 @@
 **Plans:** 2 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — RoundResult interface + endRound() scoring logic in Game.ts
+- [x] 01-01-PLAN.md — RoundResult interface + endRound() scoring logic in Game.ts
 - [ ] 01-02-PLAN.md — game:finishRound socket handler + game:roundEnd broadcast in socketHandler.ts
 
 ---
@@ -60,7 +60,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Fix Scoring Multipliers | 0/2 | Not started | — |
+| 1. Fix Scoring Multipliers | 1/2 | In progress | — |
 | 2. Complete Scoring UI & Game Flow | 0/? | Not started | — |
 
 ---

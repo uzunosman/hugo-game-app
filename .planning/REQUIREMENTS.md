@@ -7,9 +7,9 @@
 
 ### Puan Sistemi
 
-- [ ] **PUAN-01**: Joker ile biten oyuncu, diğer oyuncuların anlık ceza puanlarını (penaltyScore) ×2 ile çarpar
-- [ ] **PUAN-02**: Hugo turu (1., 5., 9. tur) × joker bitişi kombinasyonu doğru hesaplanır (×4)
-- [ ] **PUAN-03**: Çarpan hesabı tek bir yerde (multiplier) yapılır, tüm kombinasyonlar doğru sonuç verir
+- [x] **PUAN-01**: Joker ile biten oyuncu, diğer oyuncuların anlık ceza puanlarını (penaltyScore) ×2 ile çarpar
+- [x] **PUAN-02**: Hugo turu (1., 5., 9. tur) × joker bitişi kombinasyonu doğru hesaplanır (×4)
+- [x] **PUAN-03**: Çarpan hesabı tek bir yerde (multiplier) yapılır, tüm kombinasyonlar doğru sonuç verir
 - [ ] **PUAN-04**: Tur özeti ekranında (RoundSummary) joker bitişi çarpanı ayrı satır olarak gösterilir
 - [ ] **PUAN-05**: Scoreboard'da her oyuncunun tur puanları, ceza puanları ve toplam puan doğru listelenir
 - [ ] **PUAN-06**: Scoreboard'da çarpan uygulanan turlar görsel olarak belirtilir (Hugo/joker etiketi)
@@ -44,9 +44,9 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PUAN-01 | Phase 1 | Pending |
-| PUAN-02 | Phase 1 | Pending |
-| PUAN-03 | Phase 1 | Pending |
+| PUAN-01 | Phase 1 | Complete |
+| PUAN-02 | Phase 1 | Complete |
+| PUAN-03 | Phase 1 | Complete |
 | PUAN-04 | Phase 2 | Pending |
 | PUAN-05 | Phase 2 | Pending |
 | PUAN-06 | Phase 2 | Pending |
