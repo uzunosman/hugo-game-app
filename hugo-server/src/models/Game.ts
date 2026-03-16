@@ -5,7 +5,24 @@ import { Tile, TileColor, TileStatus } from './Tile';
 export enum GameStatus {
     WAITING = 'waiting',
     STARTED = 'started',
+    ROUND_ENDED = 'round_ended',
     FINISHED = 'finished'
+}
+
+export interface RoundResult {
+    playerId: string;
+    playerName: string;
+    isFinisher: boolean;
+    handScore: number;           // raw hand tile sum (before joker mult)
+    effectiveHandScore: number;  // handScore * jokerMult
+    penaltyScore: number;        // accumulated penalty (not affected by jokerMult)
+    openBonus: number;           // 0 for now, reserved
+    finishBonus: number;         // 0 for now, reserved
+    rawTotal: number;            // effectiveHandScore + penaltyScore + openBonus + finishBonus
+    roundTotal: number;          // rawTotal * hugoMult
+    multiplier: number;          // hugoMult * jokerMult (1, 2 or 4)
+    isHugoRound: boolean;
+    finishedWithJoker: boolean;
 }
 
 export enum TurnAction {
@@ -34,6 +51,9 @@ export class Game {
     lastDiscardPlayerId: string | null;
     tableSets: TableSet[];
     okeyPlayedThisTurn: boolean;
+    roundEndResults: RoundResult[] | null;
+    finisherPlayerId: string | null;
+    finishedWithJoker: boolean;
     createdAt: Date;
     lastActionTime: Date;
 
@@ -50,6 +70,9 @@ export class Game {
         this.okeyTile = null;
         this.lastDiscardPlayerId = null;
         this.okeyPlayedThisTurn = false;
+        this.roundEndResults = null;
+        this.finisherPlayerId = null;
+        this.finishedWithJoker = false;
         this.tableSets = [];
         this.createdAt = new Date();
         this.lastActionTime = new Date();
@@ -288,6 +311,7 @@ export class Game {
         newSets?: TableSet[];
         openedTotal?: number;
         remainingTiles?: Record<string, any>[];
+        turnAction?: TurnAction;
     } {
         const player = this.getPlayerById(playerId);
         if (!player || !this.isPlayerTurn(playerId)) {
@@ -299,6 +323,9 @@ export class Game {
         if (this.turnAction !== TurnAction.DISCARD && !isFirstTurn) {
             return { success: false, error: 'Önce taş çekilmeli' };
         }
+
+        // İlk turda direkt açan oyuncu tekrar taş çekemesin, sadece atabilsin
+        const wasFirstTurnOpen = isFirstTurn;
 
         if (!setTileIds || setTileIds.length === 0) {
             return { success: false, error: 'En az bir set gerekli' };
@@ -363,11 +390,17 @@ export class Game {
         player.openedTotal += totalValue;
         this.lastActionTime = new Date();
 
+        // İlk turda direkt açan oyuncu tekrar taş çekemesin
+        if (wasFirstTurnOpen) {
+            this.turnAction = TurnAction.DISCARD;
+        }
+
         return {
             success: true,
             newSets,
             openedTotal: player.openedTotal,
-            remainingTiles: player.tiles.map(t => t.toJSON())
+            remainingTiles: player.tiles.map(t => t.toJSON()),
+            turnAction: this.turnAction
         };
     }
 
@@ -413,10 +446,10 @@ export class Game {
 
         const setOwner = this.getPlayerById(targetSet.playerId);
 
-        // 1. Okey swap denemesi — sette joker varsa yerine gerçek taşı koy
+        // 1. Okey swap denemesi — sette joker/okey varsa yerine gerçek taşı koy
         // Bu turda okey işlemiş oyuncu tekrar okey alamaz
-        const okeyIndex = targetSet.tiles.findIndex(t => t.isJoker);
-        if (okeyIndex !== -1 && !this.okeyPlayedThisTurn && !tile.isJoker) {
+        const okeyIndex = targetSet.tiles.findIndex(t => t.isJoker || this.isOkeyTile(t));
+        if (okeyIndex !== -1 && !this.okeyPlayedThisTurn && !tile.isJoker && !this.isOkeyTile(tile)) {
             // Erkek per (aynı sayı seti): okey swap ancak set 4 taşla doluyken
             // Sıralı per: tek taş ile swap mümkün
             const isSameNumber = this.isSameNumberSet(targetSet.tiles);
@@ -481,17 +514,17 @@ export class Game {
         }
         targetSet.value = newValue;
 
-        // Okey (joker) işlendiyse bu turda geri alınamaz
-        if (tile.isJoker) {
+        // Okey (joker veya okey taşı) işlendiyse bu turda geri alınamaz
+        if (tile.isJoker || this.isOkeyTile(tile)) {
             this.okeyPlayedThisTurn = true;
         }
 
         // Ceza: sadece başka oyuncunun setine ekleme → taş değeri × 10
-        // Joker için pozisyondaki etkin değeri hesapla
+        // Joker/okey için pozisyondaki etkin değeri hesapla
         let penalty: { targetPlayerId: string; amount: number } | undefined;
         if (setOwner && setOwner.id !== playerId) {
             let effectiveValue: number;
-            if (tile.isJoker) {
+            if (tile.isJoker || this.isOkeyTile(tile)) {
                 effectiveValue = this.calculateEffectiveValue(targetSet.tiles, tile, position);
             } else {
                 effectiveValue = typeof tile.value === 'number' ? tile.value : 0;
@@ -511,10 +544,10 @@ export class Game {
         };
     }
 
-    // Joker'in sete eklendiği pozisyondaki etkin değerini hesapla
-    private calculateEffectiveValue(tilesAfterInsert: Tile[], jokerTile: Tile, position: 'start' | 'end'): number {
-        // Sıralı set ise pozisyona göre değer çıkar
-        const normalTiles = tilesAfterInsert.filter(t => !t.isJoker && typeof t.value === 'number');
+    // Joker/okey'in sete eklendiği pozisyondaki etkin değerini hesapla
+    private calculateEffectiveValue(tilesAfterInsert: Tile[], addedTile: Tile, position: 'start' | 'end'): number {
+        // Eklenen taş ve diğer wildcard'ları hariç tut
+        const normalTiles = tilesAfterInsert.filter(t => t !== addedTile && !this.isOkeyTile(t) && typeof t.value === 'number');
         if (normalTiles.length === 0) return 0;
 
         // Aynı sayı seti ise tüm taşlar aynı değerde
@@ -627,6 +660,12 @@ export class Game {
         return normalTiles.every(t => t.value === value);
     }
 
+    private isOkeyTile(tile: Tile): boolean {
+        if (this.isHugoRound()) return tile.isJoker;
+        if (!this.okeyTile) return false;
+        return tile.color === this.okeyTile.color && tile.value === this.okeyTile.value;
+    }
+
     private validateSetTiles(tiles: Tile[]): number {
         if (tiles.length < 3) return 0;
 
@@ -642,7 +681,7 @@ export class Game {
     private validateSameNumberSetTiles(tiles: Tile[]): number {
         if (tiles.length < 3 || tiles.length > 4) return 0;
 
-        const normalTiles = tiles.filter(t => !t.isJoker);
+        const normalTiles = tiles.filter(t => !this.isOkeyTile(t));
         if (normalTiles.length === 0) return 0;
 
         const value = normalTiles[0].value;
@@ -661,7 +700,7 @@ export class Game {
     private validateSequentialSetTiles(tiles: Tile[]): number {
         if (tiles.length < 3) return 0;
 
-        const normalTiles = tiles.filter(t => !t.isJoker);
+        const normalTiles = tiles.filter(t => !this.isOkeyTile(t));
         if (normalTiles.length === 0) return 0;
 
         const color = normalTiles[0].color;
@@ -676,7 +715,7 @@ export class Game {
             let anchorVal = 0;
 
             for (let i = 0; i < tiles.length; i++) {
-                if (!tiles[i].isJoker) {
+                if (!this.isOkeyTile(tiles[i])) {
                     anchorIdx = i;
                     anchorVal = tiles[i].value as number;
                     break;
@@ -690,7 +729,7 @@ export class Game {
                 const expectedVal = anchorVal + (i - anchorIdx) * direction;
                 if (expectedVal < 1 || expectedVal > 13) { valid = false; break; }
 
-                if (!tiles[i].isJoker) {
+                if (!this.isOkeyTile(tiles[i])) {
                     if (tiles[i].value !== expectedVal || tiles[i].color !== color) {
                         valid = false; break;
                     }
@@ -706,6 +745,180 @@ export class Game {
 
     getTableSetsByPlayer(playerId: string): TableSet[] {
         return this.tableSets.filter(s => s.playerId === playerId);
+    }
+
+    // ── Tur Sonu ───────────────────────────────────────────
+
+    // Tur sonu tetikleyicisi: oyuncunun eli bitti veya deste bitti
+    checkRoundEnd(finisherPlayerId?: string): boolean {
+        if (finisherPlayerId) {
+            const player = this.getPlayerById(finisherPlayerId);
+            if (player && player.tiles.length === 0) {
+                this.finisherPlayerId = finisherPlayerId;
+                return true;
+            }
+        }
+        if (this.deck.length === 0) {
+            this.finisherPlayerId = null;
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Ends the current round: calculates scores for all players and advances to next round.
+     *
+     * Scoring formulas (per CONTEXT.md decisions):
+     *   handScore       = !player.isOpen ? closedHandPenalty : sum(tile.value * 10)
+     *   closedHandPenalty = noOtherPlayersOpened ? 800 : 400
+     *   effectiveHandScore = handScore * jokerMult   // jokerMult applies ONLY to handScore
+     *   rawTotal        = effectiveHandScore + penaltyScore + openBonus + finishBonus
+     *   roundTotal      = rawTotal * hugoMult
+     *   multiplier      = hugoMult * jokerMult        // combined field for UI display
+     *
+     * jokerMult = 2 if this.finishedWithJoker === true, else 1 (does NOT apply to finisher)
+     * hugoMult  = 2 if isHugoRound() === true, else 1 (applies to ALL players)
+     * finisher  = player whose id === this.finisherPlayerId
+     *   - Finisher's handScore = 0, jokerMult does NOT apply to finisher's score
+     *   - Finisher's rawTotal  = 0 + penaltyScore + openBonus + finishBonus
+     *   - Finisher's roundTotal = rawTotal * hugoMult
+     */
+    endRound(finisherPlayerId?: string): RoundResult[] {
+        // Resolve finisher: prefer explicit argument, fall back to game state
+        const resolvedFinisherId = finisherPlayerId ?? this.finisherPlayerId ?? '';
+        const hugoMult = this.isHugoRound() ? 2 : 1;
+        const jokerMult = this.finishedWithJoker ? 2 : 1;
+
+        // Determine if no other player (excluding finisher) has opened their hand
+        const nonFinishers = this.players.filter(p => p.id !== resolvedFinisherId);
+        const noOtherPlayersOpened = nonFinishers.every(p => !p.isOpen);
+        const closedHandPenalty = noOtherPlayersOpened ? 800 : 400;
+
+        const results: RoundResult[] = this.players.map(player => {
+            const isFinisher = player.id === resolvedFinisherId;
+
+            let handScore: number;
+            let effectiveHandScore: number;
+
+            if (isFinisher) {
+                // Finisher has no hand tiles penalty; jokerMult does not apply
+                handScore = 0;
+                effectiveHandScore = 0;
+            } else {
+                if (!player.isOpen) {
+                    // Closed hand penalty: 800 if nobody else opened, else 400
+                    handScore = closedHandPenalty;
+                } else {
+                    // Sum of remaining hand tiles × 10 (FIX: was × 2)
+                    handScore = player.tiles.reduce((sum, tile) => {
+                        const val = typeof tile.value === 'number' ? tile.value : 0;
+                        return sum + val * 10;
+                    }, 0);
+                }
+                // jokerMult applies ONLY to handScore (not penaltyScore)
+                effectiveHandScore = handScore * jokerMult;
+            }
+
+            const openBonus = 0;   // reserved for future use
+            const finishBonus = 0; // reserved for future use
+
+            const rawTotal = effectiveHandScore + player.penaltyScore + openBonus + finishBonus;
+            const roundTotal = rawTotal * hugoMult;
+            const multiplier = hugoMult * jokerMult;
+
+            // Apply score to player's cumulative total
+            player.addScore(roundTotal);
+
+            return {
+                playerId: player.id,
+                playerName: player.name,
+                isFinisher,
+                handScore,
+                effectiveHandScore,
+                penaltyScore: player.penaltyScore,
+                openBonus,
+                finishBonus,
+                rawTotal,
+                roundTotal,
+                multiplier,
+                isHugoRound: this.isHugoRound(),
+                finishedWithJoker: this.finishedWithJoker,
+            };
+        });
+
+        // Reset per-round player state
+        this.players.forEach(player => {
+            player.penaltyScore = 0;
+            player.isOpen = false;
+            player.lastOpenedValue = 0;
+            player.openedTotal = 0;
+            player.clearTiles();
+        });
+
+        // Reset game round state
+        this.finishedWithJoker = false;
+        this.tableSets = [];
+        this.discardPile = [];
+
+        // Advance to next round (capped at 9 for 9-round game)
+        if (this.round < 9) {
+            this.round += 1;
+            this.initializeRound();
+        } else {
+            this.status = GameStatus.FINISHED;
+        }
+
+        return results;
+    }
+
+    private initializeRound(): void {
+        // Re-create and shuffle a fresh deck
+        this.deck = [];
+        this.createTiles();
+        this.shuffleDeck();
+        this.indicatorTile = null;
+        this.okeyTile = null;
+        this.determineIndicatorTile();
+        this.dealTiles();
+        this.setFirstPlayer();
+        this.status = GameStatus.STARTED;
+        this.turnAction = TurnAction.DRAW;
+        this.okeyPlayedThisTurn = false;
+        this.lastActionTime = new Date();
+    }
+
+    startNextRound(): void {
+        if (this.round >= 9) {
+            this.status = GameStatus.FINISHED;
+            return;
+        }
+
+        // Oyuncuları sıfırla
+        for (const player of this.players) {
+            player.resetForNewRound();
+        }
+
+        this.round++;
+        this.deck = [];
+        this.discardPile = [];
+        this.tableSets = [];
+        this.okeyPlayedThisTurn = false;
+        this.roundEndResults = null;
+        this.finisherPlayerId = null;
+        this.lastDiscardPlayerId = null;
+
+        // Yeni tur için oyunu yeniden başlat
+        this.createTiles();
+        this.shuffleDeck();
+        this.determineIndicatorTile();
+        this.dealTiles();
+
+        // İlk oyuncuyu ayarla (bir önceki turun ilk oyuncusunun bir sonraki)
+        this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
+        this.players[this.currentPlayerIndex].setTurn(true);
+        this.turnAction = TurnAction.DRAW;
+        this.status = GameStatus.STARTED;
+        this.lastActionTime = new Date();
     }
 
     isHugoRound(): boolean {
@@ -751,6 +964,7 @@ export class Game {
             lastDiscardPlayerId: this.lastDiscardPlayerId,
             tableSets: this.tableSetsToJSON(),
             isHugoRound: this.isHugoRound(),
+            roundEndResults: this.roundEndResults,
             createdAt: this.createdAt
         };
     }
