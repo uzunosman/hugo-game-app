@@ -23,6 +23,7 @@ export interface RoundResult {
     multiplier: number;          // hugoMult * jokerMult (1, 2 or 4)
     isHugoRound: boolean;
     finishedWithJoker: boolean;
+    stars: number;              // yıldız sayısı (her biri roundTotal'den 100 düşer)
 }
 
 export enum TurnAction {
@@ -388,6 +389,10 @@ export class Game {
         player.isOpen = true;
         player.lastOpenedValue = totalValue;
         player.openedTotal += totalValue;
+        // openingScore sadece ilk açılışta set edilir (player.openingScore === 0 kontrolü)
+        if (player.openingScore === 0) {
+            player.openingScore = totalValue;
+        }
         this.lastActionTime = new Date();
 
         // İlk turda direkt açan oyuncu tekrar taş çekemesin
@@ -773,7 +778,8 @@ export class Game {
      *   closedHandPenalty = noOtherPlayersOpened ? 800 : 400
      *   effectiveHandScore = handScore * jokerMult   // jokerMult applies ONLY to handScore
      *   rawTotal        = effectiveHandScore + penaltyScore + openBonus + finishBonus
-     *   roundTotal      = rawTotal * hugoMult
+     *   preMult         = rawTotal * hugoMult
+     *   roundTotal      = Math.max(0, preMult - stars * 100)
      *   multiplier      = hugoMult * jokerMult        // combined field for UI display
      *
      * jokerMult = 2 if this.finishedWithJoker === true, else 1 (does NOT apply to finisher)
@@ -823,8 +829,28 @@ export class Game {
             const finishBonus = 0; // reserved for future use
 
             const rawTotal = effectiveHandScore + player.penaltyScore + openBonus + finishBonus;
-            const roundTotal = rawTotal * hugoMult;
+            const preMult = rawTotal * hugoMult;
             const multiplier = hugoMult * jokerMult;
+
+            // Yıldız hesabı — finisher ve diğer oyuncular için ayrı kural
+            // Not: isFinisher ve noOtherPlayersOpened bu scope'ta zaten tanımlı (yukarıda)
+            // Not: this.finishedWithJoker RoundResult oluşturulduktan SONRA false'a sıfırlanır (satır ~859)
+            //      Bu nedenle burada okunan değer o turun gerçek joker bitiş durumunu yansıtır
+            let stars = 0;
+            if (isFinisher) {
+                // Finisher yıldızı: temel 1, her bonus koşul ×2 yapar
+                // finishStars = 1 × (finishedWithJoker?2:1) × (isHugoRound?2:1) × (noOtherPlayersOpened?2:1)
+                const jokerStarMult = this.finishedWithJoker ? 2 : 1;
+                const hugoStarMult = this.isHugoRound() ? 2 : 1;
+                const closedStarMult = noOtherPlayersOpened ? 2 : 1;
+                stars = 1 * jokerStarMult * hugoStarMult * closedStarMult;
+            } else {
+                // Diğer oyuncular: 100+ puanla el açtılarsa 1 yıldız
+                stars = player.openingScore >= 100 ? 1 : 0;
+            }
+
+            // roundTotal: hugoMult uygulandıktan sonra yıldız düşümü yapılır, minimum 0
+            const roundTotal = Math.max(0, preMult - (stars * 100));
 
             // Apply score to player's cumulative total
             player.addScore(roundTotal);
@@ -843,6 +869,7 @@ export class Game {
                 multiplier,
                 isHugoRound: this.isHugoRound(),
                 finishedWithJoker: this.finishedWithJoker,
+                stars,
             };
         });
 
