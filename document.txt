@@ -78,7 +78,16 @@
 
 
 
-
+TO DO: 
+eldeki perleri hesaplat.
+yere açma işlemi yapılacak.
+işlek taş cezası.
+atılan taş alınınca açma zorunluluğıu.
+süre bitince otomatik en küçük ıskarta taşı atacak.
+yanlış açılınca tiyamiyam yok. ceze yer.
+sürükle bırakta aynı satırda küçük indexte kaydırma sorunu
+peri indir butonları değiştireilecek.
+eldeki perleri toplarken üst satır alt satır ayrımı yapılmalı.
 
 
 
