@@ -6,7 +6,6 @@ export class Player {
     name: string;
     socketId: string;
     tiles: Tile[];
-    score: number;
     isReady: boolean;
     isTurn: boolean;
     roomId: string | null;
@@ -24,7 +23,6 @@ export class Player {
         this.name = name;
         this.socketId = socketId;
         this.tiles = [];
-        this.score = 0;
         this.isReady = false;
         this.isTurn = false;
         this.roomId = null;
@@ -73,18 +71,15 @@ export class Player {
         this.roomId = roomId;
     }
 
-    addScore(points: number): void {
-        this.score += points;
+    // El sonu puanı: toplam her zaman roundScores'tan hesaplanır
+    addRoundScore(points: number, stars: number): void {
+        this.roundScores.push(points);
+        this.per100PlusCount += stars; // tabeladaki ★ sayısı: kazanılan toplam yıldız
     }
 
     addPenalty(points: number): void {
         this.penaltyScore += points;
         this.penaltyEntries.push(points);
-    }
-
-    resetScore(): void {
-        this.score = 0;
-        this.penaltyScore = 0;
     }
 
     resetForNewRound(): void {
@@ -112,7 +107,7 @@ export class Player {
             name: this.name,
             socketId: this.socketId,
             tiles: this.tiles.map(tile => tile.toJSON()),
-            score: this.score,
+            score: this.getTotalScore(),
             isReady: this.isReady,
             isTurn: this.isTurn,
             roomId: this.roomId
@@ -124,7 +119,7 @@ export class Player {
             id: this.id,
             name: this.name,
             tilesCount: this.tiles.length,
-            score: this.score,
+            score: this.getTotalScore(),
             penaltyScore: this.penaltyScore,
             penaltyEntries: this.penaltyEntries,
             isReady: this.isReady,

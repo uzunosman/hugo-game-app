@@ -66,13 +66,10 @@ const Scoreboard = ({ players, playerOpenStates }) => {
                                         <td className="total-label">Toplam</td>
                                         {players.map((p) => {
                                             const state = getPlayerState(p);
-                                            const roundTotal = state.totalScore ?? 0;
-                                            const penaltyTotal = state.penaltyScore ?? 0;
+                                            const total = state.totalScore ?? 0;
                                             return (
                                                 <td key={p.id} className="total-cell">
-                                                    <span className={roundTotal < 0 ? 'negative' : ''}>{roundTotal}</span>
-                                                    {' '}
-                                                    <span>{penaltyTotal}</span>
+                                                    <span className={total < 0 ? 'negative' : ''}>{total}</span>
                                                 </td>
                                             );
                                         })}

@@ -12,6 +12,7 @@ assert.strictEqual(game.round, 1);
 assert.strictEqual(game.currentPlayerIndex, 0);
 assert.deepStrictEqual(counts(), [15, 14, 14, 14]);
 
+let expectedTotal = 0;
 for (let round = 1; round <= 9; round++) {
     const first = (round - 1) % 4;
     assert.strictEqual(game.round, round, `el numarası ${round} olmalı`);
@@ -19,7 +20,16 @@ for (let round = 1; round <= 9; round++) {
     assert.strictEqual(game.players[first].tiles.length, 15, `${round}. elde 15 taş P${first}'de olmalı`);
     assert.strictEqual(game.isPlayerTurn(game.players[first].id), true);
 
-    game.endRound();
+    const results = game.endRound();
+    // Kimse açmadı, bitiren yok: herkese 800, Hugo elinde ×2
+    const expected = [1, 5, 9].includes(round) ? 1600 : 800;
+    expectedTotal += expected;
+    results.forEach(r => {
+        assert.strictEqual(r.roundTotal, expected, `${round}. el puanı ${expected} olmalı`);
+        assert.strictEqual(r.totalScore, expectedTotal, `${round}. el sonunda toplam ${expectedTotal} olmalı`);
+    });
+    game.players.forEach(p => assert.strictEqual(p.roundScores.length, round, 'her el roundScores’a yazılmalı'));
+
     // endRound eli ilerletmez; tur arasında kimse hamle yapamaz
     assert.strictEqual(game.round, round, 'endRound el numarasını değiştirmemeli');
     assert.strictEqual(game.isPlayerTurn(game.players[first].id), false);

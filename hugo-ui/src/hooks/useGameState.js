@@ -195,6 +195,19 @@ const useGameState = (player, room) => {
         socketService.onRoundEnded((data) => {
             console.log('Tur sonu:', data);
             setRoundEndResults(data);
+            // Tabela: el puanları, toplam ve yıldızlar
+            setPlayerOpenStates(prev => {
+                const next = { ...prev };
+                (data.players || []).forEach(p => {
+                    next[p.id] = {
+                        ...next[p.id],
+                        roundScores: p.roundScores || [],
+                        totalScore: p.totalScore || 0,
+                        per100PlusCount: p.per100PlusCount || 0
+                    };
+                });
+                return next;
+            });
         });
 
         // Yeni tur başladı — tüm state'leri sıfırla ve yeniden yükle

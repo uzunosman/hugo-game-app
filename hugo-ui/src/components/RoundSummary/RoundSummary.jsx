@@ -53,10 +53,28 @@ const RoundSummary = ({ roundData, isLastRound, onClose }) => {
                                         <span>{r.finishBonus}</span>
                                     </div>
                                 )}
-                                {r.multiplier > 1 && (
+                                {r.isFinisher && (
+                                    <div className="breakdown-row bonus">
+                                        <span>Eli bitirdi</span>
+                                        <span>{r.finishedWithJoker ? 'Jokerle' : '✓'}</span>
+                                    </div>
+                                )}
+                                {r.isHugoRound && (
                                     <div className="breakdown-row multiplier">
                                         <span>Hugo çarpanı</span>
-                                        <span>×{r.multiplier}</span>
+                                        <span>×2</span>
+                                    </div>
+                                )}
+                                {r.finishedWithJoker && !r.isFinisher && r.handScore > 0 && (
+                                    <div className="breakdown-row multiplier">
+                                        <span>Joker çarpanı (eldeki taşlar)</span>
+                                        <span>×2</span>
+                                    </div>
+                                )}
+                                {r.stars > 0 && (
+                                    <div className="breakdown-row bonus">
+                                        <span>{'★'.repeat(Math.min(r.stars, 8))} yıldız</span>
+                                        <span>−{r.stars * 100}</span>
                                     </div>
                                 )}
                             </div>

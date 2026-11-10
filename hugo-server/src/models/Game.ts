@@ -24,6 +24,8 @@ export interface RoundResult {
     isHugoRound: boolean;
     finishedWithJoker: boolean;
     stars: number;              // yıldız sayısı (her biri roundTotal'den 100 düşer)
+    penaltyEntries: number[];   // o elde yazılan cezalar (UI dökümü için)
+    totalScore: number;         // bu el dahil toplam puan
 }
 
 export enum TurnAction {
@@ -855,8 +857,7 @@ export class Game {
             // roundTotal: hugoMult uygulandıktan sonra yıldız düşümü yapılır, minimum 0
             const roundTotal = Math.max(0, preMult - (stars * 100));
 
-            // Apply score to player's cumulative total
-            player.addScore(roundTotal);
+            player.addRoundScore(roundTotal, stars);
 
             return {
                 playerId: player.id,
@@ -873,6 +874,8 @@ export class Game {
                 isHugoRound: this.isHugoRound(),
                 finishedWithJoker: this.finishedWithJoker,
                 stars,
+                penaltyEntries: [...player.penaltyEntries],
+                totalScore: player.getTotalScore(),
             };
         });
 

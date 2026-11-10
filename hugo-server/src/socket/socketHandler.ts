@@ -15,7 +15,9 @@ export const setupSocketHandlers = (io: Server) => {
             isHugoRound: game.isHugoRound(),
             finisherPlayerId: finisherPlayerId ?? null,
             finishedWithJoker: results[0]?.finishedWithJoker ?? false,
-            gameStatus: game.status
+            gameStatus: game.status,
+            // Tabela için güncel toplamlar (son elden sonra roundStarted gelmez)
+            players: game.players.map(p => p.toPublicJSON())
         });
 
         if (game.status === GameStatus.ROUND_ENDED) {
