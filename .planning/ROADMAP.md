@@ -9,7 +9,8 @@
 ## Phases
 
 - [x] **Phase 1: Fix Scoring Multipliers** - Implement joker and Hugo round multipliers with unified calculation (completed 2026-03-16)
-- [ ] **Phase 2: Complete Scoring UI & Game Flow** - Display multipliers in UI and complete game flow (auto-Hugo, game end)
+- [x] **Phase 2: Complete Scoring UI & Game Flow** - Display multipliers in UI and complete game flow (auto-Hugo, game end) (completed 2026-11-10)
+- [x] **Phase 3: Kurallar, dayanıklılık ve UI cilası** - TODO kuralları, sunucu sıra süresi, yeniden bağlanma, kalıcı durum, ekranlar (completed 2026-11-10)
 
 ---
 
@@ -34,7 +35,7 @@
 
 Plans:
 - [x] 01-01-PLAN.md — RoundResult interface + endRound() scoring logic in Game.ts
-- [x] 01-02-PLAN.md — game:finishRound socket handler + game:roundEnd broadcast in socketHandler.ts
+- [x] 01-02-PLAN.md — game:finishRound socket handler + game:roundEnd broadcast in socketHandler.ts (2026-11-10: handler doğrulama yapmadığı ve UI kullanmadığı için kaldırıldı; tur sonu tek yoldan, game:roundEnded ile)
 - [x] 01-03-PLAN.md — Star system: Player.openingScore field + RoundResult.stars + endRound() star calculation
 - [x] 01-04-PLAN.md — Gap closure: stars field wired into game:roundEnd socket broadcast
 
@@ -55,7 +56,7 @@ Plans:
 4. When indicator tile is a fake joker, round automatically counts as Hugo round (×2 multiplier) without manual override
 5. After 9th round completes, game end screen appears showing winner as player with lowest cumulative score
 
-**Plans:** TBD
+**Plans:** GSD planı yazılmadı; iş doğrudan commit'lerle yapıldı (b938743 → e8e08fd). Sahte okey göstergesi Hugo sayılıyor, oyun sonu ekranı en düşük toplamı kazanan gösteriyor, tabela her eli ve Hugo ellerini içeriyor.
 
 ---
 
@@ -64,7 +65,8 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Fix Scoring Multipliers | 4/4 | Complete   | 2026-03-16 |
-| 2. Complete Scoring UI & Game Flow | 0/? | Not started | — |
+| 2. Complete Scoring UI & Game Flow | — | Complete (GSD planı dışında, commit'lerle) | 2026-11-10 |
+| 3. Kurallar, dayanıklılık ve UI cilası | — | Complete (GSD planı dışında, commit'lerle) | 2026-11-10 |
 
 ---
 
@@ -74,3 +76,19 @@ Plans:
 - Phase 1 fixes backend logic (multiplier calculation + star system); Phase 2 builds UI and completes game flow
 - Natural dependency: UI cannot correctly display multipliers until calculation is fixed
 - Coarse granularity applied: Two phases instead of one-per-requirement compression
+
+---
+
+### Phase 3: Kurallar, dayanıklılık ve UI cilası (2026-11-10)
+
+**Kapsam:** `document.txt` TODO listesi ve uçtan uca testte bulunan eksikler.
+
+**Tamamlananlar:**
+- Tur akışı tek yoldan (el iki kez ilerlemiyordu), puanlar tabelaya yazılıyor
+- Yandan alınan taş zorunluluğu (kullanılmazsa yalnızca o taş 100 cezayla geri atılır), işlek taş cezası (taş × 10, bitiren taş hariç), yetersiz açma cezası (100)
+- Normal ellerde sahte okey okeyin değeriyle oynanır; gerçek okey jokerdir
+- Sunucu tarafı sıra süresi (otomatik en küçük taş), kopan oyuncunun koltuğu tutulur, yeniden bağlanma, kalıcı durum (data/state.json)
+- Giriş/lobi/oda ekranları, oyun sonu, Seri/Çift diz, dokunmatik atış, mobil genişlik
+- Testler: `hugo-server npm test` + `npm run test:e2e`, `hugo-ui npm test`
+
+**Açık sorular:** "Peri indir butonları değiştirilecek" maddesinin kapsamı; `document.txt` puanlama metni ile Faz 1 puanlaması arasındaki farklar.

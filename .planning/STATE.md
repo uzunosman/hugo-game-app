@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: planning
-last_updated: "2026-03-16T20:14:23.694Z"
+status: complete
+last_updated: "2026-11-10T00:00:00.000Z"
 progress:
-  total_phases: 2
-  completed_phases: 1
+  total_phases: 3
+  completed_phases: 3
   total_plans: 4
   completed_plans: 4
   percent: 100
@@ -67,18 +67,23 @@ progress:
 - Rules source: `document.txt`
 
 ### Code State
-- Modified files (uncommitted):
-  - Game.ts, Player.ts, socketHandler.ts (server)
-  - Game.jsx, GameBoard.jsx, TileHolder.jsx, Tile.jsx, OpenSetsArea.jsx, useGameState.js, socketService.js, gameUtils.js (frontend)
-  - RoundSummary.jsx, Scoreboard.jsx (new components)
+- Tümü commit'li (main). Testler: `hugo-server npm test`, `npm run test:e2e`; `hugo-ui npm test`.
+- Tur sonu tek yol: `socketHandler.ts` içindeki `finishRound` → `game:roundEnded`; yeni eli yalnızca `startNextRound()` başlatır.
+- Kalıcı durum: `hugo-server/data/state.json` (PERSIST=false ile kapanır).
+
+### Later Decisions (2026-11-10)
+13. **Tur numarası endRound()'da artmaz:** önceden hem endRound hem startNextRound artırıyordu (9 yerine 5 el).
+14. **game:finishRound kaldırıldı:** elin bittiğini doğrulamıyordu ve UI kullanmıyordu; joker bayrağı son atılan taştan set edilir.
+15. **Yandan alınan taş:** kullanılmazsa yalnızca aynı taş 100 cezayla geri atılabilir (kilitlenmeyi önleyen çıkış; kural metninde yok).
+16. **El Aç butonu değer eşiğiyle kilitlenmez:** yetersiz açma denemesi 100 ceza (TODO: "tiyamiyam yok, ceza yer").
+17. **Sahte okey:** normal elde okeyin rengi/sayısıyla oynanır, joker gibi davranmaz.
 
 ### Todos
-- [x] Phase 1: Implement multiplier calculation in Game.ts (01-01 complete)
-- [x] Phase 1: Update penalty score application with joker multiplier (01-01 complete)
-- [ ] Phase 2: Add multiplier field to RoundSummary display
-- [ ] Phase 2: Enhance Scoreboard with multiplier indicators
-- [ ] Phase 2: Implement fake joker detection for auto-Hugo
-- [ ] Phase 2: Add game end screen with winner determination
+- [x] Phase 1: Multiplier calculation, joker penalty multiplier, star system
+- [x] Phase 2: RoundSummary multipliers, Scoreboard, fake-okey Hugo, game end screen
+- [x] Phase 3: TODO rules, server turn timer, reconnect, persistence, UI screens
+- [ ] Netleşecek: "peri indir butonları değiştirilecek" kapsamı
+- [ ] Netleşecek: document.txt puanlama (×2, bitirme −100/−200) ile kod (×10, yıldız sistemi) farkı
 
 ### Blockers
 None identified
@@ -87,8 +92,8 @@ None identified
 
 ## Session Continuity
 
-**Last completed:** Plan 01-04 (gap closure — stars field wired into game:roundEnd socket broadcast)
-**Next step:** Phase 2 (UI and flow — RoundSummary display with stars, Scoreboard with multiplier indicators, game end screen)
+**Last completed:** Phase 3 (2026-11-10)
+**Next step:** Açık iki sorunun cevabına göre puanlama ve per indir butonları
 **Context files:**
 - .planning/PROJECT.md
 - .planning/REQUIREMENTS.md
