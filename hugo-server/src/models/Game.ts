@@ -319,6 +319,15 @@ export class Game {
         return this.status === GameStatus.STARTED && this.players[this.currentPlayerIndex].id === playerId;
     }
 
+    // Süre dolunca atılacak taş: okey/joker olmayan en küçük sayılı taş
+    pickAutoDiscard(playerId: string): Tile | null {
+        const player = this.getPlayerById(playerId);
+        if (!player || player.tiles.length === 0) return null;
+        const plain = player.tiles.filter(t => !t.isJoker && !this.isOkeyTile(t) && typeof t.value === 'number');
+        if (plain.length === 0) return player.tiles[0];
+        return plain.reduce((min, t) => (t.value as number) < (min.value as number) ? t : min);
+    }
+
     getPlayerById(playerId: string): Player | undefined {
         return this.players.find(player => player.id === playerId);
     }

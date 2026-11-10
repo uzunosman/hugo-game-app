@@ -1,7 +1,7 @@
 import React from 'react';
 import '../../assets/css/components/PlayerPanel.css';
 
-const PlayerPanel = ({ name, score, position, isCurrentPlayer, timeLeft, setScore, isOpen, openedTotal, penaltyScore }) => {
+const PlayerPanel = ({ name, position, isCurrentPlayer, timeLeft, setScore, isOpen, openedTotal, penaltyScore, connected = true }) => {
     const getTimerProgress = () => {
         if (!isCurrentPlayer || !timeLeft) return 0;
         return (timeLeft / 60) * 100;
@@ -12,7 +12,7 @@ const PlayerPanel = ({ name, score, position, isCurrentPlayer, timeLeft, setScor
     const hasValidOpening = setScore >= 51;
 
     return (
-        <div className={`player-panel ${position}`} style={{ '--timer-progress': `${progress}%` }}>
+        <div className={`player-panel ${position} ${connected ? '' : 'offline'}`} style={{ '--timer-progress': `${progress}%` }}>
             {isCurrentPlayer && (
                 <div
                     className={`timer-bar ${isWarning ? 'warning' : ''}`}
@@ -21,6 +21,7 @@ const PlayerPanel = ({ name, score, position, isCurrentPlayer, timeLeft, setScor
             <div className="player-avatar" />
             <div className="player-info">
                 <div className="player-name">{name}</div>
+                {!connected && <div className="player-offline">bağlantı koptu</div>}
             </div>
             {isOpen && openedTotal > 0 && (
                 <div className="opened-badge">{openedTotal}</div>

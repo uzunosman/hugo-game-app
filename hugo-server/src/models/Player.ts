@@ -17,6 +17,7 @@ export class Player {
     roundScores: number[];
     per100PlusCount: number;
     openingScore: number;
+    connected: boolean;
 
     constructor(name: string, socketId: string) {
         this.id = uuidv4();
@@ -34,6 +35,7 @@ export class Player {
         this.roundScores = [];
         this.per100PlusCount = 0;
         this.openingScore = 0;
+        this.connected = true;
     }
 
     addTile(tile: Tile): void {
@@ -131,6 +133,7 @@ export class Player {
             totalScore: this.getTotalScore(),
             per100PlusCount: this.per100PlusCount,
             openingScore: this.openingScore,
+            connected: this.connected,
         };
     }
 } 

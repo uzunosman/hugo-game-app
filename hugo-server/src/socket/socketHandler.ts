@@ -1,13 +1,73 @@
 import { Server, Socket } from 'socket.io';
 import { GameManager } from '../utils/GameManager';
 import { config } from '../config/config';
-import { Game, GameStatus } from '../models/Game';
+import { Game, GameStatus, TurnAction } from '../models/Game';
+import { Tile } from '../models/Tile';
+import { RoomStatus } from '../models/Room';
 
 export const setupSocketHandlers = (io: Server) => {
     const gameManager = GameManager.getInstance();
+    const turnTimers = new Map<string, NodeJS.Timeout>();
+
+    // Sıra süresi sunucuda tutulur: süre dolunca taş otomatik çekilip en küçük taş atılır
+    const scheduleTurn = (roomId: string, game: Game) => {
+        clearTimeout(turnTimers.get(roomId));
+        turnTimers.delete(roomId);
+        if (game.status !== GameStatus.STARTED) return;
+        const current = game.players[game.currentPlayerIndex];
+        const ms = current.connected ? config.game.turnTimeout : config.game.disconnectedTurnTimeout;
+        turnTimers.set(roomId, setTimeout(() => autoPlay(roomId, game, current.id), ms));
+    };
+
+    // Taş atma + tur sonu / sıra geçişi (oyuncu hamlesi ve otomatik hamle aynı yolu kullanır)
+    const discardAndAdvance = (roomId: string, game: Game, playerId: string, tileId: string) => {
+        const tile = game.discardTile(playerId, tileId);
+        if (!tile) return { success: false, error: 'Taş atılamadı' };
+
+        io.to(roomId).emit('game:tileDiscard', { success: true, playerId, tile: { ...tile.toJSON(), playerId } });
+
+        const atan = game.getPlayerById(playerId);
+        if (atan && atan.tiles.length === 0 && game.checkRoundEnd(playerId)) {
+            // Son atılan taş jokerse joker ×2 çarpanı uygulanır
+            game.finishedWithJoker = tile.isJoker === true;
+            finishRound(roomId, game, playerId);
+            return { success: true, roundEnded: true };
+        }
+
+        const nextPlayerId = game.players.find(p => p.isTurn)?.id || null;
+        io.to(roomId).emit('game:nextTurn', { currentPlayerId: nextPlayerId, turnAction: 'draw' });
+        scheduleTurn(roomId, game);
+        return { success: true, nextPlayerId };
+    };
+
+    const autoPlay = (roomId: string, game: Game, playerId: string) => {
+        turnTimers.delete(roomId);
+        const player = game.getPlayerById(playerId);
+        if (!player || !game.isPlayerTurn(playerId)) return;
+
+        let drawn: Tile | null = null;
+        if (game.turnAction === TurnAction.DRAW && player.tiles.length !== 15) {
+            drawn = game.drawTile(playerId, false);
+            if (!drawn) {
+                if (game.deck.length === 0 && game.checkRoundEnd()) finishRound(roomId, game);
+                return;
+            }
+            io.to(roomId).except(player.socketId).emit('game:tileDraw', {
+                success: true, playerId, fromDiscard: false, fromDiscardOfPlayerId: null
+            });
+        }
+
+        const tile = game.pickAutoDiscard(playerId);
+        if (!tile) return;
+        // Oyuncunun kendi ekranı: çekilen taşı ekle, atılan taşı çıkar
+        io.to(player.socketId).emit('game:autoPlayed', { drawnTile: drawn?.toJSON() ?? null, discardedTile: tile.toJSON() });
+        discardAndAdvance(roomId, game, playerId, tile.id);
+    };
 
     // Tek tur sonu yolu: puanla, bildir, 4 sn sonra yeni eli başlat (son elde başlatma)
     const finishRound = (roomId: string, game: Game, finisherPlayerId?: string) => {
+        clearTimeout(turnTimers.get(roomId));
+        turnTimers.delete(roomId);
         const results = game.endRound(finisherPlayerId);
         io.to(roomId).emit('game:roundEnded', {
             results,
@@ -24,6 +84,7 @@ export const setupSocketHandlers = (io: Server) => {
             setTimeout(() => {
                 game.startNextRound();
                 io.to(roomId).emit('game:roundStarted', { game: game.toPublicJSON() });
+                scheduleTurn(roomId, game);
             }, 4000);
         }
     };
@@ -317,6 +378,7 @@ export const setupSocketHandlers = (io: Server) => {
                                 tiles: player.tiles.map(tile => tile.toJSON())
                             });
                         });
+                        if (room.game) scheduleTurn(roomId, room.game);
                     }
                 }
 
@@ -375,6 +437,7 @@ export const setupSocketHandlers = (io: Server) => {
                         tiles: player.tiles.map(tile => tile.toJSON())
                     });
                 });
+                if (room.game) scheduleTurn(roomId, room.game);
 
                 callback({
                     success: true
@@ -494,47 +557,7 @@ export const setupSocketHandlers = (io: Server) => {
                     });
                 }
 
-                // Taş at
-                const discardedTile = gameManager.discardTile(playerId, tileId);
-
-                if (!discardedTile) {
-                    return callback({
-                        success: false,
-                        error: 'Taş atılamadı'
-                    });
-                }
-
-                // Tüm oyunculara atılan taşı bildir
-                io.to(player.roomId).emit('game:tileDiscard', {
-                    success: true,
-                    playerId,
-                    tile: {
-                        ...discardedTile.toJSON(),
-                        playerId
-                    }
-                });
-
-                // Tur sonu kontrolü: oyuncunun eli bitti mi?
-                const atan = gameManager.getPlayerById(playerId);
-                if (atan && atan.tiles.length === 0 && room.game.checkRoundEnd(playerId)) {
-                    // Son atılan taş jokerse joker ×2 çarpanı uygulanır
-                    room.game.finishedWithJoker = discardedTile.isJoker === true;
-                    finishRound(player.roomId, room.game, playerId);
-                    callback({ success: true, roundEnded: true });
-                    return;
-                }
-
-                // Normal akış: sıra değişimi
-                const nextPlayer = room.players.find(p => p.isTurn);
-                io.to(player.roomId).emit('game:nextTurn', {
-                    currentPlayerId: nextPlayer?.id || null,
-                    turnAction: 'draw'
-                });
-
-                callback({
-                    success: true,
-                    nextPlayerId: nextPlayer?.id || null
-                });
+                callback(discardAndAdvance(player.roomId, room.game, playerId, tileId));
             } catch (error) {
                 console.error('Taş atma hatası:', error);
                 callback({
@@ -717,11 +740,39 @@ export const setupSocketHandlers = (io: Server) => {
             }
         });
 
+        // Yeniden bağlanma: sayfa yenilenince / ağ kopunca aynı oyuncu kimliğiyle koltuğa dön
+        socket.on('player:reconnect', (data: { playerId: string }, callback) => {
+            const player = data?.playerId ? gameManager.getPlayerById(data.playerId) : undefined;
+            if (!player) return callback?.({ success: false, error: 'Oyuncu bulunamadı' });
+
+            gameManager.updatePlayerSocket(player.id, socket.id);
+            player.connected = true;
+
+            const room = player.roomId ? gameManager.getRoomById(player.roomId) : undefined;
+            if (room) {
+                socket.join(room.id);
+                io.to(room.id).emit('player:connection', { playerId: player.id, connected: true });
+                // Sırası kısa kopukluk süresiyle bekliyorsa tam süreyi geri ver
+                if (room.game?.isPlayerTurn(player.id)) scheduleTurn(room.id, room.game);
+            }
+
+            callback?.({ success: true, player: player.toJSON(), room: room ? room.toJSON() : null });
+        });
+
         // Bağlantı Kesme
         socket.on('disconnect', () => {
             console.log(`Bağlantı kesildi: ${socket.id}`);
 
             const player = gameManager.getPlayerBySocketId(socket.id);
+
+            // Oyun sürerken oyuncu silinmez: koltuk tutulur, sırası gelince otomatik oynanır
+            const playingRoom = player?.roomId ? gameManager.getRoomById(player.roomId) : undefined;
+            if (player && playingRoom?.game && playingRoom.status === RoomStatus.PLAYING) {
+                player.connected = false;
+                io.to(playingRoom.id).emit('player:connection', { playerId: player.id, connected: false });
+                if (playingRoom.game.isPlayerTurn(player.id)) scheduleTurn(playingRoom.id, playingRoom.game);
+                return;
+            }
 
             if (player && player.roomId) {
                 const room = gameManager.getRoomById(player.roomId);

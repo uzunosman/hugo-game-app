@@ -272,3 +272,6 @@
         padding: 5px 12px;
     }
 }
+/* Bağlantısı kopan oyuncu: sunucu sırası gelince onun yerine oynar */
+.player-panel.offline { opacity: 0.55; }
+.player-offline { font-size: 0.7rem; color: #ffd27a; }

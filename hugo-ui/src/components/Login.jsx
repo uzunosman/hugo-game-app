@@ -17,8 +17,7 @@ function Login({ onLogin }) {
         setLoading(true);
         setError('');
 
-        // Socket bağlantısını kur
-        const socket = socketService.connect();
+        socketService.connect();
 
         // Oyuncu kaydı yap
         socketService.registerPlayer(name, (response) => {

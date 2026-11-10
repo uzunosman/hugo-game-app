@@ -1,6 +1,10 @@
 import { io } from 'socket.io-client';
 
-const SOCKET_URL = 'http://localhost:3001';
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
+const SESSION_KEY = 'hugo.playerId'; // sekme başına oturum: yenilemede aynı koltuğa dönülür
+
+const readSession = () => { try { return sessionStorage.getItem(SESSION_KEY); } catch { return null; } };
+const writeSession = (id) => { try { id ? sessionStorage.setItem(SESSION_KEY, id) : sessionStorage.removeItem(SESSION_KEY); } catch { /* depolama kapalı */ } };
 
 class SocketService {
     constructor() {
@@ -12,9 +16,32 @@ class SocketService {
     connect() {
         if (!this.socket) {
             this.socket = io(SOCKET_URL);
-            console.log('Socket bağlantısı kuruldu');
+            // Ağ kopup geri gelince sunucuya aynı oyuncu olduğumuzu bildir
+            let connectedBefore = false;
+            this.socket.on('connect', () => {
+                if (connectedBefore && this.playerId) {
+                    this.socket.emit('player:reconnect', { playerId: this.playerId }, () => {});
+                }
+                connectedBefore = true;
+            });
         }
         return this.socket;
+    }
+
+    savedPlayerId() {
+        return readSession();
+    }
+
+    reconnect(playerId, callback) {
+        this.socket.emit('player:reconnect', { playerId }, (response) => {
+            if (response.success) {
+                this.playerId = response.player.id;
+                this.activeRoomId = response.room?.id || null;
+            } else {
+                writeSession(null);
+            }
+            callback(response);
+        });
     }
 
     disconnect() {
@@ -29,6 +56,7 @@ class SocketService {
         this.socket.emit('player:register', { name }, (response) => {
             if (response.success) {
                 this.playerId = response.player.id;
+                writeSession(this.playerId);
             }
             callback(response);
         });
@@ -162,14 +190,6 @@ class SocketService {
         this.socket.off('game:nextTurn');
     }
 
-    onGameStateChange(callback) {
-        this.socket.on('game:stateChange', callback);
-    }
-
-    offGameStateChange() {
-        this.socket.off('game:stateChange');
-    }
-
     requestTiles(playerId, callback) {
         this.socket.emit('game:requestTiles', { playerId }, callback);
     }
@@ -234,6 +254,22 @@ class SocketService {
 
     offRoundEnded() {
         this.socket.off('game:roundEnded');
+    }
+
+    onPlayerConnection(callback) {
+        this.socket.on('player:connection', callback);
+    }
+
+    offPlayerConnection() {
+        this.socket.off('player:connection');
+    }
+
+    onAutoPlayed(callback) {
+        this.socket.on('game:autoPlayed', callback);
+    }
+
+    offAutoPlayed() {
+        this.socket.off('game:autoPlayed');
     }
 
     onRoundStarted(callback) {

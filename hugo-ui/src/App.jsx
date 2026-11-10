@@ -21,36 +21,25 @@ function App() {
     setCurrentRoom(null)
   }
 
-  // --- TEST: Otomatik giriş, oda katılımı ve hazır olma ---
-  // Bu blok test amaçlıdır, üretimde kaldırılacak.
+  // Sekmede kayıtlı oturum varsa (sayfa yenilendi) aynı oyuncu ve koltuğa dön
+  const [restoring, setRestoring] = useState(() => !!socketService.savedPlayerId())
+
   useEffect(() => {
-    const randomName = `Player_${Math.floor(100 + Math.random() * 900)}`;
+    socketService.connect()
+    const savedId = socketService.savedPlayerId()
+    if (!savedId) return
+    socketService.reconnect(savedId, (response) => {
+      if (response.success) {
+        setPlayer(response.player)
+        if (response.room) setCurrentRoom(response.room)
+      }
+      setRestoring(false)
+    })
+  }, [])
 
-    socketService.connect();
-
-    socketService.registerPlayer(randomName, (registerResponse) => {
-      if (!registerResponse.success) return;
-
-      const playerData = registerResponse.player;
-      setPlayer(playerData);
-
-      socketService.getRooms((roomsResponse) => {
-        const rooms = roomsResponse?.rooms ?? [];
-        if (rooms.length === 0) return;
-
-        const firstRoom = rooms[0];
-
-        socketService.joinRoom(firstRoom.id, (joinResponse) => {
-          if (!joinResponse.success) return;
-
-          setCurrentRoom(joinResponse.room);
-
-          socketService.setReady(firstRoom.id, true, () => {});
-        });
-      });
-    });
-  }, []);
-  // --- TEST SONU ---
+  if (restoring) {
+    return <div className="screen"><p className="screen-note">Oturum geri yükleniyor…</p></div>
+  }
 
   // Kullanıcı giriş yapmadıysa Login bileşenini göster
   if (!player) {

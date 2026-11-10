@@ -16,7 +16,8 @@ export const config = {
         minPlayers: 4,
         maxRooms: 10,
         inactivityTimeout: 5 * 60 * 1000, // 5 dakika
-        turnTimeout: 60 * 1000, // 1 dakika
+        turnTimeout: Number(process.env.TURN_TIMEOUT_MS) || 60 * 1000, // 1 dakika (testte kısaltılabilir)
+        disconnectedTurnTimeout: Number(process.env.DISCONNECTED_TURN_MS) || 3000, // kopuk oyuncunun sırası
         maxRounds: 9,
         hugoRounds: [1, 5, 9], // Hugo turları
     }

@@ -365,7 +365,6 @@ function Game({ player, room }) {
                     <PlayerPanel
                         key={index}
                         name={p.name}
-                        score={0}
                         position={getPlayerPosition(index)}
                         isCurrentPlayer={p.id === gameState.currentPlayerId}
                         timeLeft={p.id === gameState.currentPlayerId ? timeLeft : null}
@@ -373,6 +372,7 @@ function Game({ player, room }) {
                         isOpen={openState?.isOpen}
                         openedTotal={openState?.openedTotal}
                         penaltyScore={openState?.penaltyScore || 0}
+                        connected={openState?.connected !== false}
                     />
                 );
             })}

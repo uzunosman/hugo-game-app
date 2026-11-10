@@ -31,7 +31,7 @@ const useGameState = (player, room) => {
     const [playerOpenStates, setPlayerOpenStates] = useState(() => {
         const states = {};
         room.players.forEach(p => {
-            states[p.id] = { isOpen: p.isOpen || false, openedTotal: p.openedTotal || 0, lastOpenedValue: p.lastOpenedValue || 0, penaltyScore: p.penaltyScore || 0, penaltyEntries: p.penaltyEntries || [] };
+            states[p.id] = { isOpen: p.isOpen || false, openedTotal: p.openedTotal || 0, lastOpenedValue: p.lastOpenedValue || 0, penaltyScore: p.penaltyScore || 0, penaltyEntries: p.penaltyEntries || [], roundScores: p.roundScores || [], totalScore: p.totalScore || 0, per100PlusCount: p.per100PlusCount || 0, connected: p.connected !== false };
         });
         return states;
     });
@@ -210,6 +210,29 @@ const useGameState = (player, room) => {
             });
         });
 
+        // Bir oyuncunun bağlantısı koptu / geri geldi
+        socketService.onPlayerConnection(({ playerId, connected }) => {
+            setPlayerOpenStates(prev => ({ ...prev, [playerId]: { ...prev[playerId], connected } }));
+        });
+
+        // Süre doldu: sunucu bizim yerimize çekti ve en küçük taşı attı
+        socketService.onAutoPlayed(({ drawnTile, discardedTile }) => {
+            setTiles(prev => [...prev.filter(t => t.id !== discardedTile.id), ...(drawnTile ? [drawnTile] : [])]);
+            setTilePositions(prev => {
+                const next = prev.map(id => (id === discardedTile.id ? null : id));
+                if (drawnTile && !next.includes(drawnTile.id)) {
+                    const empty = next.indexOf(null);
+                    if (empty !== -1) next[empty] = drawnTile.id;
+                }
+                return next;
+            });
+            setDiscardedTiles(prev => ({
+                ...prev,
+                bottomRight: [...(prev.bottomRight || []), { ...discardedTile, discardedBy: player.id }]
+            }));
+            setSelectedTile(null);
+        });
+
         // Yeni tur başladı — tüm state'leri sıfırla ve yeniden yükle
         socketService.onRoundStarted((data) => {
             console.log('Yeni tur başladı:', data);
@@ -232,7 +255,8 @@ const useGameState = (player, room) => {
                     penaltyEntries: p.penaltyEntries || [],
                     roundScores: p.roundScores || [],
                     totalScore: p.totalScore || 0,
-                    per100PlusCount: p.per100PlusCount || 0
+                    per100PlusCount: p.per100PlusCount || 0,
+                    connected: p.connected !== false
                 };
             });
             setPlayerOpenStates(states);
@@ -256,6 +280,8 @@ const useGameState = (player, room) => {
             socketService.offPerDropped();
             socketService.offRoundEnded();
             socketService.offRoundStarted();
+            socketService.offPlayerConnection();
+            socketService.offAutoPlayed();
         };
     }, [player.id]);
 
