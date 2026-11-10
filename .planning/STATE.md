@@ -77,13 +77,17 @@ progress:
 15. **Yandan alınan taş:** kullanılmazsa yalnızca aynı taş 100 cezayla geri atılabilir (kilitlenmeyi önleyen çıkış; kural metninde yok).
 16. **El Aç butonu değer eşiğiyle kilitlenmez:** yetersiz açma denemesi 100 ceza (TODO: "tiyamiyam yok, ceza yer").
 17. **Sahte okey:** normal elde okeyin rengi/sayısıyla oynanır, joker gibi davranmaz.
+18. **El sonu (kullanıcı kararı 2026-11-11):** elde kalan × 20; Hugo / okeyle / çiftten / elden bitme her biri × 2 (Hugo cezalara da); kullanılmayan okey +100.
+19. **Çift açma:** çift toplamı ≥ 51; çiftle açan yalnızca çift indirir, çiftlere işlenmez; çiftten biten 1 yıldız (temel).
+20. **Elden bitme:** bitiren, açtığı sırada bitirdiyse (Player.openedAtTurn === Game.turnCounter).
+21. **Tek indirme butonu:** açtıktan sonra yalnızca "Perleri indir" (dropPer); openHand açık oyuncuyu reddeder.
 
 ### Todos
 - [x] Phase 1: Multiplier calculation, joker penalty multiplier, star system
 - [x] Phase 2: RoundSummary multipliers, Scoreboard, fake-okey Hugo, game end screen
 - [x] Phase 3: TODO rules, server turn timer, reconnect, persistence, UI screens
-- [ ] Netleşecek: "peri indir butonları değiştirilecek" kapsamı
-- [ ] Netleşecek: document.txt puanlama (×2, bitirme −100/−200) ile kod (×10, yıldız sistemi) farkı
+- [x] Per indir: tek buton (2026-11-11)
+- [x] Puanlama netleşti ve uygulandı: × 20, özel durumlar × 2, kullanılmayan okey, çift açma (2026-11-11)
 
 ### Blockers
 None identified
@@ -93,7 +97,7 @@ None identified
 ## Session Continuity
 
 **Last completed:** Phase 3 (2026-11-10)
-**Next step:** Açık iki sorunun cevabına göre puanlama ve per indir butonları
+**Next step:** Açık iş yok; yeni özellikler için yol haritasına faz eklenmeli
 **Context files:**
 - .planning/PROJECT.md
 - .planning/REQUIREMENTS.md

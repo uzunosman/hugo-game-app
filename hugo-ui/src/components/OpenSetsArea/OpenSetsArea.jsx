@@ -72,7 +72,7 @@ function getEdgeValues(tiles, isOkey = (t) => t.isJoker) {
  * Aktif taş ve set bilgisine göre geçerli ekleme pozisyonlarını hesapla.
  */
 function calculateValidPositions(set, rawActiveTile, okeyTile, isHugo) {
-    if (!rawActiveTile) return [];
+    if (!rawActiveTile || set.kind === 'cift') return []; // çiftlere taş işlenmez
     const positions = [];
     // Sahte okeyler okeyin değeriyle hesaba girer
     const tiles = set.tiles.map(t => asPlayedTile(t, okeyTile, isHugo));

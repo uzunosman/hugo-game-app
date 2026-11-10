@@ -96,35 +96,24 @@ export const isOkeyTile = (tile, okeyTile, isHugo) => {
  */
 export const CELLS_PER_ROW = 15; // ıstakada satır başına hücre (TileHolder ile aynı)
 
-export const getConsecutiveGroups = (tilePositions, tiles) => {
+// Istakadaki ardışık (aralarında boşluk olmayan) taş grupları, her uzunlukta.
+// Üst satırın sonu ile alt satırın başı aynı gruba sayılmaz.
+export const getRackGroups = (tilePositions, tiles) => {
     const groups = [];
-    let currentGroup = [];
-
+    let current = [];
+    const flush = () => { if (current.length) groups.push(current); current = []; };
     for (let i = 0; i < tilePositions.length; i++) {
-        // Üst satırın sonu ile alt satırın başı aynı gruba sayılmaz
-        if (i % CELLS_PER_ROW === 0) {
-            if (currentGroup.length >= 3) groups.push([...currentGroup]);
-            currentGroup = [];
-        }
-        const tileId = tilePositions[i];
-        if (tileId) {
-            const tile = tiles.find(t => t.id === tileId);
-            if (tile) {
-                currentGroup.push(tile);
-            }
-        } else {
-            if (currentGroup.length >= 3) {
-                groups.push([...currentGroup]);
-            }
-            currentGroup = [];
-        }
+        if (i % CELLS_PER_ROW === 0) flush();
+        const tile = tilePositions[i] && tiles.find(t => t.id === tilePositions[i]);
+        if (tile) current.push(tile); else flush();
     }
-    if (currentGroup.length >= 3) {
-        groups.push([...currentGroup]);
-    }
-
+    flush();
     return groups;
 };
+
+// Per adayları: en az 3 taşlık gruplar
+export const getConsecutiveGroups = (tilePositions, tiles) =>
+    getRackGroups(tilePositions, tiles).filter(g => g.length >= 3);
 
 /**
  * "Aynı sayı farklı renk" set kontrolü.
@@ -239,6 +228,32 @@ export const asPlayedTile = (tile, okeyTile, isHugo) =>
         ? { ...tile, color: okeyTile.color, value: okeyTile.value, isJoker: false, sahte: true }
         : tile;
 
+/**
+ * Çift: aynı renk ve sayıdan iki taş ya da okey + bir taş (sunucu kuralıyla aynı).
+ * @returns {number} sayı × 2, geçersizse 0
+ */
+export const validatePair = (rawGroup, opts = {}) => {
+    if (rawGroup.length !== 2) return 0;
+    const { okeyTile, isHugo } = opts;
+    const [a, b] = rawGroup.map(t => asPlayedTile(t, okeyTile, isHugo));
+    const wildA = isOkeyTile(a, okeyTile, isHugo);
+    const wildB = isOkeyTile(b, okeyTile, isHugo);
+    if (wildA && wildB) return 0;
+    const base = wildA ? b : a;
+    const other = wildA ? a : b;
+    if (typeof base.value !== 'number') return 0;
+    if (!isOkeyTile(other, okeyTile, isHugo) && (other.color !== base.color || other.value !== base.value)) return 0;
+    return base.value * 2;
+};
+
+/** Istakada yan yana duran geçerli çiftler ve toplamları */
+export const calculatePairScore = (tilePositions, tiles, okeyTile, isHugo) => {
+    const pairs = getRackGroups(tilePositions, tiles)
+        .filter(g => g.length === 2 && validatePair(g, { okeyTile, isHugo }) > 0);
+    const pairTotal = pairs.reduce((sum, g) => sum + validatePair(g, { okeyTile, isHugo }), 0);
+    return { pairs, pairTotal, pairCount: pairs.length };
+};
+
 export const validateSet = (rawGroup, opts = {}) => {
     if (rawGroup.length < 3) return 0;
 
@@ -348,19 +363,37 @@ export const arrangeTiles = (tiles, mode, okeyTile, isHugo) => {
         return sets;
     };
 
-    // Önce seçilen türde 3+ perleri çıkar, kalanlardan diğer türü dene, artanları sırala
-    const [first, second] = mode === 'cift' ? [takeSameNumber, takeRuns] : [takeRuns, takeSameNumber];
+    // Çift diz: aynı taşları yan yana; okeyler en değerli tek taşla eşleşir
+    if (mode === 'cift') {
+        const sortedPlain = [...plain].sort((a, b) => b.value - a.value || colorIdx(a) - colorIdx(b));
+        const pairs = [];
+        const singles = [];
+        for (const t of sortedPlain) {
+            const i = singles.findIndex(x => x.color === t.color && x.value === t.value);
+            if (i !== -1) pairs.push([singles.splice(i, 1)[0], t]); else singles.push(t);
+        }
+        const wilds = [...wild];
+        while (wilds.length && singles.length) pairs.push([singles.shift(), wilds.shift()]);
+        return placeGroups([...pairs, ...(singles.length || wilds.length ? [[...singles, ...wilds]] : [])]);
+    }
+
+    // Seri diz: önce seriler, kalanlardan aynı sayı perleri, artanlar sıralı
+    const [first, second] = [takeRuns, takeSameNumber];
     const firstGroups = first(plain);
     const kept = firstGroups.filter(g => g.length >= 3);
     const rest = firstGroups.filter(g => g.length < 3).flat();
     const secondGroups = second(rest);
     kept.push(...secondGroups.filter(g => g.length >= 3));
-    const singles = secondGroups.filter(g => g.length < 3).flat().sort(mode === 'cift' ? byValue : byColor);
+    const singles = secondGroups.filter(g => g.length < 3).flat().sort(byColor);
 
     const groups = [...kept];
     if (singles.length) groups.push(singles);
     if (wild.length) groups.push(wild);
+    return placeGroups(groups);
+};
 
+// Grupları satırlara aralarında bir boşlukla yerleştirir; satıra sığmayan grup alt satıra geçer
+const placeGroups = (groups) => {
     const positions = Array(CELLS_PER_ROW * 2).fill(null);
     let cursor = 0;
     const leftovers = [];

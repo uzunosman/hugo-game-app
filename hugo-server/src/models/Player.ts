@@ -18,6 +18,8 @@ export class Player {
     per100PlusCount: number;
     openingScore: number;
     connected: boolean;
+    openedWithPairs: boolean; // bu elde çiftle açtı (sonra da yalnızca çift indirir)
+    openedAtTurn: number;     // ilk açtığı sıranın numarası (elden bitme kontrolü)
 
     constructor(name: string, socketId: string) {
         this.id = uuidv4();
@@ -36,6 +38,8 @@ export class Player {
         this.per100PlusCount = 0;
         this.openingScore = 0;
         this.connected = true;
+        this.openedWithPairs = false;
+        this.openedAtTurn = -1;
     }
 
     addTile(tile: Tile): void {
@@ -93,6 +97,8 @@ export class Player {
         this.openingScore = 0;
         this.penaltyEntries = [];
         this.isTurn = false;
+        this.openedWithPairs = false;
+        this.openedAtTurn = -1;
     }
 
     getTotalScore(): number {
@@ -134,6 +140,7 @@ export class Player {
             per100PlusCount: this.per100PlusCount,
             openingScore: this.openingScore,
             connected: this.connected,
+            openedWithPairs: this.openedWithPairs,
         };
     }
 } 

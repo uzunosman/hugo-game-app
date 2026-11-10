@@ -5,7 +5,7 @@ import Scoreboard from '../Scoreboard/Scoreboard';
 import RoundSummary from '../RoundSummary/RoundSummary';
 import useGameState from '../../hooks/useGameState';
 import socketService from '../../services/socketService';
-import { getOrderedPlayers, getPlayerPosition, getPlayerCorner, getCurrentPlayerIndex, calculateHandScore, getConsecutiveGroups, validateSet, arrangeTiles } from '../../utils/gameUtils';
+import { getOrderedPlayers, getPlayerPosition, getPlayerCorner, getCurrentPlayerIndex, calculateHandScore, calculatePairScore, getConsecutiveGroups, validateSet, arrangeTiles } from '../../utils/gameUtils';
 import { handleDrawTile, handleTileMove, handleDrawDiscardedTile } from '../../utils/tileHandlers';
 import '../../assets/css/components/GameBoard.css';
 
@@ -182,6 +182,9 @@ function Game({ player, room, onLeaveRoom }) {
     // Mevcut oyuncunun set ve per hesabını yap
     const handScore = calculateHandScore(tilePositions, tiles, gameState.indicatorTile, gameState.okeyTile, gameState.isHugoRound);
 
+    // Istakada yan yana duran çiftler (çiftle açma / çift indirme)
+    const pairScore = calculatePairScore(tilePositions, tiles, gameState.okeyTile, gameState.isHugoRound);
+
     // El açma durumu
     const isFirstHandBlock = tiles.length === 15 && gameState.turnAction === 'draw';
 
@@ -198,7 +201,11 @@ function Game({ player, room, onLeaveRoom }) {
     const openHandShort = maxOpenedValue === 0 ? handScore.setTotal < 51 : handScore.setTotal <= maxOpenedValue;
 
     const myOpenState = playerOpenStates[player.id] || { isOpen: false, openedTotal: 0 };
-    const openHandLabel = myOpenState.isOpen ? 'Taş Oyna' : 'El Aç';
+    const canAct = isMyTurn && (gameState.turnAction === 'discard' || isFirstHandBlock);
+
+    // Çiftle açma: çiftlerin toplamı 51 ve üstü; yetersiz deneme 100 ceza (buton eşikle kilitlenmez)
+    const canOpenPairs = canAct && !myOpenState.isOpen && pairScore.pairCount > 0;
+    const openPairsShort = pairScore.pairTotal < 51;
 
     // İşleme: seçili taşın gerçek ID'si (OpenSetsArea'ya iletilir)
     const selectedTileId = (selectedTile !== null && tilePositions[selectedTile] && myOpenState.isOpen && isMyTurn
@@ -267,25 +274,19 @@ function Game({ player, room, onLeaveRoom }) {
         });
     };
 
-    // Per indirme: eli açık, sırası gelmiş, geçerli setler var
-    const canDropPer = isMyTurn
-        && (gameState.turnAction === 'discard' || isFirstHandBlock)
-        && myOpenState.isOpen
-        && handScore.validSetCount > 0;
+    // Perleri indir (açtıktan sonra tek buton): çiftle açan çiftleri, seriyle açan perleri indirir
+    const dropCount = myOpenState.openedWithPairs ? pairScore.pairCount : handScore.validSetCount;
+    const canDropPer = canAct && myOpenState.isOpen && dropCount > 0;
 
-    // Per indirme işleyicisi
     const onDropPer = () => {
         if (!canDropPer) return;
 
-        const groups = getConsecutiveGroups(tilePositions, tiles);
         const opts = { okeyTile: gameState.okeyTile, isHugo: gameState.isHugoRound };
-        const validSets = [];
-        for (const group of groups) {
-            const score = validateSet(group, opts);
-            if (score > 0) {
-                validSets.push(group.map(t => t.id));
-            }
-        }
+        const validSets = myOpenState.openedWithPairs
+            ? pairScore.pairs.map(g => g.map(t => t.id))
+            : getConsecutiveGroups(tilePositions, tiles)
+                .filter(group => validateSet(group, opts) > 0)
+                .map(group => group.map(t => t.id));
         if (validSets.length === 0) return;
 
         const droppedTileIds = new Set(validSets.flat());
@@ -303,20 +304,16 @@ function Game({ player, room, onLeaveRoom }) {
         });
     };
 
-    // El açma işleyicisi
-    const onOpenHand = () => {
-        if (!canOpenHand) return;
+    // El açma işleyicisi: kind 'seri' perlerle, 'cift' çiftlerle açar
+    const onOpenHand = (kind = 'seri') => {
+        if (kind === 'seri' ? !canOpenHand : !canOpenPairs) return;
 
-        // Geçerli setleri tespit et
-        const groups = getConsecutiveGroups(tilePositions, tiles);
         const opts = { okeyTile: gameState.okeyTile, isHugo: gameState.isHugoRound };
-        const validSets = [];
-        for (const group of groups) {
-            const score = validateSet(group, opts);
-            if (score > 0) {
-                validSets.push(group.map(t => t.id));
-            }
-        }
+        const validSets = kind === 'cift'
+            ? pairScore.pairs.map(g => g.map(t => t.id))
+            : getConsecutiveGroups(tilePositions, tiles)
+                .filter(group => validateSet(group, opts) > 0)
+                .map(group => group.map(t => t.id));
 
         if (validSets.length === 0) return;
 
@@ -336,7 +333,7 @@ function Game({ player, room, onLeaveRoom }) {
             } else {
                 setError(response.error || 'El açılamadı');
             }
-        });
+        }, kind);
     };
 
     return (
@@ -362,42 +359,43 @@ function Game({ player, room, onLeaveRoom }) {
                 );
             })}
 
-            {/* El Aç / Taş Oyna ve Per İndir Butonları */}
-            {isMyTurn && (gameState.turnAction === 'discard' || isFirstHandBlock) && (
+            {/* Açmadan önce: El Aç (per) ve Çift Aç; açtıktan sonra tek buton: Perleri indir */}
+            {canAct && (
                 <div className="action-buttons">
                     {!myOpenState.isOpen && (
-                        <button
-                            className={`open-hand-btn ${canOpenHand ? 'active' : 'disabled'} ${canOpenHand && openHandShort ? 'short' : ''}`}
-                            onClick={onOpenHand}
-                            disabled={!canOpenHand}
-                            title={canOpenHand && openHandShort ? 'Değer yetersiz: açarsan 100 ceza yazılır' : undefined}
-                        >
-                            {openHandLabel}
-                            {handScore.setTotal > 0 && (
-                                <span className="open-hand-score">{handScore.setTotal}</span>
-                            )}
-                        </button>
-                    )}
-                    {myOpenState.isOpen && (
                         <>
                             <button
-                                className={`open-hand-btn ${canOpenHand ? 'active' : 'disabled'}`}
-                                onClick={onOpenHand}
+                                className={`open-hand-btn ${canOpenHand ? 'active' : 'disabled'} ${canOpenHand && openHandShort ? 'short' : ''}`}
+                                onClick={() => onOpenHand('seri')}
                                 disabled={!canOpenHand}
+                                title={canOpenHand && openHandShort ? 'Değer yetersiz: açarsan 100 ceza yazılır' : undefined}
                             >
-                                Taş Oyna
+                                El Aç
                                 {handScore.setTotal > 0 && (
                                     <span className="open-hand-score">{handScore.setTotal}</span>
                                 )}
                             </button>
-                            <button
-                                className={`open-hand-btn drop-per ${canDropPer ? 'active' : 'disabled'}`}
-                                onClick={onDropPer}
-                                disabled={!canDropPer}
-                            >
-                                Per İndir
-                            </button>
+                            {pairScore.pairCount > 0 && (
+                                <button
+                                    className={`open-hand-btn ${canOpenPairs ? 'active' : 'disabled'} ${canOpenPairs && openPairsShort ? 'short' : ''}`}
+                                    onClick={() => onOpenHand('cift')}
+                                    disabled={!canOpenPairs}
+                                    title={openPairsShort ? 'Çiftlerin toplamı 51\'in altında: açarsan 100 ceza yazılır' : undefined}
+                                >
+                                    Çift Aç
+                                    <span className="open-hand-score">{pairScore.pairTotal}</span>
+                                </button>
+                            )}
                         </>
+                    )}
+                    {myOpenState.isOpen && (
+                        <button
+                            className={`open-hand-btn drop-per ${canDropPer ? 'active' : 'disabled'}`}
+                            onClick={onDropPer}
+                            disabled={!canDropPer}
+                        >
+                            {myOpenState.openedWithPairs ? 'Çiftleri indir' : 'Perleri indir'}
+                        </button>
                     )}
                 </div>
             )}

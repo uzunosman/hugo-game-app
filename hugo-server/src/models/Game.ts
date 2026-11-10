@@ -25,6 +25,9 @@ export interface RoundResult {
     isHugoRound: boolean;
     finishedWithJoker: boolean;
     stars: number;              // yıldız sayısı (her biri roundTotal'den 100 düşer)
+    unusedOkeyPenalty: number;  // elde kalan her okey için 100
+    finishedWithPairs: boolean; // bitiren çiftle açmıştı (özel durum ×2)
+    finishedElden: boolean;     // bitiren aynı sırada açıp bitirdi (özel durum ×2)
     penaltyEntries: number[];   // o elde yazılan cezalar (UI dökümü için)
     totalScore: number;         // bu el dahil toplam puan
 }
@@ -49,11 +52,14 @@ export enum TurnAction {
     DISCARD = 'discard'
 }
 
+export type SetKind = 'seri' | 'cift';
+
 export interface TableSet {
     id: string;
     playerId: string;
     tiles: Tile[];
     value: number;
+    kind?: SetKind; // 'cift': iki aynı taş; yoksa seri/aynı sayı peri
 }
 
 export class Game {
@@ -75,6 +81,8 @@ export class Game {
     finisherPlayerId: string | null;
     finishedWithJoker: boolean;
     takenDiscardTileId: string | null; // yandan alınan, bu turda kullanılması gereken taş
+    turnCounter: number;               // eldeki sıra sayacı (elden bitme için)
+    finishedElden: boolean;            // son taşı atan, aynı sırada açmıştı
     createdAt: Date;
     lastActionTime: Date;
 
@@ -96,6 +104,8 @@ export class Game {
         this.finisherPlayerId = null;
         this.finishedWithJoker = false;
         this.takenDiscardTileId = null;
+        this.turnCounter = 0;
+        this.finishedElden = false;
         this.tableSets = [];
         this.createdAt = new Date();
         this.lastActionTime = new Date();
@@ -197,13 +207,12 @@ export class Game {
     }
 
     private dealTiles(): void {
-        // TEST_MODE: eli başlatana 63 değerinde açılış eli (kırmızı 11-12-13 + üç renk 9) verilir
+        // TEST_MODE: eli başlatana hazır açılış eli verilir (TEST_HAND ile seri ya da çift)
         if (config.testMode) {
             const starter = this.players[this.currentPlayerIndex];
-            const wanted: [TileColor, number][] = [
-                [TileColor.RED, 11], [TileColor.RED, 12], [TileColor.RED, 13],
-                [TileColor.BLACK, 9], [TileColor.YELLOW, 9], [TileColor.BLUE, 9],
-            ];
+            const wanted: [TileColor, number][] = config.testHand === 'cift'
+                ? [[TileColor.RED, 13], [TileColor.RED, 13], [TileColor.BLUE, 12], [TileColor.BLUE, 12], [TileColor.BLACK, 1], [TileColor.BLACK, 1]]
+                : [[TileColor.RED, 11], [TileColor.RED, 12], [TileColor.RED, 13], [TileColor.BLACK, 9], [TileColor.YELLOW, 9], [TileColor.BLUE, 9]];
             for (const [color, value] of wanted) {
                 const i = this.deck.findIndex(t => t.color === color && t.value === value);
                 if (i !== -1 && starter) starter.addTile(this.deck.splice(i, 1)[0]);
@@ -295,6 +304,8 @@ export class Game {
         penalties.forEach(p => player.addPenalty(p.amount));
 
         player.removeTile(tileId);
+        // Son taş: bitiren bu sırada açtıysa "elden bitme"
+        if (player.tiles.length === 0) this.finishedElden = player.openedAtTurn === this.turnCounter;
         tile.setStatus(TileStatus.DISCARDED);
         tile.setVisible(true);
         this.discardPile.push(tile);
@@ -317,13 +328,14 @@ export class Game {
     islekPenalty(tile: Tile): number {
         const played = this.asPlayed(tile); // sahte okey, okeyin değeriyle işlenebilir
         if (this.isOkeyTile(played) || typeof played.value !== 'number') return 0;
-        const fits = this.tableSets.some(set =>
-            this.validateSetTiles([tile, ...set.tiles]) > 0 || this.validateSetTiles([...set.tiles, tile]) > 0
+        const fits = this.tableSets.some(set => set.kind !== 'cift' &&
+            (this.validateSetTiles([tile, ...set.tiles]) > 0 || this.validateSetTiles([...set.tiles, tile]) > 0)
         );
         return fits ? played.value * 10 : 0;
     }
 
     nextTurn(): void {
+        this.turnCounter++;
         // Mevcut oyuncunun sırasını kapat
         this.players[this.currentPlayerIndex].setTurn(false);
 
@@ -360,7 +372,7 @@ export class Game {
 
     // ── El Açma / Taş Oynama ───────────────────────────────
 
-    openHand(playerId: string, setTileIds: string[][]): {
+    openHand(playerId: string, setTileIds: string[][], kind: SetKind = 'seri'): {
         success: boolean;
         error?: string;
         newSets?: TableSet[];
@@ -380,6 +392,10 @@ export class Game {
             return { success: false, error: 'Önce taş çekilmeli' };
         }
 
+        if (player.isOpen) {
+            return { success: false, error: 'El zaten açık: perleri indir' };
+        }
+
         // İlk turda direkt açan oyuncu tekrar taş çekemesin, sadece atabilsin
         const wasFirstTurnOpen = isFirstTurn;
 
@@ -392,10 +408,6 @@ export class Game {
         const validatedSets: { tiles: Tile[]; value: number }[] = [];
 
         for (const tileIds of setTileIds) {
-            if (tileIds.length < 3) {
-                return { success: false, error: 'Her sette en az 3 taş olmalı' };
-            }
-
             const tiles: Tile[] = [];
             for (const id of tileIds) {
                 const tile = player.tiles.find(t => t.id === id);
@@ -405,9 +417,9 @@ export class Game {
                 tiles.push(tile);
             }
 
-            const setValue = this.validateSetTiles(tiles);
+            const setValue = this.validateGroup(tiles, kind);
             if (setValue === 0) {
-                return { success: false, error: 'Geçersiz set' };
+                return { success: false, error: kind === 'cift' ? 'Geçersiz çift' : 'Geçersiz set (en az 3 taş)' };
             }
 
             validatedSets.push({ tiles, value: setValue });
@@ -421,11 +433,15 @@ export class Game {
 
         // Minimum değer kontrolü
         // Yetersiz değerle açma denemesi: 100 ceza, geri alma yok
-        if (maxOpenedValue === 0 && totalValue < 51) {
+        if (kind === 'cift' && totalValue < 51) {
+            player.addPenalty(100);
+            return { success: false, error: `Çift açmak için çiftlerin toplamı en az 51 olmalı (${totalValue}): 100 ceza`, penalty: 100 };
+        }
+        if (kind === 'seri' && maxOpenedValue === 0 && totalValue < 51) {
             player.addPenalty(100);
             return { success: false, error: `İlk açılış için en az 51 gerekli (${totalValue}): 100 ceza`, penalty: 100 };
         }
-        if (maxOpenedValue > 0 && totalValue <= maxOpenedValue) {
+        if (kind === 'seri' && maxOpenedValue > 0 && totalValue <= maxOpenedValue) {
             player.addPenalty(100);
             return { success: false, error: `Masadaki en yüksek açılışı (${maxOpenedValue}) geçmeli: 100 ceza`, penalty: 100 };
         }
@@ -439,13 +455,16 @@ export class Game {
                 tile.setStatus(TileStatus.ON_TABLE);
                 tile.setVisible(true);
             }
-            const tableSet: TableSet = { id: setId, playerId, tiles, value };
+            const tableSet: TableSet = { id: setId, playerId, tiles, value, kind };
             this.tableSets.push(tableSet);
             newSets.push(tableSet);
         }
 
         player.isOpen = true;
-        player.lastOpenedValue = totalValue;
+        player.openedWithPairs = kind === 'cift';
+        player.openedAtTurn = this.turnCounter;
+        // Çift açılışı seri açılış eşiğini (katlama) yükseltmez
+        if (kind === 'seri') player.lastOpenedValue = totalValue;
         player.openedTotal += totalValue;
         // openingScore sadece ilk açılışta set edilir (player.openingScore === 0 kontrolü)
         if (player.openingScore === 0) {
@@ -505,6 +524,10 @@ export class Game {
         const targetSet = this.tableSets.find(s => s.id === targetSetId);
         if (!targetSet) {
             return { success: false, error: 'Hedef set bulunamadı' };
+        }
+
+        if (targetSet.kind === 'cift') {
+            return { success: false, error: 'Çiftlere taş işlenemez' };
         }
 
         const setOwner = this.getPlayerById(targetSet.playerId);
@@ -636,7 +659,8 @@ export class Game {
             id: set.id,
             playerId: set.playerId,
             tiles: set.tiles.map(t => t.toJSON()),
-            value: set.value
+            value: set.value,
+            kind: set.kind
         };
     }
 
@@ -668,13 +692,11 @@ export class Game {
             return { success: false, error: 'En az bir set gerekli' };
         }
 
+        // Çiftle açan yalnızca çift, seriyle açan yalnızca per indirir
+        const kind: SetKind = player.openedWithPairs ? 'cift' : 'seri';
         const validatedSets: { tiles: Tile[]; value: number }[] = [];
 
         for (const tileIds of setTileIds) {
-            if (tileIds.length < 3) {
-                return { success: false, error: 'Her sette en az 3 taş olmalı' };
-            }
-
             const tiles: Tile[] = [];
             for (const id of tileIds) {
                 const tile = player.tiles.find(t => t.id === id);
@@ -684,9 +706,9 @@ export class Game {
                 tiles.push(tile);
             }
 
-            const setValue = this.validateSetTiles(tiles);
+            const setValue = this.validateGroup(tiles, kind);
             if (setValue === 0) {
-                return { success: false, error: 'Geçersiz set' };
+                return { success: false, error: kind === 'cift' ? 'Geçersiz çift' : 'Geçersiz set (en az 3 taş)' };
             }
 
             validatedSets.push({ tiles, value: setValue });
@@ -701,7 +723,7 @@ export class Game {
                 tile.setStatus(TileStatus.ON_TABLE);
                 tile.setVisible(true);
             }
-            const tableSet: TableSet = { id: setId, playerId, tiles, value };
+            const tableSet: TableSet = { id: setId, playerId, tiles, value, kind };
             this.tableSets.push(tableSet);
             newSets.push(tableSet);
         }
@@ -735,6 +757,25 @@ export class Game {
     private asPlayed(tile: Tile): Tile {
         if (this.isHugoRound() || !tile.isJoker || !this.okeyTile) return tile;
         return { ...tile, color: this.okeyTile.color, value: this.okeyTile.value, isJoker: false, sahte: true } as SahteTile;
+    }
+
+    // Açılış/indirme grubunu türüne göre doğrula; 0 = geçersiz
+    private validateGroup(tiles: Tile[], kind: SetKind): number {
+        return kind === 'cift' ? this.validatePairTiles(tiles) : this.validateSetTiles(tiles);
+    }
+
+    // Çift: aynı renk ve sayıdan iki taş ya da okey + bir taş; değer = sayı × 2
+    private validatePairTiles(rawTiles: Tile[]): number {
+        if (rawTiles.length !== 2) return 0;
+        const [a, b] = rawTiles.map(t => this.asPlayed(t));
+        const wildA = this.isOkeyTile(a);
+        const wildB = this.isOkeyTile(b);
+        if (wildA && wildB) return 0; // iki okey çift sayılmaz
+        const base = wildA ? b : a;
+        const other = wildA ? a : b;
+        if (typeof base.value !== 'number') return 0;
+        if (!this.isOkeyTile(other) && (other.color !== base.color || other.value !== base.value)) return 0;
+        return base.value * 2;
     }
 
     private validateSetTiles(rawTiles: Tile[]): number {
@@ -838,29 +879,24 @@ export class Game {
     }
 
     /**
-     * Ends the current round: calculates scores for all players and advances to next round.
-     *
-     * Scoring formulas (per CONTEXT.md decisions):
-     *   handScore       = !player.isOpen ? closedHandPenalty : sum(tile.value * 10)
-     *   closedHandPenalty = noOtherPlayersOpened ? 800 : 400
-     *   effectiveHandScore = handScore * jokerMult   // jokerMult applies ONLY to handScore
-     *   rawTotal        = effectiveHandScore + penaltyScore + openBonus + finishBonus
-     *   preMult         = rawTotal * hugoMult
-     *   roundTotal      = Math.max(0, preMult - stars * 100)
-     *   multiplier      = hugoMult * jokerMult        // combined field for UI display
-     *
-     * jokerMult = 2 if this.finishedWithJoker === true, else 1 (does NOT apply to finisher)
-     * hugoMult  = 2 if isHugoRound() === true, else 1 (applies to ALL players)
-     * finisher  = player whose id === this.finisherPlayerId
-     *   - Finisher's handScore = 0, jokerMult does NOT apply to finisher's score
-     *   - Finisher's rawTotal  = 0 + penaltyScore + openBonus + finishBonus
-     *   - Finisher's roundTotal = rawTotal * hugoMult
+     * El sonu puanı (kural: kullanıcı kararı 2026-11-11):
+     *   elde kalan     = açmışsa taş değerleri toplamı × 20 (sahte okey okeyin değeriyle; okey 0)
+     *                    açmamışsa 400 (kimse açmadıysa 800)
+     *   özel durumlar  = Hugo, okeyle bitme, çiftten bitme, elden bitme — her biri ×2
+     *                    (örn. tek özel durum: taş × 40, Hugo + okeyle bitme: taş × 80)
+     *   Hugo dışındaki özel durumlar yalnızca elde kalana; Hugo ×2 cezalar dahil her şeye uygulanır
+     *   kullanılmayan okey = elde kalan her okey için +100 ceza
+     *   roundTotal     = max(0, (elde kalan × özel + cezalar + okey cezası) × Hugo − yıldız × 100)
      */
     endRound(finisherPlayerId?: string): RoundResult[] {
         // Resolve finisher: prefer explicit argument, fall back to game state
         const resolvedFinisherId = finisherPlayerId ?? this.finisherPlayerId ?? '';
+        const finisher = this.getPlayerById(resolvedFinisherId);
         const hugoMult = this.isHugoRound() ? 2 : 1;
         const jokerMult = this.finishedWithJoker ? 2 : 1;
+        const finishedWithPairs = !!finisher?.openedWithPairs;
+        const finishedElden = !!finisher && this.finishedElden;
+        const handMult = jokerMult * (finishedWithPairs ? 2 : 1) * (finishedElden ? 2 : 1);
 
         // Determine if no other player (excluding finisher) has opened their hand
         const nonFinishers = this.players.filter(p => p.id !== resolvedFinisherId);
@@ -870,34 +906,30 @@ export class Game {
         const results: RoundResult[] = this.players.map(player => {
             const isFinisher = player.id === resolvedFinisherId;
 
-            let handScore: number;
-            let effectiveHandScore: number;
+            let handScore = 0;
+            let effectiveHandScore = 0;
+            let unusedOkeyPenalty = 0;
 
-            if (isFinisher) {
-                // Finisher has no hand tiles penalty; jokerMult does not apply
-                handScore = 0;
-                effectiveHandScore = 0;
-            } else {
+            if (!isFinisher) {
                 if (!player.isOpen) {
-                    // Closed hand penalty: 800 if nobody else opened, else 400
                     handScore = closedHandPenalty;
                 } else {
-                    // Sum of remaining hand tiles × 10 (FIX: was × 2)
                     handScore = player.tiles.reduce((sum, tile) => {
-                        const val = typeof tile.value === 'number' ? tile.value : 0;
-                        return sum + val * 10;
+                        const played = this.asPlayed(tile);
+                        if (this.isOkeyTile(played) || typeof played.value !== 'number') return sum;
+                        return sum + played.value * 20;
                     }, 0);
                 }
-                // jokerMult applies ONLY to handScore (not penaltyScore)
-                effectiveHandScore = handScore * jokerMult;
+                effectiveHandScore = handScore * handMult;
+                unusedOkeyPenalty = player.tiles.filter(t => this.isOkeyTile(t)).length * 100;
             }
 
             const openBonus = 0;   // reserved for future use
             const finishBonus = 0; // reserved for future use
 
-            const rawTotal = effectiveHandScore + player.penaltyScore + openBonus + finishBonus;
+            const rawTotal = effectiveHandScore + player.penaltyScore + unusedOkeyPenalty + openBonus + finishBonus;
             const preMult = rawTotal * hugoMult;
-            const multiplier = hugoMult * jokerMult;
+            const multiplier = hugoMult * handMult;
 
             // Yıldız hesabı — finisher ve diğer oyuncular için ayrı kural
             // Not: isFinisher ve noOtherPlayersOpened bu scope'ta zaten tanımlı (yukarıda)
@@ -905,7 +937,7 @@ export class Game {
             //      Bu nedenle burada okunan değer o turun gerçek joker bitiş durumunu yansıtır
             let stars = 0;
             if (isFinisher) {
-                // Finisher yıldızı: temel 1, her bonus koşul ×2 yapar
+                // Finisher yıldızı: temel 1 (çiftten bitiren de 1 alır), her bonus koşul ×2 yapar
                 // finishStars = 1 × (finishedWithJoker?2:1) × (isHugoRound?2:1) × (noOtherPlayersOpened?2:1)
                 const jokerStarMult = this.finishedWithJoker ? 2 : 1;
                 const hugoStarMult = this.isHugoRound() ? 2 : 1;
@@ -936,6 +968,9 @@ export class Game {
                 isHugoRound: this.isHugoRound(),
                 finishedWithJoker: this.finishedWithJoker,
                 stars,
+                unusedOkeyPenalty,
+                finishedWithPairs,
+                finishedElden,
                 penaltyEntries: [...player.penaltyEntries],
                 totalScore: player.getTotalScore(),
             };
@@ -952,6 +987,7 @@ export class Game {
 
         // Reset game round state
         this.finishedWithJoker = false;
+        this.finishedElden = false;
         this.tableSets = [];
         this.discardPile = [];
 
@@ -981,6 +1017,8 @@ export class Game {
         this.finisherPlayerId = null;
         this.lastDiscardPlayerId = null;
         this.takenDiscardTileId = null;
+        this.turnCounter = 0;
+        this.finishedElden = false;
 
         // Eli başlatan, bir önceki eli başlatanın bir sonrakidir.
         // dealTiles() 15 taşı currentPlayerIndex'e verdiği için dağıtımdan önce belirlenir.

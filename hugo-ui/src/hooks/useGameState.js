@@ -36,7 +36,7 @@ const useGameState = (player, room) => {
     const [playerOpenStates, setPlayerOpenStates] = useState(() => {
         const states = {};
         room.players.forEach(p => {
-            states[p.id] = { isOpen: p.isOpen || false, openedTotal: p.openedTotal || 0, lastOpenedValue: p.lastOpenedValue || 0, penaltyScore: p.penaltyScore || 0, penaltyEntries: p.penaltyEntries || [], roundScores: p.roundScores || [], totalScore: p.totalScore || 0, per100PlusCount: p.per100PlusCount || 0, connected: p.connected !== false };
+            states[p.id] = { isOpen: p.isOpen || false, openedTotal: p.openedTotal || 0, lastOpenedValue: p.lastOpenedValue || 0, penaltyScore: p.penaltyScore || 0, penaltyEntries: p.penaltyEntries || [], roundScores: p.roundScores || [], totalScore: p.totalScore || 0, per100PlusCount: p.per100PlusCount || 0, connected: p.connected !== false, openedWithPairs: !!p.openedWithPairs };
         });
         return states;
     });
@@ -155,6 +155,7 @@ const useGameState = (player, room) => {
                     [response.playerId]: {
                         ...prev[response.playerId], // ceza, puan geçmişi ve bağlantı bilgisi korunur
                         isOpen: response.isOpen,
+                        openedWithPairs: !!response.openedWithPairs,
                         openedTotal: response.openedTotal,
                         lastOpenedValue: response.lastOpenedValue
                     }
@@ -275,7 +276,8 @@ const useGameState = (player, room) => {
                     roundScores: p.roundScores || [],
                     totalScore: p.totalScore || 0,
                     per100PlusCount: p.per100PlusCount || 0,
-                    connected: p.connected !== false
+                    connected: p.connected !== false,
+                    openedWithPairs: !!p.openedWithPairs
                 };
             });
             setPlayerOpenStates(states);

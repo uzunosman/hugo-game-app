@@ -146,3 +146,12 @@
         height: 26px;
     }
 }
+
+/* Üst ve alt oyuncunun perleri yan yana sarılır: çok per/çift açılınca masanın ortasına uzanmaz */
+.open-sets-bottom .open-sets-list,
+.open-sets-top .open-sets-list {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px 12px;
+}

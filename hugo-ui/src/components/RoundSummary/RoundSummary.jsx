@@ -60,7 +60,16 @@ const RoundSummary = ({ roundData, isLastRound, onClose, onLeave }) => {
                                 {r.isFinisher && (
                                     <div className="breakdown-row bonus">
                                         <span>Eli bitirdi</span>
-                                        <span>{r.finishedWithJoker ? 'Jokerle' : '✓'}</span>
+                                        <span>
+                                            {[r.finishedWithJoker && 'okeyle', r.finishedWithPairs && 'çiftten', r.finishedElden && 'elden']
+                                                .filter(Boolean).join(', ') || '✓'}
+                                        </span>
+                                    </div>
+                                )}
+                                {r.unusedOkeyPenalty > 0 && (
+                                    <div className="breakdown-row penalty">
+                                        <span>Kullanılmayan okey</span>
+                                        <span>+{r.unusedOkeyPenalty}</span>
                                     </div>
                                 )}
                                 {r.isHugoRound && (
@@ -69,12 +78,16 @@ const RoundSummary = ({ roundData, isLastRound, onClose, onLeave }) => {
                                         <span>×2</span>
                                     </div>
                                 )}
-                                {r.finishedWithJoker && !r.isFinisher && r.handScore > 0 && (
-                                    <div className="breakdown-row multiplier">
-                                        <span>Joker çarpanı (eldeki taşlar)</span>
+                                {!r.isFinisher && r.handScore > 0 && [
+                                    r.finishedWithJoker && 'Okeyle bitme',
+                                    r.finishedWithPairs && 'Çiftten bitme',
+                                    r.finishedElden && 'Elden bitme',
+                                ].filter(Boolean).map(label => (
+                                    <div key={label} className="breakdown-row multiplier">
+                                        <span>{label} (elde kalan)</span>
                                         <span>×2</span>
                                     </div>
-                                )}
+                                ))}
                                 {r.stars > 0 && (
                                     <div className="breakdown-row bonus">
                                         <span>{'★'.repeat(Math.min(r.stars, 8))} yıldız</span>

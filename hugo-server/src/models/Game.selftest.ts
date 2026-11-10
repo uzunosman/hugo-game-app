@@ -12,7 +12,7 @@ assert.strictEqual(game.round, 1);
 assert.strictEqual(game.currentPlayerIndex, 0);
 assert.deepStrictEqual(counts(), [15, 14, 14, 14]);
 
-let expectedTotal = 0;
+const totals = new Map<string, number>();
 for (let round = 1; round <= 9; round++) {
     const first = (round - 1) % 4;
     assert.strictEqual(game.round, round, `el numarası ${round} olmalı`);
@@ -22,13 +22,18 @@ for (let round = 1; round <= 9; round++) {
 
     // 1-5-9 her zaman Hugo; gösterge sahte okey çıkarsa diğer eller de Hugo olabilir
     if ([1, 5, 9].includes(round)) assert.strictEqual(game.isHugoRound(), true);
-    // Kimse açmadı, bitiren yok: herkese 800, Hugo elinde ×2
-    const expected = game.isHugoRound() ? 1600 : 800;
+    // Kimse açmadı, bitiren yok: herkese 800 + elde kalan okey başına 100, Hugo elinde ×2
+    const hugo = game.isHugoRound();
+    const okeyCount = (p: Player) => p.tiles.filter(t => hugo
+        ? t.isJoker
+        : !t.isJoker && t.color === game.okeyTile?.color && t.value === game.okeyTile?.value).length;
+    const expected = new Map(game.players.map(p => [p.id, (800 + okeyCount(p) * 100) * (hugo ? 2 : 1)]));
     const results = game.endRound();
-    expectedTotal += expected;
     results.forEach(r => {
-        assert.strictEqual(r.roundTotal, expected, `${round}. el puanı ${expected} olmalı`);
-        assert.strictEqual(r.totalScore, expectedTotal, `${round}. el sonunda toplam ${expectedTotal} olmalı`);
+        const e = expected.get(r.playerId)!;
+        totals.set(r.playerId, (totals.get(r.playerId) || 0) + e);
+        assert.strictEqual(r.roundTotal, e, `${round}. el puanı ${e} olmalı`);
+        assert.strictEqual(r.totalScore, totals.get(r.playerId), `${round}. el sonunda toplam tutmalı`);
     });
     game.players.forEach(p => assert.strictEqual(p.roundScores.length, round, 'her el roundScores’a yazılmalı'));
 

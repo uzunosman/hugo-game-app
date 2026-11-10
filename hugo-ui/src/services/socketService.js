@@ -206,8 +206,9 @@ class SocketService {
         this.socket.off('game:tileDiscard');
     }
 
-    openHand(sets, callback) {
-        this.socket.emit('game:openHand', { playerId: this.playerId, sets }, (response) => {
+    // kind: 'seri' (per) ya da 'cift' (çiftle açma)
+    openHand(sets, callback, kind = 'seri') {
+        this.socket.emit('game:openHand', { playerId: this.playerId, sets, kind }, (response) => {
             if (callback) callback(response);
         });
     }

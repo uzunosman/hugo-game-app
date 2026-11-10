@@ -1,6 +1,6 @@
 import { Player } from '../models/Player';
 import { Room, RoomStatus } from '../models/Room';
-import { Game, GameStatus } from '../models/Game';
+import { Game, GameStatus, SetKind } from '../models/Game';
 import { Tile } from '../models/Tile';
 
 export class GameManager {
@@ -198,7 +198,7 @@ export class GameManager {
         return room.game.drawTile(playerId, fromDiscard);
     }
 
-    public openHand(playerId: string, setTileIds: string[][]) {
+    public openHand(playerId: string, setTileIds: string[][], kind: SetKind = 'seri') {
         const player = this.players.get(playerId);
         if (!player || !player.roomId) {
             return { success: false, error: 'Oyuncu bulunamadı' };
@@ -209,7 +209,7 @@ export class GameManager {
             return { success: false, error: 'Aktif oyun bulunamadı' };
         }
 
-        return room.game.openHand(playerId, setTileIds);
+        return room.game.openHand(playerId, setTileIds, kind);
     }
 
     public addTileToSet(playerId: string, tileId: string, targetSetId: string, position: 'start' | 'end') {

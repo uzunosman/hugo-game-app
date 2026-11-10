@@ -1,6 +1,6 @@
 // Istaka mantığı öz-testi: `npm test` ile çalışır (saf fonksiyonlar, tarayıcı gerekmez).
 import assert from 'node:assert';
-import { getConsecutiveGroups, arrangeTiles, calculateHandScore, validateSet, CELLS_PER_ROW } from './gameUtils.js';
+import { getConsecutiveGroups, arrangeTiles, calculateHandScore, calculatePairScore, validatePair, validateSet, CELLS_PER_ROW } from './gameUtils.js';
 import { insertShift } from './tileHandlers.js';
 
 let n = 0;
@@ -45,9 +45,25 @@ const row = (cells) => [...cells, ...Array(CELLS_PER_ROW * 2 - cells.length).fil
     // Seri diz kalan taşlardan aynı sayı perini de kurar: 11-12-13 + 9-9-9 = 63
     assert.strictEqual(calculateHandScore(seri, hand, null, null, true).setTotal, 63, 'seri + çift per birlikte 63 olmalı');
 
-    const cift = arrangeTiles(hand, 'cift', null, true);
-    const score = calculateHandScore(cift, hand, null, null, true);
-    assert.ok(score.validSetCount >= 1, 'çift dizmede 9-9-9 per olmalı');
+    // Çift diz: aynı taşlar yan yana; Hugo elinde joker okeydir ve en değerli tek taşla eşleşir
+    const pairHand = [
+        tile('red', 13), tile('blue', 2), tile('red', 13), tile('black', 7), tile('black', 7),
+        tile('yellow', 11), tile('purple', 'H', { isJoker: true }), tile('blue', 5),
+    ];
+    const cift = arrangeTiles(pairHand, 'cift', null, true);
+    assert.strictEqual(cift.filter(Boolean).length, pairHand.length, 'hiçbir taş kaybolmamalı');
+    const ps = calculatePairScore(cift, pairHand, null, true);
+    assert.strictEqual(ps.pairCount, 3, 'kırmızı 13, siyah 7 ve sarı 11 + joker');
+    assert.strictEqual(ps.pairTotal, 26 + 14 + 22);
+}
+
+// Çift doğrulama (sunucu kuralıyla aynı)
+{
+    const opts = { okeyTile: { color: 'red', value: 6 }, isHugo: false };
+    assert.strictEqual(validatePair([tile('blue', 9), tile('blue', 9)], opts), 18);
+    assert.strictEqual(validatePair([tile('blue', 9), tile('black', 9)], opts), 0, 'farklı renk çift değil');
+    assert.strictEqual(validatePair([tile('blue', 9), tile('red', 6)], opts), 18, 'gerçek okey çifti tamamlar');
+    assert.strictEqual(validatePair([tile('red', 6), tile('purple', 'H', { isJoker: true })], opts), 12, 'okey + sahte okey: sahte okey kırmızı 6 olur, okey onu tamamlar');
 }
 
 // 15 dağınık taş taşmadan iki satıra sığar

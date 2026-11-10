@@ -78,10 +78,13 @@ Bu repo, Hugo taş oyununun çok oyunculu bir versiyonunu içerir. Proje, bir No
 2. Odada "Hazırım"a bas; 4 kişi hazır olunca masa sahibi "Oyunu başlat"a basar.
 3. Sıran gelince desteden ya da solundaki oyuncunun attığı taştan çek, sonra bir taşı kendi köşene at
    (sürükle-bırak, çift tıklama ya da dokunmatikte: taşa dokun, sonra köşene dokun).
-4. "Seri diz" / "Çift diz" ıstakayı otomatik dizer; per toplamı "El Aç" butonunda görünür.
+4. "Seri diz" perleri, "Çift diz" çiftleri yan yana dizer; toplamlar "El Aç" / "Çift Aç" butonlarında görünür.
+   Açtıktan sonra yeni perleri tek butonla ("Perleri indir") masaya indirirsin.
 5. 9 el sonunda en düşük toplam puan kazanır.
 
-Kurallar `document.txt` içindedir. Önemli olanlar: yandan alınan taş o turda kullanılmalıdır
+Kurallar `document.txt` içindedir (sondaki "Netleşen kurallar" bölümü esastır). Elde kalan taşlar
+× 20 sayılır; Hugo, okeyle bitme, çiftten bitme ve elden bitme her biri × 2 ekler. Çiftlerin toplamı
+51 ve üstüyse "Çift Aç" ile açılır. Önemli olanlar: yandan alınan taş o turda kullanılmalıdır
 (kullanılmazsa yalnızca o taş 100 cezayla geri atılabilir), işlenebilir taş atmak taş × 10 ceza,
 yetersiz değerle açma denemesi 100 ceza. Sıra süresi 60 sn; süre dolunca sunucu taş çekip en küçük
 taşı atar. Bağlantısı kopan oyuncunun koltuğu tutulur, sayfa yenilenince aynı koltuğa dönülür.
@@ -98,7 +101,8 @@ cd hugo-ui
 npm test           # ıstaka mantığı (satır ayrımı, kaydırma, otomatik dizme)
 ```
 
-Ortam değişkenleri (sunucu): `TEST_MODE=true` eli başlatana hazır bir açılış eli verir,
+Ortam değişkenleri (sunucu): `TEST_MODE=true` eli başlatana hazır bir açılış eli verir
+(`TEST_HAND=cift` ile çift eli),
 `TURN_TIMEOUT_MS` sıra süresi, `DISCONNECTED_TURN_MS` kopuk oyuncunun sırası,
 `PERSIST=false` durumu diske yazmayı kapatır, `STATE_FILE` durum dosyasının yolu.
 İstemci: `VITE_SOCKET_URL` sunucu adresi (varsayılan `http://localhost:3001`).

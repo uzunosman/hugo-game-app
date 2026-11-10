@@ -91,4 +91,4 @@ Plans:
 - Giriş/lobi/oda ekranları, oyun sonu, Seri/Çift diz, dokunmatik atış, mobil genişlik
 - Testler: `hugo-server npm test` + `npm run test:e2e`, `hugo-ui npm test`
 
-**Açık sorular:** "Peri indir butonları değiştirilecek" maddesinin kapsamı; `document.txt` puanlama metni ile Faz 1 puanlaması arasındaki farklar.
+**2026-11-11:** Açık sorular cevaplandı ve uygulandı: elde kalan × 20 ve özel durumlar × 2, kullanılmayan okey cezası, çift açma (toplam ≥ 51), tek "Perleri indir" butonu. Ayrıntı: `document.txt` "Netleşen kurallar".

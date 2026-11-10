@@ -1,7 +1,7 @@
 import { Server, Socket } from 'socket.io';
 import { GameManager } from '../utils/GameManager';
 import { config } from '../config/config';
-import { Game, GameStatus, Penalty, TurnAction } from '../models/Game';
+import { Game, GameStatus, Penalty, SetKind, TurnAction } from '../models/Game';
 import { Tile } from '../models/Tile';
 import { RoomStatus } from '../models/Room';
 import { saveState } from '../utils/Persistence';
@@ -607,9 +607,10 @@ export const setupSocketHandlers = (io: Server) => {
         });
 
         // El Açma / Taş Oynama
-        socket.on('game:openHand', (data: { playerId: string, sets: string[][] }, callback) => {
+        socket.on('game:openHand', (data: { playerId: string, sets: string[][], kind?: SetKind }, callback) => {
             try {
                 const { playerId, sets } = data;
+                const kind: SetKind = data.kind === 'cift' ? 'cift' : 'seri';
 
                 const player = gameManager.getPlayerById(playerId);
                 if (!player || !player.roomId) {
@@ -627,7 +628,7 @@ export const setupSocketHandlers = (io: Server) => {
                     });
                 }
 
-                const result = gameManager.openHand(playerId, sets);
+                const result = gameManager.openHand(playerId, sets, kind);
 
                 if (!result.success) {
                     if (result.penalty) {
@@ -647,10 +648,12 @@ export const setupSocketHandlers = (io: Server) => {
                         id: s.id,
                         playerId: s.playerId,
                         tiles: s.tiles.map(t => t.toJSON()),
-                        value: s.value
+                        value: s.value,
+                        kind: s.kind
                     })),
                     openedTotal: result.openedTotal,
                     isOpen: player.isOpen,
+                    openedWithPairs: player.openedWithPairs,
                     lastOpenedValue: player.lastOpenedValue,
                     turnAction: result.turnAction || room.game.turnAction
                 });
@@ -765,7 +768,8 @@ export const setupSocketHandlers = (io: Server) => {
                         id: s.id,
                         playerId: s.playerId,
                         tiles: s.tiles.map(t => t.toJSON()),
-                        value: s.value
+                        value: s.value,
+                        kind: s.kind
                     }))
                 });
 
