@@ -8,7 +8,7 @@
     "debug": "nodemon --exec node --inspect -r ts-node/register src/index.ts",
     "debug-brk": "nodemon --exec node --inspect-brk -r ts-node/register src/index.ts",
     "build": "tsc",
-    "test": "ts-node src/models/Game.selftest.ts && ts-node src/models/Rules.selftest.ts",
+    "test": "ts-node src/models/Game.selftest.ts && ts-node src/models/Rules.selftest.ts && ts-node src/utils/Persistence.selftest.ts",
     "test:e2e": "ts-node scripts/e2e-bots.ts"
   },
   "keywords": [],

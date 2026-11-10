@@ -4,18 +4,30 @@ import { config } from '../config/config';
 import { Game, GameStatus, Penalty, TurnAction } from '../models/Game';
 import { Tile } from '../models/Tile';
 import { RoomStatus } from '../models/Room';
+import { saveState } from '../utils/Persistence';
 
 export const setupSocketHandlers = (io: Server) => {
     const gameManager = GameManager.getInstance();
     const turnTimers = new Map<string, NodeJS.Timeout>();
 
+    // Durum değiştikçe diske yaz (300 ms içindeki değişiklikler tek kayıtta toplanır)
+    let saveTimer: NodeJS.Timeout | null = null;
+    const persist = () => {
+        if (!config.persist || saveTimer) return;
+        saveTimer = setTimeout(() => {
+            saveTimer = null;
+            try { saveState(gameManager); } catch (error) { console.error('Durum kaydedilemedi:', error); }
+        }, 300);
+    };
+
     // Sıra süresi sunucuda tutulur: süre dolunca taş otomatik çekilip en küçük taş atılır
-    const scheduleTurn = (roomId: string, game: Game) => {
+    const scheduleTurn = (roomId: string, game: Game, overrideMs?: number) => {
+        persist();
         clearTimeout(turnTimers.get(roomId));
         turnTimers.delete(roomId);
         if (game.status !== GameStatus.STARTED) return;
         const current = game.players[game.currentPlayerIndex];
-        const ms = current.connected ? config.game.turnTimeout : config.game.disconnectedTurnTimeout;
+        const ms = overrideMs ?? (current.connected ? config.game.turnTimeout : config.game.disconnectedTurnTimeout);
         turnTimers.set(roomId, setTimeout(() => autoPlay(roomId, game, current.id), ms));
     };
 
@@ -95,17 +107,29 @@ export const setupSocketHandlers = (io: Server) => {
             io.emit('rooms:list', { success: true, rooms: gameManager.getAllRooms().map(r => r.toJSON()) });
         }
 
-        if (game.status === GameStatus.ROUND_ENDED) {
-            setTimeout(() => {
-                game.startNextRound();
-                io.to(roomId).emit('game:roundStarted', { game: game.toPublicJSON() });
-                scheduleTurn(roomId, game);
-            }, 4000);
-        }
+        persist();
+        if (game.status === GameStatus.ROUND_ENDED) startNextRoundLater(roomId, game);
     };
+
+    // Tur sonu ekranı için 4 sn bekleyip yeni eli başlat
+    const startNextRoundLater = (roomId: string, game: Game) => {
+        setTimeout(() => {
+            if (game.status !== GameStatus.ROUND_ENDED) return;
+            game.startNextRound();
+            io.to(roomId).emit('game:roundStarted', { game: game.toPublicJSON() });
+            scheduleTurn(roomId, game);
+        }, 4000);
+    };
+
+    // Diskten geri yüklenen oyunlar kaldığı yerden sürer; oyuncular dönebilsin diye ilk sırada tam süre
+    gameManager.getAllRooms().forEach(room => {
+        if (room.game?.status === GameStatus.STARTED) scheduleTurn(room.id, room.game, config.game.turnTimeout);
+        if (room.game?.status === GameStatus.ROUND_ENDED) startNextRoundLater(room.id, room.game);
+    });
 
     io.on('connection', (socket: Socket) => {
         console.log(`Yeni bağlantı: ${socket.id}`);
+        socket.onAny(() => persist()); // her istemci olayından sonra kaydet
 
         // Oyuncu Olayları
         socket.on('player:register', (data: { name: string }, callback) => {
@@ -780,6 +804,7 @@ export const setupSocketHandlers = (io: Server) => {
         // Bağlantı Kesme
         socket.on('disconnect', () => {
             console.log(`Bağlantı kesildi: ${socket.id}`);
+            persist();
 
             const player = gameManager.getPlayerBySocketId(socket.id);
 

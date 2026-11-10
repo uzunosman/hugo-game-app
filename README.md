@@ -85,20 +85,22 @@ Kurallar `document.txt` içindedir. Önemli olanlar: yandan alınan taş o turda
 (kullanılmazsa yalnızca o taş 100 cezayla geri atılabilir), işlenebilir taş atmak taş × 10 ceza,
 yetersiz değerle açma denemesi 100 ceza. Sıra süresi 60 sn; süre dolunca sunucu taş çekip en küçük
 taşı atar. Bağlantısı kopan oyuncunun koltuğu tutulur, sayfa yenilenince aynı koltuğa dönülür.
+Oyun durumu `hugo-server/data/state.json` dosyasına yazılır; sunucu yeniden başlasa da masalar kaldığı yerden sürer.
 
 ## Test
 
 ```
 cd hugo-server
-npm test           # tur akışı ve kural motoru öz-testleri
-npm run test:e2e   # sunucuyu 3099'da başlatır, 4 bot 9 eli oynar (süre aşımı ve yeniden bağlanma dahil)
+npm test           # tur akışı, kural motoru ve kalıcılık öz-testleri
+npm run test:e2e   # sunucuyu 3099'da başlatır, 4 bot 9 eli oynar (süre aşımı, yeniden bağlanma ve sunucu yeniden başlatma dahil)
 
 cd hugo-ui
 npm test           # ıstaka mantığı (satır ayrımı, kaydırma, otomatik dizme)
 ```
 
 Ortam değişkenleri (sunucu): `TEST_MODE=true` eli başlatana hazır bir açılış eli verir,
-`TURN_TIMEOUT_MS` sıra süresi, `DISCONNECTED_TURN_MS` kopuk oyuncunun sırası.
+`TURN_TIMEOUT_MS` sıra süresi, `DISCONNECTED_TURN_MS` kopuk oyuncunun sırası,
+`PERSIST=false` durumu diske yazmayı kapatır, `STATE_FILE` durum dosyasının yolu.
 İstemci: `VITE_SOCKET_URL` sunucu adresi (varsayılan `http://localhost:3001`).
 
 ## Geliştirme

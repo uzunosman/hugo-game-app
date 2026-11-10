@@ -4,6 +4,8 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import { config } from './config/config';
 import { setupSocketHandlers } from './socket/socketHandler';
+import { GameManager } from './utils/GameManager';
+import { loadState } from './utils/Persistence';
 
 // Express uygulaması oluştur
 const app = express();
@@ -30,7 +32,8 @@ const io = new Server(server, {
     }
 });
 
-// Socket.IO işleyicilerini ayarla
+// Kayıtlı oyun durumu varsa yükle, sonra Socket.IO işleyicilerini ayarla
+if (config.persist) loadState(GameManager.getInstance());
 setupSocketHandlers(io);
 
 // Temel API rotası

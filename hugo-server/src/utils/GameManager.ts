@@ -102,6 +102,17 @@ export class GameManager {
         return Array.from(this.rooms.values());
     }
 
+    public getAllPlayers(): Player[] {
+        return Array.from(this.players.values());
+    }
+
+    // Kalıcı durumdan geri yükleme: oyuncular kopuk başlar, socket eşleşmesi yeniden bağlanınca kurulur
+    public restore(players: Player[], rooms: Room[]): void {
+        this.players = new Map(players.map(p => [p.id, p]));
+        this.rooms = new Map(rooms.map(r => [r.id, r]));
+        this.socketToPlayer = new Map();
+    }
+
     public addPlayerToRoom(playerId: string, roomId: string): boolean {
         const player = this.players.get(playerId);
         const room = this.rooms.get(roomId);

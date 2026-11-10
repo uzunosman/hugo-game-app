@@ -9,6 +9,8 @@ export const config = {
     testMode: process.env.TEST_MODE === 'true',
     autoStartGame: process.env.AUTO_START_GAME === 'true',
     clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
+    // Oyun durumu diske yazılır (data/state.json); kapatmak için PERSIST=false
+    persist: process.env.PERSIST !== 'false',
 
     // Oyun yapılandırmaları
     game: {
