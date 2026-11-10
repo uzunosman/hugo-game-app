@@ -1,1 +1,9 @@
- 
+# Bağımlılıklar ve derleme çıktıları (npm install / npm run build ile yeniden oluşur)
+node_modules/
+dist/
+
+# Sunucunun kalıcı oyun durumu (yerel)
+hugo-server/data/
+
+# İşletim sistemi
+.DS_Store
