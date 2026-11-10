@@ -77,8 +77,9 @@ progress:
 15. **Yandan alınan taş:** kullanılmazsa yalnızca aynı taş 100 cezayla geri atılabilir (kilitlenmeyi önleyen çıkış; kural metninde yok).
 16. **El Aç butonu değer eşiğiyle kilitlenmez:** yetersiz açma denemesi 100 ceza (TODO: "tiyamiyam yok, ceza yer").
 17. **Sahte okey:** normal elde okeyin rengi/sayısıyla oynanır, joker gibi davranmaz.
-18. **El sonu (kullanıcı kararı 2026-11-11):** elde kalan × 20; Hugo / okeyle / çiftten / elden bitme her biri × 2 (Hugo cezalara da); kullanılmayan okey +100.
-19. **Çift açma:** çift toplamı ≥ 51; çiftle açan yalnızca çift indirir, çiftlere işlenmez; çiftten biten 1 yıldız (temel).
+18. **El sonu (kullanıcı kararı 2026-11-11, güncellendi):** elde kalan normal elde × 10; Hugo / okeyle / çiftten / elden bitme her biri × 2 (Hugo cezalara da); kullanılmayan okey +100.
+19. **Çift açma:** çift toplamı ≥ 51; çiftle açan yalnızca çift indirir; çiftten biten 1 yıldız (temel).
+22. **Çiftlere işleme:** açık oyuncu elindeki çifti başkasının çiftlerine işler (Game.addPairToSet); sahibine (toplam × 10) × 2 ceza; tek taş işlenmez; kendi çiftine cezasız.
 20. **Elden bitme:** bitiren, açtığı sırada bitirdiyse (Player.openedAtTurn === Game.turnCounter).
 21. **Tek indirme butonu:** açtıktan sonra yalnızca "Perleri indir" (dropPer); openHand açık oyuncuyu reddeder.
 

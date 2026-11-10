@@ -1,6 +1,6 @@
 // Istaka mantığı öz-testi: `npm test` ile çalışır (saf fonksiyonlar, tarayıcı gerekmez).
 import assert from 'node:assert';
-import { getConsecutiveGroups, arrangeTiles, calculateHandScore, calculatePairScore, validatePair, validateSet, CELLS_PER_ROW } from './gameUtils.js';
+import { getConsecutiveGroups, arrangeTiles, calculateHandScore, calculatePairScore, findPairPartner, validatePair, validateSet, CELLS_PER_ROW } from './gameUtils.js';
 import { insertShift } from './tileHandlers.js';
 
 let n = 0;
@@ -55,6 +55,17 @@ const row = (cells) => [...cells, ...Array(CELLS_PER_ROW * 2 - cells.length).fil
     const ps = calculatePairScore(cift, pairHand, null, true);
     assert.strictEqual(ps.pairCount, 3, 'kırmızı 13, siyah 7 ve sarı 11 + joker');
     assert.strictEqual(ps.pairTotal, 26 + 14 + 22);
+    // Her çift aynı renk ve sayıdan (okeyli çift hariç)
+    for (const g of ps.pairs) {
+        const [a, b] = g;
+        if (!a.isJoker && !b.isJoker) assert.ok(a.color === b.color && a.value === b.value, `çift aynı taş olmalı: ${a.color}${a.value}-${b.color}${b.value}`);
+    }
+
+    // Aynı sayı ama farklı renk çift sayılmaz: çift dizmede yan yana gelmez
+    const mixed = [tile('red', 8), tile('blue', 8), tile('red', 8), tile('black', 3)];
+    const mixedPs = calculatePairScore(arrangeTiles(mixed, 'cift', null, false), mixed, null, false);
+    assert.strictEqual(mixedPs.pairCount, 1, 'yalnızca kırmızı 8 çifti');
+    assert.ok(mixedPs.pairs[0].every(t => t.color === 'red' && t.value === 8));
 }
 
 // Çift doğrulama (sunucu kuralıyla aynı)
@@ -64,6 +75,15 @@ const row = (cells) => [...cells, ...Array(CELLS_PER_ROW * 2 - cells.length).fil
     assert.strictEqual(validatePair([tile('blue', 9), tile('black', 9)], opts), 0, 'farklı renk çift değil');
     assert.strictEqual(validatePair([tile('blue', 9), tile('red', 6)], opts), 18, 'gerçek okey çifti tamamlar');
     assert.strictEqual(validatePair([tile('red', 6), tile('purple', 'H', { isJoker: true })], opts), 12, 'okey + sahte okey: sahte okey kırmızı 6 olur, okey onu tamamlar');
+}
+
+// Çiftlere işleme için eş: önce aynı taş, yoksa okey
+{
+    const okey = { color: 'red', value: 6 };
+    const [b5, b5b, r6, k9] = [tile('blue', 5), tile('blue', 5), tile('red', 6), tile('black', 9)];
+    assert.strictEqual(findPairPartner(b5, [b5, r6, b5b, k9], okey, false), b5b.id, 'aynı taş okeye tercih edilir');
+    assert.strictEqual(findPairPartner(k9, [b5, r6, k9], okey, false), r6.id, 'eş yoksa okey');
+    assert.strictEqual(findPairPartner(k9, [b5, k9], okey, false), null);
 }
 
 // 15 dağınık taş taşmadan iki satıra sığar
@@ -85,4 +105,4 @@ const row = (cells) => [...cells, ...Array(CELLS_PER_ROW * 2 - cells.length).fil
     assert.strictEqual(validateSet([tile('blue', 3), tile('blue', 4), joker()], { isHugo: true }), 12);
 }
 
-console.log('rack.selftest: satır ayrımı, kaydırma, otomatik dizme ve sahte okey ✓');
+console.log('rack.selftest: satır ayrımı, kaydırma, otomatik dizme, çiftler ve sahte okey ✓');

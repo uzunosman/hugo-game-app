@@ -5,7 +5,7 @@ import Scoreboard from '../Scoreboard/Scoreboard';
 import RoundSummary from '../RoundSummary/RoundSummary';
 import useGameState from '../../hooks/useGameState';
 import socketService from '../../services/socketService';
-import { getOrderedPlayers, getPlayerPosition, getPlayerCorner, getCurrentPlayerIndex, calculateHandScore, calculatePairScore, getConsecutiveGroups, validateSet, arrangeTiles } from '../../utils/gameUtils';
+import { getOrderedPlayers, getPlayerPosition, getPlayerCorner, getCurrentPlayerIndex, calculateHandScore, calculatePairScore, findPairPartner, getConsecutiveGroups, validateSet, arrangeTiles } from '../../utils/gameUtils';
 import { handleDrawTile, handleTileMove, handleDrawDiscardedTile } from '../../utils/tileHandlers';
 import '../../assets/css/components/GameBoard.css';
 
@@ -247,6 +247,24 @@ function Game({ player, room, onLeaveRoom }) {
     const onAddTileToSet = (tileId, targetSetId, position) => {
         if (!myOpenState.isOpen || !isMyTurn) return;
 
+        // Hedef çiftse elindeki eşiyle birlikte çift olarak işle
+        if (tableSets.find(s => s.id === targetSetId)?.kind === 'cift') {
+            const tile = tiles.find(t => t.id === tileId);
+            const partnerId = findPairPartner(tile, tiles, gameState.okeyTile, gameState.isHugoRound);
+            if (!partnerId) return setError('Bu taşın elinde eşi yok: çiftlere çift işlenir');
+            socketService.addPairToSet([tileId, partnerId], targetSetId, (response) => {
+                if (response.success) {
+                    setTiles(response.remainingTiles || []);
+                    setTilePositions(prev => prev.map(id => (id === tileId || id === partnerId ? null : id)));
+                    setSelectedTile(null);
+                    setDraggingTile(null);
+                } else {
+                    setError(response.error || 'Çift işlenemedi');
+                }
+            });
+            return;
+        }
+
         socketService.addTileToSet(tileId, targetSetId, position, (response) => {
             if (response.success) {
                 const remaining = response.remainingTiles || [];
@@ -420,6 +438,9 @@ function Game({ player, room, onLeaveRoom }) {
                 okeyTile={gameState.okeyTile}
                 gameRound={gameState.round}
                 isHugoRound={gameState.isHugoRound}
+                pairPartnerId={myOpenState.isOpen && activeTile
+                    ? findPairPartner(activeTile, tiles, gameState.okeyTile, gameState.isHugoRound)
+                    : null}
                 onArrange={(mode) => {
                     setTilePositions(arrangeTiles(tiles, mode, gameState.okeyTile, gameState.isHugoRound));
                     setSelectedTile(null);

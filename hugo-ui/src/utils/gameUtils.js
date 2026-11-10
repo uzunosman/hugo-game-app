@@ -246,6 +246,17 @@ export const validatePair = (rawGroup, opts = {}) => {
     return base.value * 2;
 };
 
+/**
+ * Taşın elde çift oluşturduğu eşi (çiftlere işleme için): önce aynı taş, yoksa okey.
+ * @returns {string|null} eş taşın id'si
+ */
+export const findPairPartner = (tile, tiles, okeyTile, isHugo) => {
+    if (!tile) return null;
+    const candidates = tiles.filter(t => t.id !== tile.id && validatePair([tile, t], { okeyTile, isHugo }) > 0);
+    const plain = candidates.find(t => !isOkeyTile(t, okeyTile, isHugo));
+    return (plain || candidates[0])?.id ?? null;
+};
+
 /** Istakada yan yana duran geçerli çiftler ve toplamları */
 export const calculatePairScore = (tilePositions, tiles, okeyTile, isHugo) => {
     const pairs = getRackGroups(tilePositions, tiles)

@@ -731,6 +731,41 @@ export const setupSocketHandlers = (io: Server) => {
         });
 
         // Per İndirme
+        // Çiftlere çift işleme: yeni çift sahibinin alanına konur, sahibine ceza yazılır
+        socket.on('game:addPairToSet', (data: { playerId: string, tileIds: string[], targetSetId: string }, callback) => {
+            try {
+                const player = gameManager.getPlayerById(data?.playerId);
+                const room = player?.roomId ? gameManager.getRoomById(player.roomId) : undefined;
+                if (!player || !room?.game) return callback({ success: false, error: 'Oyun bulunamadı' });
+
+                const result = room.game.addPairToSet(player.id, data.tileIds || [], data.targetSetId);
+                if (!result.success || !result.newSet) return callback({ success: false, error: result.error });
+
+                io.to(room.id).emit('game:perDropped', {
+                    success: true,
+                    playerId: player.id,
+                    newSets: [{
+                        id: result.newSet.id,
+                        playerId: result.newSet.playerId,
+                        tiles: result.newSet.tiles.map(t => t.toJSON()),
+                        value: result.newSet.value,
+                        kind: result.newSet.kind
+                    }]
+                });
+                if (result.penalty) {
+                    emitPenalty(room.id, room.game, {
+                        playerId: result.penalty.targetPlayerId,
+                        amount: result.penalty.amount,
+                        reason: 'Çiftine işlendi'
+                    });
+                }
+                callback({ success: true, remainingTiles: result.remainingTiles });
+            } catch (error) {
+                console.error('Çift işleme hatası:', error);
+                callback({ success: false, error: 'Çift işlenirken bir hata oluştu' });
+            }
+        });
+
         socket.on('game:dropPer', (data: { playerId: string, sets: string[][] }, callback) => {
             try {
                 const { playerId, sets } = data;

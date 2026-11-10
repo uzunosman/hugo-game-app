@@ -83,8 +83,9 @@ Bu repo, Hugo taş oyununun çok oyunculu bir versiyonunu içerir. Proje, bir No
 5. 9 el sonunda en düşük toplam puan kazanır.
 
 Kurallar `document.txt` içindedir (sondaki "Netleşen kurallar" bölümü esastır). Elde kalan taşlar
-× 20 sayılır; Hugo, okeyle bitme, çiftten bitme ve elden bitme her biri × 2 ekler. Çiftlerin toplamı
-51 ve üstüyse "Çift Aç" ile açılır. Önemli olanlar: yandan alınan taş o turda kullanılmalıdır
+normal elde × 10 sayılır; Hugo, okeyle bitme, çiftten bitme ve elden bitme her biri × 2 ekler. Çiftlerin
+toplamı 51 ve üstüyse "Çift Aç" ile açılır; elindeki çifti başkasının çiftlerine işlersen sahibine
+(toplam × 10) × 2 ceza yazılır. Önemli olanlar: yandan alınan taş o turda kullanılmalıdır
 (kullanılmazsa yalnızca o taş 100 cezayla geri atılabilir), işlenebilir taş atmak taş × 10 ceza,
 yetersiz değerle açma denemesi 100 ceza. Sıra süresi 60 sn; süre dolunca sunucu taş çekip en küçük
 taşı atar. Bağlantısı kopan oyuncunun koltuğu tutulur, sayfa yenilenince aynı koltuğa dönülür.

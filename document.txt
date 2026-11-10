@@ -79,12 +79,15 @@
 
 
 ## NETLEŞEN KURALLAR (2026-11-11, koda işlendi)
-- Elde kalan taşlar: taş değerleri × 20 (açmamış oyuncu: 400, kimse açmadıysa 800)
+- Elde kalan taşlar: normal elde taş değerleri × 10 (açmamış oyuncu: 400, kimse açmadıysa 800)
 - Özel durumlar her biri ×2: Hugo eli, okeyle bitme, çiftten bitme, elden bitme
-  (tek özel durumda taş × 40, iki özel durumda × 80 ...). Hugo ×2 cezalara da uygulanır.
+  (tek özel durumda taş × 20, iki özel durumda × 40 ...). Hugo ×2 cezalara da uygulanır.
 - Elden bitme: oyuncu daha önce açmadan, aynı sırada açıp bitirir
 - Çift açma: aynı renk ve sayıdan çiftlerin değer toplamı 51 ve üstü (okey bir çifti tamamlar).
-  Çiftle açan sonra yalnızca çift indirir; çiftlere taş işlenmez.
+  Çiftle açan sonra yalnızca çift indirir.
+- Çiftlere işleme: eli açık oyuncu elindeki çifti başka oyuncunun çiftlerine işler; çiftin sahibine
+  (işlenen taşların toplamı × 10) × 2 ceza yazılır. Örn. iki 5: ((5 + 5) × 10) × 2 = 200.
+  Çiftlere tek taş işlenmez; kendi çiftine işlemek cezasızdır.
 - Çiftten bitme özel durumdur (rakiplerin elde kalanı ×2); çiftten biten 1 yıldız alır
 - Kullanılmayan okey: el sonunda elde kalan her okey için 100 ceza
 - Normal elde sahte okey (joker) okeyin rengi ve sayısıyla oynanır, joker gibi davranmaz

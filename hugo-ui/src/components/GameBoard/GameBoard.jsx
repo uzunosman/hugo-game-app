@@ -36,6 +36,7 @@ const GameBoard = ({
     gameRound,
     isHugoRound,
     onArrange,
+    pairPartnerId,
     onTapDiscard,
     selectedTile,
     tableSets,
@@ -362,6 +363,7 @@ const GameBoard = ({
                     onAddTileToSet={onAddTileToSet}
                     okeyTile={okeyTile}
                     isHugo={isHugoRound}
+                    pairPartnerId={pairPartnerId}
                 />
 
                 {/* Merkez Alan */}

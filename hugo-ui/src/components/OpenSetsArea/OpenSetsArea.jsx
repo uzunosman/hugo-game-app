@@ -71,8 +71,14 @@ function getEdgeValues(tiles, isOkey = (t) => t.isJoker) {
 /**
  * Aktif taş ve set bilgisine göre geçerli ekleme pozisyonlarını hesapla.
  */
-function calculateValidPositions(set, rawActiveTile, okeyTile, isHugo) {
-    if (!rawActiveTile || set.kind === 'cift') return []; // çiftlere taş işlenmez
+function calculateValidPositions(set, rawActiveTile, okeyTile, isHugo, pairPartnerId) {
+    if (!rawActiveTile) return [];
+    // Çiftlere tek taş işlenmez; seçili taşın elde eşi varsa çift olarak işlenir
+    if (set.kind === 'cift') {
+        if (!pairPartnerId) return [];
+        const played = asPlayedTile(rawActiveTile, okeyTile, isHugo);
+        return [{ position: 'end', displayValue: played.value, displayColor: played.color }];
+    }
     const positions = [];
     // Sahte okeyler okeyin değeriyle hesaba girer
     const tiles = set.tiles.map(t => asPlayedTile(t, okeyTile, isHugo));
@@ -148,7 +154,7 @@ function calculateValidPositions(set, rawActiveTile, okeyTile, isHugo) {
 
 // ── Bileşen ──────────────────────────────────────────────
 
-const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTileToSet, okeyTile, isHugo }) => {
+const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTileToSet, okeyTile, isHugo, pairPartnerId }) => {
     const [hoveredSetId, setHoveredSetId] = useState(null);
 
     const positionMap = { 0: 'bottom', 1: 'right', 2: 'top', 3: 'left' };
@@ -217,7 +223,7 @@ const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTil
                             {playerSets.map((set) => {
                                 const isExpanded = hoveredSetId === set.id;
                                 const validPositions = isExpanded
-                                    ? calculateValidPositions(set, activeTile, okeyTile, isHugo)
+                                    ? calculateValidPositions(set, activeTile, okeyTile, isHugo, pairPartnerId)
                                     : [];
                                 const hasStartSlot = validPositions.some(p => p.position === 'start');
                                 const hasEndSlot = validPositions.some(p => p.position === 'end');

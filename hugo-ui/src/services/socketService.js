@@ -227,6 +227,13 @@ class SocketService {
         });
     }
 
+    // Çiftlere çift işleme: iki taş birlikte hedef çiftin sahibine işlenir
+    addPairToSet(tileIds, targetSetId, callback) {
+        this.socket.emit('game:addPairToSet', { playerId: this.playerId, tileIds, targetSetId }, (response) => {
+            if (callback) callback(response);
+        });
+    }
+
     onTileAddedToSet(callback) {
         this.socket.on('game:tileAddedToSet', callback);
     }

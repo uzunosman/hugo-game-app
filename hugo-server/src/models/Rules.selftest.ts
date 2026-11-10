@@ -185,7 +185,7 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     assert.strictEqual(d.game.openHand(d.p0.id, [ids(hd.slice(0, 2)), ids(hd.slice(2, 4)), ids(hd.slice(4, 6))], 'cift').success, false, 'siyah 1-2 çift değil');
 }
 
-// Çiftle açan yalnızca çift indirir; seriyle açan çift indiremez; çiftlere işlenmez
+// Çiftle açan yalnızca çift indirir; seriyle açan çift indiremez; çiftlere tek taş işlenmez
 {
     const { game, p0, p1 } = setup();
     p0.isOpen = true; p0.openedWithPairs = true;
@@ -199,10 +199,10 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     const [r7, b1, b2] = give(p1, [t(RED, 7), t(BLACK, 1), t(BLACK, 1)]);
     game.currentPlayerIndex = 1; game.players.forEach((p, i) => p.setTurn(i === 1));
     assert.strictEqual(game.dropPer(p1.id, [[b1.id, b2.id]]).success, false, 'seriyle açan çift indiremez');
-    assert.strictEqual(game.addTileToSet(p1.id, r7.id, pairSet.id, 'end').success, false, 'çiftlere taş işlenmez');
+    assert.strictEqual(game.addTileToSet(p1.id, r7.id, pairSet.id, 'end').success, false, 'çiftlere tek taş işlenmez');
 }
 
-// El sonu: elde kalan × 20, her özel durum × 2, kullanılmayan okey + 100
+// El sonu: elde kalan × 10, her özel durum × 2, kullanılmayan okey + 100
 {
     const { game, p0, p1 } = setup();
     const [, , p2, p3] = game.players;
@@ -218,9 +218,9 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     assert.ok(fin.tile && p0.tiles.length === 0);
     assert.deepStrictEqual(fin.penalties, [], 'bitiren son taş işlek cezası almaz');
 
-    p1.isOpen = true; give(p1, [t(RED, 5)]);                 // 5 × 20 = 100 → × 4 = 400
+    p1.isOpen = true; give(p1, [t(RED, 5)]);                 // 5 × 10 = 50 → × 4 = 200
     give(p2, [t(YELLOW, 9), t(YELLOW, 10)]);                  // açmadı → 400 × 4 = 1600
-    p3.isOpen = true; give(p3, [t(RED, 6), t(BLUE, 2)]);      // okey 0 + 2 × 20 = 40 → 160, + 100 okey
+    p3.isOpen = true; give(p3, [t(RED, 6), t(BLUE, 2)]);      // okey 0 + 2 × 10 = 20 → 80, + 100 okey
     const res = Object.fromEntries(game.endRound(p0.id).map(r => [r.playerName, r]));
 
     assert.strictEqual(res.P0.isFinisher, true);
@@ -229,10 +229,10 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     assert.strictEqual(res.P0.stars, 1, 'çiftten bitiren 1 yıldız');
     assert.strictEqual(res.P0.roundTotal, 0);
     assert.strictEqual(res.P1.multiplier, 4);
-    assert.strictEqual(res.P1.roundTotal, 400);
+    assert.strictEqual(res.P1.roundTotal, 200);
     assert.strictEqual(res.P2.roundTotal, 1600);
     assert.strictEqual(res.P3.unusedOkeyPenalty, 100);
-    assert.strictEqual(res.P3.roundTotal, 260);
+    assert.strictEqual(res.P3.roundTotal, 180);
 }
 
 // Daha önceki bir sırada açıp bitiren "elden" bitirmiş sayılmaz
@@ -245,7 +245,43 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     p1.isOpen = true; give(p1, [t(RED, 5)]);
     const r1 = game.endRound(p0.id).find(r => r.playerId === p1.id)!;
     assert.strictEqual(r1.multiplier, 2 * 2, 'Hugo (1. el) × çiftten bitme');
-    assert.strictEqual(r1.roundTotal, 5 * 20 * 4);
+    assert.strictEqual(r1.roundTotal, 5 * 10 * 4);
 }
 
-console.log('Rules.selftest: el açma, set doğrulama, sıra, işleme, yandan alma, işlek taş, otomatik atış, Hugo, sahte okey, çift açma ve el sonu puanlama kuralları ✓');
+// Çiftlere çift işleme: sahibine (taşların toplamı × 10) × 2 ceza; kendi çiftine işlemek cezasız
+{
+    const { game, p0, p1 } = setup();
+    p0.isOpen = true; p0.openedWithPairs = true;
+    game.tableSets.push({ id: 'cift0', playerId: p0.id, tiles: [t(RED, 13), t(RED, 13)], value: 26, kind: 'cift' });
+
+    // P1'in sırası: iki 5'i P0'ın çiftlerine işler → ((5 + 5) × 10) × 2 = 200
+    game.currentPlayerIndex = 1; game.players.forEach((p, i) => p.setTurn(i === 1));
+    p1.isOpen = true;
+    const [f1, f2, other, bad] = give(p1, [t(BLUE, 5), t(BLUE, 5), t(BLACK, 9), t(YELLOW, 5)]);
+    assert.strictEqual(game.addPairToSet(p1.id, [f1.id, bad.id], 'cift0').success, false, 'farklı renk çift değil');
+    const r = game.addPairToSet(p1.id, [f1.id, f2.id], 'cift0');
+    assert.strictEqual(r.success, true, r.error);
+    assert.deepStrictEqual(r.penalty, { targetPlayerId: p0.id, amount: 200 });
+    assert.strictEqual(p0.penaltyScore, 200);
+    assert.strictEqual(r.newSet?.playerId, p0.id, 'işlenen çift sahibinin alanına konur');
+    assert.deepStrictEqual(p1.tiles.map(x => x.id), [other.id, bad.id]);
+
+    // Seri setine çift işlenmez; açmamış oyuncu işleyemez
+    game.tableSets.push({ id: 'seri1', playerId: p0.id, tiles: [t(RED, 1), t(RED, 2), t(RED, 3)], value: 6, kind: 'seri' });
+    const [g1, g2] = give(p1, [t(BLACK, 8), t(BLACK, 8)]);
+    assert.strictEqual(game.addPairToSet(p1.id, [g1.id, g2.id], 'seri1').success, false);
+    p1.isOpen = false;
+    assert.strictEqual(game.addPairToSet(p1.id, [g1.id, g2.id], 'cift0').success, false, 'açmadan işlenmez');
+
+    // Kendi çiftine işlemek cezasız
+    const own = setup();
+    own.p0.isOpen = true; own.p0.openedWithPairs = true;
+    own.game.tableSets.push({ id: 'c', playerId: own.p0.id, tiles: [t(RED, 13), t(RED, 13)], value: 26, kind: 'cift' });
+    const [o1, o2] = give(own.p0, [t(BLUE, 7), t(BLUE, 7), t(BLACK, 1)]);
+    const ro = own.game.addPairToSet(own.p0.id, [o1.id, o2.id], 'c');
+    assert.strictEqual(ro.success, true, ro.error);
+    assert.strictEqual(ro.penalty, undefined);
+    assert.strictEqual(own.p0.penaltyScore, 0);
+}
+
+console.log('Rules.selftest: el açma, set doğrulama, sıra, işleme, yandan alma, işlek taş, otomatik atış, Hugo, sahte okey, çift açma, çift işleme ve el sonu puanlama kuralları ✓');

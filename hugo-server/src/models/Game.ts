@@ -211,7 +211,7 @@ export class Game {
         if (config.testMode) {
             const starter = this.players[this.currentPlayerIndex];
             const wanted: [TileColor, number][] = config.testHand === 'cift'
-                ? [[TileColor.RED, 13], [TileColor.RED, 13], [TileColor.BLUE, 12], [TileColor.BLUE, 12], [TileColor.BLACK, 1], [TileColor.BLACK, 1]]
+                ? [[TileColor.RED, 13], [TileColor.RED, 13], [TileColor.BLUE, 12], [TileColor.BLUE, 12], [TileColor.BLACK, 1], [TileColor.BLACK, 1], [TileColor.YELLOW, 7], [TileColor.YELLOW, 7]]
                 : [[TileColor.RED, 11], [TileColor.RED, 12], [TileColor.RED, 13], [TileColor.BLACK, 9], [TileColor.YELLOW, 9], [TileColor.BLUE, 9]];
             for (const [color, value] of wanted) {
                 const i = this.deck.findIndex(t => t.color === color && t.value === value);
@@ -527,7 +527,7 @@ export class Game {
         }
 
         if (targetSet.kind === 'cift') {
-            return { success: false, error: 'Çiftlere taş işlenemez' };
+            return { success: false, error: 'Çiftlere tek taş işlenmez: elindeki çifti işle' };
         }
 
         const setOwner = this.getPlayerById(targetSet.playerId);
@@ -629,6 +629,53 @@ export class Game {
             penalty,
             remainingTiles: player.tiles.map(t => t.toJSON())
         };
+    }
+
+    // Çiftlere işleme: eli açık oyuncu, elindeki bir çifti başka bir oyuncunun çiftlerine işler.
+    // Çift, sahibinin alanına yeni çift olarak konur; sahibine (taşların toplamı × 10) × 2 ceza yazılır.
+    addPairToSet(playerId: string, tileIds: string[], targetSetId: string): {
+        success: boolean;
+        error?: string;
+        newSet?: TableSet;
+        penalty?: { targetPlayerId: string; amount: number };
+        remainingTiles?: Record<string, any>[];
+    } {
+        const player = this.getPlayerById(playerId);
+        if (!player || !this.isPlayerTurn(playerId)) return { success: false, error: 'Sıra bu oyuncuda değil' };
+        if (!player.isOpen) return { success: false, error: 'Önce el açılmalı' };
+
+        const isFirstTurn = player.tiles.length === 15 && this.turnAction === TurnAction.DRAW;
+        if (this.turnAction !== TurnAction.DISCARD && !isFirstTurn) return { success: false, error: 'Önce taş çekilmeli' };
+
+        const target = this.tableSets.find(s => s.id === targetSetId);
+        if (!target || target.kind !== 'cift') return { success: false, error: 'Hedef çift bulunamadı' };
+
+        if (tileIds.length !== 2 || tileIds[0] === tileIds[1]) return { success: false, error: 'Çift için iki taş gerekli' };
+        const tiles = tileIds.map(id => player.tiles.find(t => t.id === id));
+        if (tiles.some(t => !t)) return { success: false, error: 'Taş oyuncunun elinde bulunamadı' };
+
+        const value = this.validatePairTiles(tiles as Tile[]); // taşların toplamı (okey eşinin değerini alır)
+        if (value === 0) return { success: false, error: 'Geçersiz çift' };
+
+        for (const tile of tiles as Tile[]) {
+            player.removeTile(tile.id);
+            tile.setStatus(TileStatus.ON_TABLE);
+            tile.setVisible(true);
+            if (this.isOkeyTile(tile)) this.okeyPlayedThisTurn = true;
+        }
+        const newSet: TableSet = { id: uuidv4(), playerId: target.playerId, tiles: tiles as Tile[], value, kind: 'cift' };
+        this.tableSets.push(newSet);
+
+        let penalty: { targetPlayerId: string; amount: number } | undefined;
+        const owner = this.getPlayerById(target.playerId);
+        if (owner && owner.id !== playerId) {
+            const amount = value * 10 * 2;
+            owner.addPenalty(amount);
+            penalty = { targetPlayerId: owner.id, amount };
+        }
+
+        this.lastActionTime = new Date();
+        return { success: true, newSet, penalty, remainingTiles: player.tiles.map(t => t.toJSON()) };
     }
 
     // Joker/okey'in sete eklendiği pozisyondaki etkin değerini hesapla
@@ -880,10 +927,10 @@ export class Game {
 
     /**
      * El sonu puanı (kural: kullanıcı kararı 2026-11-11):
-     *   elde kalan     = açmışsa taş değerleri toplamı × 20 (sahte okey okeyin değeriyle; okey 0)
+     *   elde kalan     = açmışsa taş değerleri toplamı × 10 (sahte okey okeyin değeriyle; okey 0)
      *                    açmamışsa 400 (kimse açmadıysa 800)
      *   özel durumlar  = Hugo, okeyle bitme, çiftten bitme, elden bitme — her biri ×2
-     *                    (örn. tek özel durum: taş × 40, Hugo + okeyle bitme: taş × 80)
+     *                    (örn. tek özel durum: taş × 20, Hugo + okeyle bitme: taş × 40)
      *   Hugo dışındaki özel durumlar yalnızca elde kalana; Hugo ×2 cezalar dahil her şeye uygulanır
      *   kullanılmayan okey = elde kalan her okey için +100 ceza
      *   roundTotal     = max(0, (elde kalan × özel + cezalar + okey cezası) × Hugo − yıldız × 100)
@@ -917,7 +964,7 @@ export class Game {
                     handScore = player.tiles.reduce((sum, tile) => {
                         const played = this.asPlayed(tile);
                         if (this.isOkeyTile(played) || typeof played.value !== 'number') return sum;
-                        return sum + played.value * 20;
+                        return sum + played.value * 10;
                     }, 0);
                 }
                 effectiveHandScore = handScore * handMult;
