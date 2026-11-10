@@ -20,9 +20,11 @@ for (let round = 1; round <= 9; round++) {
     assert.strictEqual(game.players[first].tiles.length, 15, `${round}. elde 15 taş P${first}'de olmalı`);
     assert.strictEqual(game.isPlayerTurn(game.players[first].id), true);
 
-    const results = game.endRound();
+    // 1-5-9 her zaman Hugo; gösterge sahte okey çıkarsa diğer eller de Hugo olabilir
+    if ([1, 5, 9].includes(round)) assert.strictEqual(game.isHugoRound(), true);
     // Kimse açmadı, bitiren yok: herkese 800, Hugo elinde ×2
-    const expected = [1, 5, 9].includes(round) ? 1600 : 800;
+    const expected = game.isHugoRound() ? 1600 : 800;
+    const results = game.endRound();
     expectedTotal += expected;
     results.forEach(r => {
         assert.strictEqual(r.roundTotal, expected, `${round}. el puanı ${expected} olmalı`);

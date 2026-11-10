@@ -2,7 +2,7 @@ import React from 'react';
 import CenterTile from '../CenterTile/CenterTile';
 import '../../assets/css/components/CenterArea.css';
 
-const CenterArea = ({ remainingTiles = [], openTile = null, onDrawTile, gameRound = 1, canDrawTile = false }) => {
+const CenterArea = ({ remainingTiles = [], openTile = null, onDrawTile, gameRound = 1, isHugoRound: serverHugo, canDrawTile = false }) => {
     const handleTileClick = () => {
         if (onDrawTile && canDrawTile) {
             onDrawTile();
@@ -39,7 +39,8 @@ const CenterArea = ({ remainingTiles = [], openTile = null, onDrawTile, gameRoun
     };
 
     // Hugo eli kontrolü (1, 5, 9. eller — sunucudaki config.game.hugoRounds ile aynı)
-    const isHugoRound = [1, 5, 9].includes(gameRound);
+    // Sunucunun kararı esas (sahte okey göstergesi de Hugo yapar); yoksa el numarasına bak
+    const isHugoRound = serverHugo ?? [1, 5, 9].includes(gameRound);
 
     return (
         <div className="center-area">

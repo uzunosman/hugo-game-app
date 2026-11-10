@@ -187,20 +187,6 @@ export class GameManager {
         return room.game.drawTile(playerId, fromDiscard);
     }
 
-    public discardTile(playerId: string, tileId: string): Tile | null {
-        const player = this.players.get(playerId);
-        if (!player || !player.roomId) {
-            return null;
-        }
-
-        const room = this.rooms.get(player.roomId);
-        if (!room || !room.game) {
-            return null;
-        }
-
-        return room.game.discardTile(playerId, tileId);
-    }
-
     public openHand(playerId: string, setTileIds: string[][]) {
         const player = this.players.get(playerId);
         if (!player || !player.roomId) {

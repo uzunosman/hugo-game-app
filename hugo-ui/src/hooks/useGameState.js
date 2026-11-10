@@ -210,6 +210,19 @@ const useGameState = (player, room) => {
             });
         });
 
+        // Anlık ceza (işlek taş, kullanılmayan yandan taş, yetersiz açma)
+        socketService.onPenalty(({ playerId, amount, reason, penaltyScore }) => {
+            setPlayerOpenStates(prev => ({
+                ...prev,
+                [playerId]: {
+                    ...prev[playerId],
+                    penaltyScore,
+                    penaltyEntries: [...(prev[playerId]?.penaltyEntries || []), amount]
+                }
+            }));
+            if (playerId === player.id) setError(`${reason}: +${amount} ceza`);
+        });
+
         // Bir oyuncunun bağlantısı koptu / geri geldi
         socketService.onPlayerConnection(({ playerId, connected }) => {
             setPlayerOpenStates(prev => ({ ...prev, [playerId]: { ...prev[playerId], connected } }));
@@ -281,6 +294,7 @@ const useGameState = (player, room) => {
             socketService.offRoundEnded();
             socketService.offRoundStarted();
             socketService.offPlayerConnection();
+            socketService.offPenalty();
             socketService.offAutoPlayed();
         };
     }, [player.id]);

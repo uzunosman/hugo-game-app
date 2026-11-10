@@ -204,13 +204,12 @@ function Game({ player, room }) {
         (max, s) => (s.lastOpenedValue > max ? s.lastOpenedValue : max), 0
     );
 
+    // Kural: yetersiz değerle açma denemesi 100 ceza yer (geri alma yok), bu yüzden
+    // buton değer eşiğine göre kilitlenmez; eşiği geçip geçmediği set-score rozetinde görünür
     const canOpenHand = isMyTurn
         && (gameState.turnAction === 'discard' || isFirstHandBlock)
-        && handScore.setTotal > 0
-        && handScore.validSetCount > 0
-        && (maxOpenedValue === 0
-            ? handScore.setTotal >= 51
-            : handScore.setTotal > maxOpenedValue);
+        && handScore.validSetCount > 0;
+    const openHandShort = maxOpenedValue === 0 ? handScore.setTotal < 51 : handScore.setTotal <= maxOpenedValue;
 
     const myOpenState = playerOpenStates[player.id] || { isOpen: false, openedTotal: 0 };
     const openHandLabel = myOpenState.isOpen ? 'Taş Oyna' : 'El Aç';
@@ -382,9 +381,10 @@ function Game({ player, room }) {
                 <div className="action-buttons">
                     {!myOpenState.isOpen && (
                         <button
-                            className={`open-hand-btn ${canOpenHand ? 'active' : 'disabled'}`}
+                            className={`open-hand-btn ${canOpenHand ? 'active' : 'disabled'} ${canOpenHand && openHandShort ? 'short' : ''}`}
                             onClick={onOpenHand}
                             disabled={!canOpenHand}
+                            title={canOpenHand && openHandShort ? 'Değer yetersiz: açarsan 100 ceza yazılır' : undefined}
                         >
                             {openHandLabel}
                             {handScore.setTotal > 0 && (
@@ -436,6 +436,7 @@ function Game({ player, room }) {
                 indicatorTile={gameState.indicatorTile}
                 okeyTile={gameState.okeyTile}
                 gameRound={gameState.round}
+                isHugoRound={gameState.isHugoRound}
                 selectedTile={selectedTile}
                 tableSets={tableSets}
                 orderedPlayers={players}

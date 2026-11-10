@@ -35,6 +35,7 @@ const GameBoard = ({
     indicatorTile,
     okeyTile,
     gameRound,
+    isHugoRound,
     selectedTile,
     tableSets,
     orderedPlayers,
@@ -368,6 +369,7 @@ const GameBoard = ({
                     remainingTiles={Array(deckCount ?? 0).fill(null)}
                     openTile={indicatorTile}
                     gameRound={gameRound}
+                    isHugoRound={isHugoRound}
                 />
 
                 {/* Oyuncunun Taşları */}

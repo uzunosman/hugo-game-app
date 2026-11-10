@@ -29,6 +29,18 @@ export interface RoundResult {
     totalScore: number;         // bu el dahil toplam puan
 }
 
+export interface Penalty {
+    playerId: string;
+    amount: number;
+    reason: string;
+}
+
+export interface DiscardResult {
+    tile: Tile | null;
+    penalties: Penalty[];
+    error?: string;
+}
+
 export enum TurnAction {
     DRAW = 'draw',
     DISCARD = 'discard'
@@ -59,6 +71,7 @@ export class Game {
     roundEndResults: RoundResult[] | null;
     finisherPlayerId: string | null;
     finishedWithJoker: boolean;
+    takenDiscardTileId: string | null; // yandan alınan, bu turda kullanılması gereken taş
     createdAt: Date;
     lastActionTime: Date;
 
@@ -79,6 +92,7 @@ export class Game {
         this.roundEndResults = null;
         this.finisherPlayerId = null;
         this.finishedWithJoker = false;
+        this.takenDiscardTileId = null;
         this.tableSets = [];
         this.createdAt = new Date();
         this.lastActionTime = new Date();
@@ -240,6 +254,7 @@ export class Game {
 
         if (drawnTile) {
             player.addTile(drawnTile);
+            this.takenDiscardTileId = fromDiscard ? drawnTile.id : null;
             this.turnAction = TurnAction.DISCARD;
             this.lastActionTime = new Date();
             return drawnTile;
@@ -248,55 +263,60 @@ export class Game {
         return null;
     }
 
-    discardTile(playerId: string, tileId: string): Tile | null {
-        console.log(`[DEBUG] discardTile çağrıldı - playerId: ${playerId}, tileId: ${tileId}`);
-
-        // Oyuncunun sırası mı kontrol et
+    discardTile(playerId: string, tileId: string): DiscardResult {
         const player = this.getPlayerById(playerId);
-        console.log(`[DEBUG] Oyuncu bulundu mu: ${!!player}`);
+        if (!player) return { tile: null, penalties: [], error: 'Oyuncu bulunamadı' };
 
-        if (!player) {
-            console.log(`[DEBUG] Oyuncu bulunamadı: ${playerId}`);
-            return null;
-        }
-
-        const isPlayerTurn = this.isPlayerTurn(playerId);
-        console.log(`[DEBUG] Oyuncunun sırası mı: ${isPlayerTurn}`);
-
-        console.log(`[DEBUG] Mevcut aksiyon: ${this.turnAction}`);
-
-        // İlk tur kontrolü - oyuncunun 15 taşı varsa ve sırası geldiyse taş atabilir
+        // İlk el: 15 taşı olan oyuncu çekmeden atar
         const isFirstTurn = player.tiles.length === 15 && this.turnAction === TurnAction.DRAW;
-        console.log(`[DEBUG] İlk tur mu: ${isFirstTurn}, Taş sayısı: ${player.tiles.length}`);
-
-        if (!isPlayerTurn || (this.turnAction !== TurnAction.DISCARD && !isFirstTurn)) {
-            console.log(`[DEBUG] Oyuncunun sırası değil veya taş atma aksiyonu değil`);
-            return null;
+        if (!this.isPlayerTurn(playerId) || (this.turnAction !== TurnAction.DISCARD && !isFirstTurn)) {
+            return { tile: null, penalties: [], error: 'Şu an taş atamazsın' };
         }
 
-        // Taşı oyuncudan çıkar
-        const discardedTile = player.removeTile(tileId);
-        console.log(`[DEBUG] Taş oyuncudan çıkarıldı mı: ${!!discardedTile}`);
+        const tile = player.tiles.find(t => t.id === tileId);
+        if (!tile) return { tile: null, penalties: [], error: 'Taş elinde değil' };
 
-        if (discardedTile) {
-            // Taşı atılan taşlar yığınına ekle
-            discardedTile.setStatus(TileStatus.DISCARDED);
-            discardedTile.setVisible(true);
-            this.discardPile.push(discardedTile);
-            this.lastDiscardPlayerId = playerId;
-            console.log(`[DEBUG] Taş atılan taşlar yığınına eklendi. Yeni yığın boyutu: ${this.discardPile.length}`);
-
-            // Sırayı bir sonraki oyuncuya geçir
-            this.nextTurn();
-            console.log(`[DEBUG] Sıra bir sonraki oyuncuya geçti. Yeni oyuncu indeksi: ${this.currentPlayerIndex}`);
-
-            this.lastActionTime = new Date();
-            return discardedTile;
-        } else {
-            console.log(`[DEBUG] Taş oyuncudan çıkarılamadı. Taş ID: ${tileId}`);
+        const penalties: Penalty[] = [];
+        // Yandan alınan taş kullanılmalı; kullanılmadıysa yalnızca o taş 100 cezayla geri atılabilir
+        const pendingTaken = this.pendingTakenTileId(player);
+        if (pendingTaken && pendingTaken !== tileId) {
+            return { tile: null, penalties: [], error: 'Yandan aldığın taşı kullanmalısın (ya da 100 ceza ile geri at)' };
         }
+        if (pendingTaken) {
+            penalties.push({ playerId, amount: 100, reason: 'Yandan alınan taş kullanılmadı' });
+        } else if (player.tiles.length > 1) {
+            // Eli bitiren son taş hariç: masadaki bir pere eklenebilecek taşı atmak taş × 10 ceza
+            const islek = this.islekPenalty(tile);
+            if (islek > 0) penalties.push({ playerId, amount: islek, reason: 'İşlenebilir taş atıldı' });
+        }
+        penalties.forEach(p => player.addPenalty(p.amount));
 
-        return null;
+        player.removeTile(tileId);
+        tile.setStatus(TileStatus.DISCARDED);
+        tile.setVisible(true);
+        this.discardPile.push(tile);
+        this.lastDiscardPlayerId = playerId;
+        this.takenDiscardTileId = null;
+
+        // Sırayı bir sonraki oyuncuya geçir
+        this.nextTurn();
+        this.lastActionTime = new Date();
+        return { tile, penalties };
+    }
+
+    // Yandan alınıp henüz kullanılmamış (hâlâ elde olan) taşın id'si
+    private pendingTakenTileId(player: Player): string | null {
+        const id = this.takenDiscardTileId;
+        return id && player.tiles.some(t => t.id === id) ? id : null;
+    }
+
+    // Taş masadaki bir perin başına ya da sonuna eklenebiliyorsa ceza = değer × 10
+    islekPenalty(tile: Tile): number {
+        if (tile.isJoker || this.isOkeyTile(tile) || typeof tile.value !== 'number') return 0;
+        const fits = this.tableSets.some(set =>
+            this.validateSetTiles([tile, ...set.tiles]) > 0 || this.validateSetTiles([...set.tiles, tile]) > 0
+        );
+        return fits ? tile.value * 10 : 0;
     }
 
     nextTurn(): void {
@@ -323,6 +343,8 @@ export class Game {
     pickAutoDiscard(playerId: string): Tile | null {
         const player = this.getPlayerById(playerId);
         if (!player || player.tiles.length === 0) return null;
+        const pendingTaken = this.pendingTakenTileId(player);
+        if (pendingTaken) return player.tiles.find(t => t.id === pendingTaken) || null;
         const plain = player.tiles.filter(t => !t.isJoker && !this.isOkeyTile(t) && typeof t.value === 'number');
         if (plain.length === 0) return player.tiles[0];
         return plain.reduce((min, t) => (t.value as number) < (min.value as number) ? t : min);
@@ -341,6 +363,7 @@ export class Game {
         openedTotal?: number;
         remainingTiles?: Record<string, any>[];
         turnAction?: TurnAction;
+        penalty?: number;
     } {
         const player = this.getPlayerById(playerId);
         if (!player || !this.isPlayerTurn(playerId)) {
@@ -393,11 +416,14 @@ export class Game {
         );
 
         // Minimum değer kontrolü
+        // Yetersiz değerle açma denemesi: 100 ceza, geri alma yok
         if (maxOpenedValue === 0 && totalValue < 51) {
-            return { success: false, error: 'İlk açılış için minimum 51 puan gerekli' };
+            player.addPenalty(100);
+            return { success: false, error: `İlk açılış için en az 51 gerekli (${totalValue}): 100 ceza`, penalty: 100 };
         }
         if (maxOpenedValue > 0 && totalValue <= maxOpenedValue) {
-            return { success: false, error: `Masadaki en yüksek değerden (${maxOpenedValue}) büyük olmalı` };
+            player.addPenalty(100);
+            return { success: false, error: `Masadaki en yüksek açılışı (${maxOpenedValue}) geçmeli: 100 ceza`, penalty: 100 };
         }
 
         // Taşları elden masaya taşı
@@ -941,6 +967,7 @@ export class Game {
         this.roundEndResults = null;
         this.finisherPlayerId = null;
         this.lastDiscardPlayerId = null;
+        this.takenDiscardTileId = null;
 
         // Eli başlatan, bir önceki eli başlatanın bir sonrakidir.
         // dealTiles() 15 taşı currentPlayerIndex'e verdiği için dağıtımdan önce belirlenir.
@@ -960,8 +987,8 @@ export class Game {
     }
 
     isHugoRound(): boolean {
-        // 1., 5. ve 9. turlar Hugo turudur
-        return [1, 5, 9].includes(this.round);
+        // 1., 5. ve 9. eller Hugo elidir; gösterge sahte okey (joker) çıkarsa o el de Hugo sayılır
+        return [1, 5, 9].includes(this.round) || this.indicatorTile?.isJoker === true;
     }
 
     private tableSetsToJSON(): Record<string, any>[] {

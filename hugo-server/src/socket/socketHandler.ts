@@ -1,7 +1,7 @@
 import { Server, Socket } from 'socket.io';
 import { GameManager } from '../utils/GameManager';
 import { config } from '../config/config';
-import { Game, GameStatus, TurnAction } from '../models/Game';
+import { Game, GameStatus, Penalty, TurnAction } from '../models/Game';
 import { Tile } from '../models/Tile';
 import { RoomStatus } from '../models/Room';
 
@@ -21,10 +21,11 @@ export const setupSocketHandlers = (io: Server) => {
 
     // Taş atma + tur sonu / sıra geçişi (oyuncu hamlesi ve otomatik hamle aynı yolu kullanır)
     const discardAndAdvance = (roomId: string, game: Game, playerId: string, tileId: string) => {
-        const tile = game.discardTile(playerId, tileId);
-        if (!tile) return { success: false, error: 'Taş atılamadı' };
+        const { tile, penalties, error } = game.discardTile(playerId, tileId);
+        if (!tile) return { success: false, error: error || 'Taş atılamadı' };
 
         io.to(roomId).emit('game:tileDiscard', { success: true, playerId, tile: { ...tile.toJSON(), playerId } });
+        penalties.forEach(p => emitPenalty(roomId, game, p));
 
         const atan = game.getPlayerById(playerId);
         if (atan && atan.tiles.length === 0 && game.checkRoundEnd(playerId)) {
@@ -38,6 +39,14 @@ export const setupSocketHandlers = (io: Server) => {
         io.to(roomId).emit('game:nextTurn', { currentPlayerId: nextPlayerId, turnAction: 'draw' });
         scheduleTurn(roomId, game);
         return { success: true, nextPlayerId };
+    };
+
+    // Anlık ceza: masadaki herkesin ceza rozetini güncellemesi için
+    const emitPenalty = (roomId: string, game: Game, p: Penalty) => {
+        io.to(roomId).emit('game:penalty', {
+            ...p,
+            penaltyScore: game.getPlayerById(p.playerId)?.penaltyScore ?? 0
+        });
     };
 
     const autoPlay = (roomId: string, game: Game, playerId: string) => {
@@ -591,6 +600,9 @@ export const setupSocketHandlers = (io: Server) => {
                 const result = gameManager.openHand(playerId, sets);
 
                 if (!result.success) {
+                    if (result.penalty) {
+                        emitPenalty(player.roomId, room.game, { playerId, amount: result.penalty, reason: 'Yetersiz değerle açma' });
+                    }
                     return callback({
                         success: false,
                         error: result.error

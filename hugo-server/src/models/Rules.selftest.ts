@@ -24,6 +24,7 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     const r = game.openHand(p0.id, [ids(seq.slice(0, 3))]);
     assert.strictEqual(r.success, false, '18 değerle açılmamalı');
     assert.strictEqual(p0.isOpen, false);
+    assert.strictEqual(p0.penaltyScore, 100, 'yetersiz açma 100 ceza');
 }
 
 // El açma: 51+ kabul edilir, taşlar masaya iner
@@ -50,7 +51,7 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     const { game, p1 } = setup();
     const hand = give(p1, [t(RED, 11), t(RED, 12), t(RED, 13), t(BLACK, 9), t(YELLOW, 9), t(BLUE, 9)]);
     assert.strictEqual(game.openHand(p1.id, [ids(hand.slice(0, 3)), ids(hand.slice(3, 6))]).success, false);
-    assert.strictEqual(game.discardTile(p1.id, hand[0].id), null);
+    assert.strictEqual(game.discardTile(p1.id, hand[0].id).tile, null);
 }
 
 // İşleme: başkasının perine taş eklemek per sahibine taş × 10 ceza yazar
@@ -71,4 +72,53 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     assert.strictEqual(game.addTileToSet(p0.id, two.id, 'set1', 'end').success, false);
 }
 
-console.log('Rules.selftest: el açma, set doğrulama, sıra ve işleme kuralları ✓');
+// Yandan alınan taş kullanılmalı: başka taş atılamaz, aynı taş 100 cezayla geri atılabilir
+{
+    const { game, p0, p1 } = setup();
+    const [x] = give(p0, [t(BLUE, 4), t(BLUE, 8)]);
+    assert.ok(game.discardTile(p0.id, x.id).tile, 'P0 atabilmeli');
+    give(p1, [t(BLACK, 1), t(YELLOW, 6), t(RED, 2)]);
+    const taken = game.drawTile(p1.id, true);
+    assert.strictEqual(taken?.id, x.id, 'P1 yandan alabilmeli');
+    const other = game.discardTile(p1.id, p1.tiles[0].id);
+    assert.strictEqual(other.tile, null, 'yandan alınan taş kullanılmadan başka taş atılamaz');
+    assert.match(other.error || '', /Yandan/);
+    const back = game.discardTile(p1.id, x.id);
+    assert.ok(back.tile, 'aynı taş geri atılabilir');
+    assert.strictEqual(p1.penaltyScore, 100);
+}
+
+// İşlek taş: masadaki pere eklenebilecek taşı atmak taş × 10 ceza; eli bitiren son taş muaf
+{
+    const { game, p0, p1 } = setup();
+    game.tableSets.push({ id: 'set1', playerId: p1.id, tiles: [t(RED, 10), t(RED, 11), t(RED, 12)], value: 33 });
+    const [thirteen] = give(p0, [t(RED, 13), t(BLUE, 2)]);
+    const r = game.discardTile(p0.id, thirteen.id);
+    assert.ok(r.tile);
+    assert.deepStrictEqual(r.penalties.map(p => p.amount), [130]);
+    assert.strictEqual(p0.penaltyScore, 130);
+
+    const g2 = setup();
+    g2.game.tableSets.push({ id: 'set1', playerId: g2.p1.id, tiles: [t(RED, 10), t(RED, 11), t(RED, 12)], value: 33 });
+    const [last] = give(g2.p0, [t(RED, 9)]);
+    assert.deepStrictEqual(g2.game.discardTile(g2.p0.id, last.id).penalties, [], 'bitiren taş cezasız');
+}
+
+// Süre dolunca: yandan alınan taş bekliyorsa o atılır, yoksa okey olmayan en küçük taş
+{
+    const { game, p0 } = setup();
+    give(p0, [t(RED, 9), t(BLUE, 3), t(BLACK, 7), new Tile(TileColor.PURPLE, 'H', true)]);
+    assert.strictEqual(game.pickAutoDiscard(p0.id)?.value, 3);
+}
+
+// Gösterge sahte okey ise el Hugo sayılır
+{
+    const { game } = setup();
+    game.round = 2;
+    game.indicatorTile = t(RED, 5);
+    assert.strictEqual(game.isHugoRound(), false);
+    game.indicatorTile = new Tile(TileColor.PURPLE, 'H', true);
+    assert.strictEqual(game.isHugoRound(), true);
+}
+
+console.log('Rules.selftest: el açma, set doğrulama, sıra, işleme, yandan alma, işlek taş, otomatik atış ve Hugo kuralları ✓');

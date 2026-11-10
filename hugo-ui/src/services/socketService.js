@@ -256,6 +256,14 @@ class SocketService {
         this.socket.off('game:roundEnded');
     }
 
+    onPenalty(callback) {
+        this.socket.on('game:penalty', callback);
+    }
+
+    offPenalty() {
+        this.socket.off('game:penalty');
+    }
+
     onPlayerConnection(callback) {
         this.socket.on('player:connection', callback);
     }

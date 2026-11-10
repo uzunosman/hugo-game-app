@@ -275,3 +275,6 @@
 /* Bağlantısı kopan oyuncu: sunucu sırası gelince onun yerine oynar */
 .player-panel.offline { opacity: 0.55; }
 .player-offline { font-size: 0.7rem; color: #ffd27a; }
+
+/* Açılış değeri eşiğin altında: denemek 100 ceza yazar */
+.open-hand-btn.active.short { background: #b45309; }
