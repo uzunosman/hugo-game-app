@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Player } from './Player';
 import { Tile, TileColor, TileStatus } from './Tile';
+import { config } from '../config/config';
 
 export enum GameStatus {
     WAITING = 'waiting',
@@ -179,9 +180,22 @@ export class Game {
     }
 
     private dealTiles(): void {
+        // TEST_MODE: eli başlatana 63 değerinde açılış eli (kırmızı 11-12-13 + üç renk 9) verilir
+        if (config.testMode) {
+            const starter = this.players[this.currentPlayerIndex];
+            const wanted: [TileColor, number][] = [
+                [TileColor.RED, 11], [TileColor.RED, 12], [TileColor.RED, 13],
+                [TileColor.BLACK, 9], [TileColor.YELLOW, 9], [TileColor.BLUE, 9],
+            ];
+            for (const [color, value] of wanted) {
+                const i = this.deck.findIndex(t => t.color === color && t.value === value);
+                if (i !== -1 && starter) starter.addTile(this.deck.splice(i, 1)[0]);
+            }
+        }
+
         // Eli başlatan oyuncuya 15 taş, diğerlerine 14 taş dağıt
         this.players.forEach((player, index) => {
-            const tileCount = index === this.currentPlayerIndex ? 15 : 14;
+            const tileCount = (index === this.currentPlayerIndex ? 15 : 14) - player.tiles.length;
 
             for (let i = 0; i < tileCount; i++) {
                 if (this.deck.length > 0) {
