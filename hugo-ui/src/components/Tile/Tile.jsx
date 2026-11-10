@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import '../../assets/css/components/Tile.css';
 
-const Tile = ({ value, color, onClick, onDoubleClick, index, tile, isDiscarded, canDrag, discardedFrom, isSelected, tileId, isOkey, isFlipped, onContextMenu, onDragStartCallback, onDragEndCallback }) => {
+const Tile = ({ value, color, onClick, onDoubleClick, index, tile, isDiscarded, canDrag, discardedFrom, isSelected, tileId, isFlipped, onContextMenu, onDragStartCallback, onDragEndCallback }) => {
     const tileRef = useRef(null);
     const [prevIndex, setPrevIndex] = useState(index);
 
@@ -77,7 +77,7 @@ const Tile = ({ value, color, onClick, onDoubleClick, index, tile, isDiscarded, 
         }
     };
 
-    const handleDragEnd = (e) => {
+    const handleDragEnd = () => {
         // Sürükleme bittiğinde taşı tekrar göster
         if (tileRef.current) {
             tileRef.current.style.visibility = 'visible';
@@ -85,7 +85,7 @@ const Tile = ({ value, color, onClick, onDoubleClick, index, tile, isDiscarded, 
         if (onDragEndCallback) onDragEndCallback();
     };
 
-    const handleClick = (e) => {
+    const handleClick = () => {
         if (onClick) {
             onClick();
         }

@@ -61,7 +61,6 @@ export const getCurrentPlayerIndex = (players, currentPlayerId) => {
     return players.findIndex(p => p.id === currentPlayerId);
 };
 
-const HUGO_ROUNDS = [1, 5, 9];
 
 /**
  * Gösterge taşından okey değerini hesaplar
@@ -78,9 +77,9 @@ export const getOkeyValue = (indicatorTile) => {
  * Taş okey (joker gibi wildcard) mı?
  * Hugo: joker taşları okey. Hugo dışı: gösterge+1 taşı (okeyTile) okey.
  */
-export const isOkeyTile = (tile, okeyTile, round) => {
+export const isOkeyTile = (tile, okeyTile, isHugo) => {
     if (!tile) return false;
-    const isHugo = HUGO_ROUNDS.includes(round || 1);
+    // isHugo sunucudan gelir (gameState.isHugoRound): sahte okey göstergesi de Hugo yapar
     if (isHugo) return !!tile.isJoker;
     if (!okeyTile) return false;
     return tile.color === okeyTile.color && tile.value === okeyTile.value;
@@ -94,11 +93,18 @@ export const isOkeyTile = (tile, okeyTile, round) => {
  * @param {Array} tiles - Oyuncunun elindeki taş objeleri
  * @returns {Array<Array>} - Ardışık taş grupları
  */
+export const CELLS_PER_ROW = 15; // ıstakada satır başına hücre (TileHolder ile aynı)
+
 export const getConsecutiveGroups = (tilePositions, tiles) => {
     const groups = [];
     let currentGroup = [];
 
     for (let i = 0; i < tilePositions.length; i++) {
+        // Üst satırın sonu ile alt satırın başı aynı gruba sayılmaz
+        if (i % CELLS_PER_ROW === 0) {
+            if (currentGroup.length >= 3) groups.push([...currentGroup]);
+            currentGroup = [];
+        }
         const tileId = tilePositions[i];
         if (tileId) {
             const tile = tiles.find(t => t.id === tileId);
@@ -226,8 +232,8 @@ const trySequentialDirection = (group, color, direction, isWildcard) => {
 export const validateSet = (group, opts = {}) => {
     if (group.length < 3) return 0;
 
-    const { okeyTile, round } = opts;
-    const isWildcard = (t) => isOkeyTile(t, okeyTile, round);
+    const { okeyTile, isHugo } = opts;
+    const isWildcard = (t) => isOkeyTile(t, okeyTile, isHugo);
 
     const sameNumberScore = validateSameNumberSet(group, isWildcard);
     if (sameNumberScore > 0) return sameNumberScore;
@@ -258,14 +264,14 @@ export const validateSet = (group, opts = {}) => {
  * @param {number} round - Tur numarası
  * @returns {{ setTotal: number, perTotal: number, validSetCount: number }}
  */
-export const calculateHandScore = (tilePositions, tiles, indicatorTile, okeyTile, round) => {
+export const calculateHandScore = (tilePositions, tiles, indicatorTile, okeyTile, isHugo) => {
     if (!tiles || tiles.length === 0) {
         return { setTotal: 0, perTotal: 0, validSetCount: 0 };
     }
 
     const okeyValue = getOkeyValue(indicatorTile);
     const groups = getConsecutiveGroups(tilePositions, tiles);
-    const opts = { okeyTile, round };
+    const opts = { okeyTile, isHugo };
 
     const tilesInSets = new Set();
     let setTotal = 0;
@@ -284,7 +290,7 @@ export const calculateHandScore = (tilePositions, tiles, indicatorTile, okeyTile
     let perTotal = 0;
     for (const tile of tiles) {
         if (!tilesInSets.has(tile.id)) {
-            if (isOkeyTile(tile, okeyTile, round)) {
+            if (isOkeyTile(tile, okeyTile, isHugo)) {
                 perTotal += okeyValue;
             } else if (typeof tile.value === 'number') {
                 perTotal += tile.value;
@@ -294,3 +300,64 @@ export const calculateHandScore = (tilePositions, tiles, indicatorTile, okeyTile
 
     return { setTotal, perTotal, validSetCount };
 }; 
+/**
+ * Istakayı otomatik dizer: per adaylarını yan yana, aralarında bir boşlukla yerleştirir.
+ * mode 'seri': aynı renk ardışık sayılar; mode 'cift': aynı sayı farklı renkler.
+ * Okeyler en sona konur. Grup satıra sığmazsa alt satıra geçer.
+ * @returns {Array} 30 elemanlı pozisyon dizisi
+ */
+export const arrangeTiles = (tiles, mode, okeyTile, isHugo) => {
+    const COLOR_ORDER = ['red', 'yellow', 'blue', 'black'];
+    const colorIdx = (t) => { const i = COLOR_ORDER.indexOf(t.color); return i === -1 ? 9 : i; };
+    const wild = tiles.filter(t => isOkeyTile(t, okeyTile, isHugo) || typeof t.value !== 'number');
+    const plain = tiles.filter(t => !wild.includes(t));
+
+    const byColor = (a, b) => colorIdx(a) - colorIdx(b) || a.value - b.value;
+    const byValue = (a, b) => a.value - b.value || colorIdx(a) - colorIdx(b);
+
+    // Seriler: aynı renk ardışık (çift taşlar ayrı seriye düşer)
+    const takeRuns = (pool) => {
+        const runs = [];
+        for (const t of [...pool].sort(byColor)) {
+            const g = runs.find(r => r[r.length - 1].color === t.color && r[r.length - 1].value + 1 === t.value);
+            if (g) g.push(t); else runs.push([t]);
+        }
+        return runs;
+    };
+    // Aynı sayı perleri: farklı renkler (aynı renkten ikinci taş ayrı gruba düşer)
+    const takeSameNumber = (pool) => {
+        const sets = [];
+        for (const t of [...pool].sort(byValue)) {
+            const g = sets.find(r => r[0].value === t.value && !r.some(x => x.color === t.color) && r.length < 4);
+            if (g) g.push(t); else sets.push([t]);
+        }
+        return sets;
+    };
+
+    // Önce seçilen türde 3+ perleri çıkar, kalanlardan diğer türü dene, artanları sırala
+    const [first, second] = mode === 'cift' ? [takeSameNumber, takeRuns] : [takeRuns, takeSameNumber];
+    const firstGroups = first(plain);
+    const kept = firstGroups.filter(g => g.length >= 3);
+    const rest = firstGroups.filter(g => g.length < 3).flat();
+    const secondGroups = second(rest);
+    kept.push(...secondGroups.filter(g => g.length >= 3));
+    const singles = secondGroups.filter(g => g.length < 3).flat().sort(mode === 'cift' ? byValue : byColor);
+
+    const groups = [...kept];
+    if (singles.length) groups.push(singles);
+    if (wild.length) groups.push(wild);
+
+    const positions = Array(CELLS_PER_ROW * 2).fill(null);
+    let cursor = 0;
+    const leftovers = [];
+    for (const g of groups) {
+        const rowEnd = (Math.floor(cursor / CELLS_PER_ROW) + 1) * CELLS_PER_ROW;
+        if (cursor + g.length > rowEnd) cursor = rowEnd; // satıra sığmıyor → alt satır
+        if (cursor + g.length > positions.length) { leftovers.push(...g); continue; }
+        g.forEach((t, i) => { positions[cursor + i] = t.id; });
+        cursor += g.length + 1; // gruplar arası boşluk
+    }
+    // Sığmayanları kalan boş hücrelere koy (hiçbir taş kaybolmaz)
+    for (const t of leftovers) positions[positions.indexOf(null)] = t.id;
+    return positions;
+};

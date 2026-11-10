@@ -1026,6 +1026,7 @@ export class Game {
             round: this.round,
             turnAction: this.turnAction,
             indicatorTile: this.indicatorTile?.toJSON() || null,
+            okeyTile: this.okeyTile?.toJSON() || null, // gösterge +1; herkesin bildiği bilgi
             lastDiscardPlayerId: this.lastDiscardPlayerId,
             tableSets: this.tableSetsToJSON(),
             isHugoRound: this.isHugoRound(),

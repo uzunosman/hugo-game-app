@@ -4,9 +4,9 @@ import GameBoard from '../GameBoard/GameBoard';
 import Scoreboard from '../Scoreboard/Scoreboard';
 import RoundSummary from '../RoundSummary/RoundSummary';
 import useGameState from '../../hooks/useGameState';
-import useGameSocket from '../../hooks/useGameSocket';
-import { getOrderedPlayers, getPlayerPosition, getPlayerCorner, getCurrentPlayerIndex, calculateHandScore, getConsecutiveGroups, validateSet } from '../../utils/gameUtils';
-import { handleDrawTile, handleDiscardTile, handleTileMove, handleDrawDiscardedTile } from '../../utils/tileHandlers';
+import socketService from '../../services/socketService';
+import { getOrderedPlayers, getPlayerPosition, getPlayerCorner, getCurrentPlayerIndex, calculateHandScore, getConsecutiveGroups, validateSet, arrangeTiles } from '../../utils/gameUtils';
+import { handleDrawTile, handleTileMove, handleDrawDiscardedTile } from '../../utils/tileHandlers';
 import '../../assets/css/components/GameBoard.css';
 
 /**
@@ -16,7 +16,7 @@ import '../../assets/css/components/GameBoard.css';
  * @param {Object} props.room - Oda bilgisi
  * @returns {JSX.Element} - Oyun bileşeni
  */
-function Game({ player, room }) {
+function Game({ player, room, onLeaveRoom }) {
     // Oyun durumu ve taşlarla ilgili state'leri al
     const {
         tiles,
@@ -25,7 +25,6 @@ function Game({ player, room }) {
         setGameState,
         error,
         setError,
-        loading,
         setLoading,
         selectedTile,
         setSelectedTile,
@@ -36,19 +35,23 @@ function Game({ player, room }) {
         setDiscardedTiles,
         lastDiscardPlayerId,
         tableSets,
-        setTableSets,
         playerOpenStates,
         roundEndResults,
         setRoundEndResults
     } = useGameState(player, room);
 
-    // Socket işlevlerini al
-    const socketService = useGameSocket(player, room, setError);
 
     // Sürüklenen taş bilgisi (işleme için activeTile hesaplamada kullanılır)
     const [draggingTile, setDraggingTile] = useState(null);
 
     // Okey taşlarına sağ tıkla - ters çevrilmiş görünsün
+    // Bildirim 3 sn sonra kendiliğinden kaybolur
+    useEffect(() => {
+        if (!error) return;
+        const t = setTimeout(() => setError(''), 3000);
+        return () => clearTimeout(t);
+    }, [error, setError]);
+
     const [flippedTileIds, setFlippedTileIds] = useState(() => new Set());
 
     useEffect(() => {
@@ -143,23 +146,6 @@ function Game({ player, room }) {
         });
     };
 
-    // Taş atma işleyicisi
-    const onDiscardTile = (tileIndex) => {
-        handleDiscardTile({
-            tiles,
-            tileIndex,
-            gameState,
-            playerId: player.id,
-            socketService,
-            setTiles,
-            setGameState,
-            setError,
-            setLoading,
-            setDiscardedTiles,
-            getPlayerCorner: (index) => getPlayerCorner(index),
-            currentPlayerIndex
-        });
-    };
 
     // Taşa çift tıklandığında köşeye at (targetIndex = -1 → sürükle-bırak köşe atma ile aynı mantık)
     const onTileDoubleClick = (positionIndex) => {
@@ -194,7 +180,7 @@ function Game({ player, room }) {
     });
 
     // Mevcut oyuncunun set ve per hesabını yap
-    const handScore = calculateHandScore(tilePositions, tiles, gameState.indicatorTile, gameState.okeyTile, gameState.round);
+    const handScore = calculateHandScore(tilePositions, tiles, gameState.indicatorTile, gameState.okeyTile, gameState.isHugoRound);
 
     // El açma durumu
     const isFirstHandBlock = tiles.length === 15 && gameState.turnAction === 'draw';
@@ -292,7 +278,7 @@ function Game({ player, room }) {
         if (!canDropPer) return;
 
         const groups = getConsecutiveGroups(tilePositions, tiles);
-        const opts = { okeyTile: gameState.okeyTile, round: gameState.round };
+        const opts = { okeyTile: gameState.okeyTile, isHugo: gameState.isHugoRound };
         const validSets = [];
         for (const group of groups) {
             const score = validateSet(group, opts);
@@ -323,7 +309,7 @@ function Game({ player, room }) {
 
         // Geçerli setleri tespit et
         const groups = getConsecutiveGroups(tilePositions, tiles);
-        const opts = { okeyTile: gameState.okeyTile, round: gameState.round };
+        const opts = { okeyTile: gameState.okeyTile, isHugo: gameState.isHugoRound };
         const validSets = [];
         for (const group of groups) {
             const score = validateSet(group, opts);
@@ -355,7 +341,7 @@ function Game({ player, room }) {
 
     return (
         <div className="game-container">
-            {error && <div style={{ color: 'red', textAlign: 'center', padding: '10px', display: 'none' }}>{error}</div>}
+            {error && <div className="game-toast" role="status">{error}</div>}
 
             {/* Oyuncu Panelleri */}
             {players.map((p, index) => {
@@ -430,13 +416,20 @@ function Game({ player, room }) {
                 isMyTurn={isMyTurn}
                 turnAction={gameState.turnAction}
                 playerCorner={myCorner}
-                currentPlayerIndex={currentPlayerIndex}
                 lastDiscardCorner={lastDiscardCorner}
                 deckCount={gameState.deckCount}
                 indicatorTile={gameState.indicatorTile}
                 okeyTile={gameState.okeyTile}
                 gameRound={gameState.round}
                 isHugoRound={gameState.isHugoRound}
+                onArrange={(mode) => {
+                    setTilePositions(arrangeTiles(tiles, mode, gameState.okeyTile, gameState.isHugoRound));
+                    setSelectedTile(null);
+                }}
+                onTapDiscard={() => {
+                    onTileMove(selectedTile, -1);
+                    setSelectedTile(null);
+                }}
                 selectedTile={selectedTile}
                 tableSets={tableSets}
                 orderedPlayers={players}
@@ -459,8 +452,9 @@ function Game({ player, room }) {
             {roundEndResults && (
                 <RoundSummary
                     roundData={roundEndResults}
-                    isLastRound={roundEndResults.round >= 9}
+                    isLastRound={roundEndResults.gameStatus === 'finished'}
                     onClose={() => setRoundEndResults(null)}
+                    onLeave={onLeaveRoom}
                 />
             )}
         </div>

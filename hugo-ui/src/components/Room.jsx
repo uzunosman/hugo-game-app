@@ -6,7 +6,6 @@ function Room({ player, room, onLeaveRoom }) {
     const [currentRoom, setCurrentRoom] = useState(room);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const [isReady, setIsReady] = useState(false);
 
     useEffect(() => {
         // Oyuncu katılma olayını dinle
@@ -68,9 +67,7 @@ function Room({ player, room, onLeaveRoom }) {
         socketService.setReady(currentRoom.id, !isReady, (response) => {
             setLoading(false);
 
-            if (response.success) {
-                setIsReady(!isReady);
-            } else {
+            if (!response.success) {
                 setError(response.error || 'Hazır durumu değiştirilirken bir hata oluştu');
             }
         });
@@ -90,49 +87,66 @@ function Room({ player, room, onLeaveRoom }) {
     };
 
     const isOwner = currentRoom.owner.id === player.id;
+    const isReady = !!currentRoom.players.find(p => p.id === player.id)?.isReady;
     const allPlayersReady = currentRoom.players.length === currentRoom.maxPlayers &&
         currentRoom.players.every(p => p.isReady);
 
     // Eğer oyun başladıysa, Game bileşenini göster
     if (currentRoom.status === 'playing' && currentRoom.game) {
-        return <Game player={player} room={currentRoom} />;
+        return <Game player={player} room={currentRoom} onLeaveRoom={handleLeaveRoom} />;
     }
 
+    const seats = Array.from({ length: currentRoom.maxPlayers }, (_, i) => currentRoom.players[i] || null);
+    const waitingFor = currentRoom.maxPlayers - currentRoom.players.length;
+
     return (
-        <div>
-            <h2>Oda: {currentRoom.name}</h2>
-            {error && <p style={{ color: 'red' }}>{error}</p>}
+        <div className="screen">
+            <div className="panel">
+                <div className="panel-head">
+                    <div className="tile-dots" aria-hidden="true"><span /><span /><span /><span /></div>
+                    <h1 className="panel-title">{currentRoom.name}</h1>
+                    <p className="panel-sub">
+                        {waitingFor > 0
+                            ? `${waitingFor} oyuncu daha bekleniyor.`
+                            : allPlayersReady ? 'Herkes hazır.' : 'Masa dolu, herkesin hazır olması bekleniyor.'}
+                    </p>
+                </div>
 
-            <div>
-                <h3>Oyuncular</h3>
-                <ul>
-                    {currentRoom.players.map((p) => (
-                        <li key={p.id}>
-                            {p.name} {p.id === player.id ? '(Sen)' : ''}
-                            {p.id === currentRoom.owner.id ? ' (Oda Sahibi)' : ''}
-                            {p.isReady ? ' ✓' : ''}
-                        </li>
+                <div className="seat-grid">
+                    {seats.map((p, i) => p ? (
+                        <div key={p.id} className={`seat ${p.id === player.id ? 'me' : ''}`}>
+                            <span className="seat-name">{p.name}{p.id === player.id ? ' (sen)' : ''}</span>
+                            <span className="seat-meta">
+                                {p.id === currentRoom.owner.id && <span>masa sahibi</span>}
+                                {p.isReady ? <span className="seat-ready">hazır</span> : <span>bekliyor</span>}
+                            </span>
+                        </div>
+                    ) : (
+                        <div key={`empty-${i}`} className="seat empty">
+                            <span className="seat-name">Boş koltuk</span>
+                        </div>
                     ))}
-                </ul>
-            </div>
+                </div>
 
-            <div>
-                <button onClick={handleToggleReady} disabled={loading}>
-                    {isReady ? 'Hazır Değil' : 'Hazır'}
-                </button>
+                {error && <p className="form-error" role="alert">{error}</p>}
 
-                {isOwner && (
-                    <button
-                        onClick={handleStartGame}
-                        disabled={loading || !allPlayersReady || currentRoom.players.length !== currentRoom.maxPlayers}
-                    >
-                        Oyunu Başlat
+                <div className="panel-actions">
+                    <button className={`btn ${isReady ? 'btn-ghost' : 'btn-ready'}`} onClick={handleToggleReady} disabled={loading}>
+                        {isReady ? 'Hazır değilim' : 'Hazırım'}
                     </button>
-                )}
-
-                <button onClick={handleLeaveRoom} disabled={loading}>
-                    Odadan Ayrıl
-                </button>
+                    {isOwner && (
+                        <button
+                            className="btn btn-primary"
+                            onClick={handleStartGame}
+                            disabled={loading || !allPlayersReady}
+                        >
+                            Oyunu başlat
+                        </button>
+                    )}
+                    <button className="btn btn-ghost" onClick={handleLeaveRoom} disabled={loading}>
+                        Masadan kalk
+                    </button>
+                </div>
             </div>
         </div>
     );

@@ -22,8 +22,9 @@ const DiscardAreas = ({
     turnAction,
     playerCorner,
     tilesLength,
-    currentPlayerIndex,
-    lastDiscardCorner
+    lastDiscardCorner,
+    hasSelection,
+    onTapDiscard
 }) => {
 
     // Bir köşenin interaktif (pointer-events: all) olup olmayacağını belirle:
@@ -106,6 +107,11 @@ const DiscardAreas = ({
                 onDragOver={(e) => handleDragOver(e, corner)}
                 onDragLeave={handleDragLeave}
                 onDrop={(e) => handleDrop(e, corner)}
+                onClick={() => {
+                    // Dokunmatik: seçili taş varken kendi köşene dokun → at
+                    const isFirstHand = tilesLength === 15 && turnAction === 'draw';
+                    if (corner === playerCorner && hasSelection && isMyTurn && (turnAction === 'discard' || isFirstHand)) onTapDiscard?.();
+                }}
             >
                 {lastTile && (
                     <Tile

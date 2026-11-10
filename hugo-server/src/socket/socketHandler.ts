@@ -89,6 +89,12 @@ export const setupSocketHandlers = (io: Server) => {
             players: game.players.map(p => p.toPublicJSON())
         });
 
+        if (game.status === GameStatus.FINISHED) {
+            // Oyun bitti: masa lobide 'bitti' görünür, oyuncular lobiye dönebilir
+            gameManager.endGame(roomId);
+            io.emit('rooms:list', { success: true, rooms: gameManager.getAllRooms().map(r => r.toJSON()) });
+        }
+
         if (game.status === GameStatus.ROUND_ENDED) {
             setTimeout(() => {
                 game.startNextRound();

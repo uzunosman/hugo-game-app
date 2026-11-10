@@ -20,7 +20,13 @@ class SocketService {
             let connectedBefore = false;
             this.socket.on('connect', () => {
                 if (connectedBefore && this.playerId) {
-                    this.socket.emit('player:reconnect', { playerId: this.playerId }, () => {});
+                    this.socket.emit('player:reconnect', { playerId: this.playerId }, (response) => {
+                        // Sunucu yeniden başladıysa oyuncu artık yok: oturumu temizle, girişe dön
+                        if (!response?.success) {
+                            writeSession(null);
+                            window.location.reload();
+                        }
+                    });
                 }
                 connectedBefore = true;
             });

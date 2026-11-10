@@ -64,87 +64,6 @@ export const handleDrawTile = ({
 };
 
 /**
- * Taş atma işlemi
- * @param {Object} params - Parametreler
- * @param {Array} params.tiles - Oyuncunun taşları
- * @param {Number} params.tileIndex - Atılacak taşın indeksi
- * @param {Object} params.gameState - Oyun durumu
- * @param {String} params.playerId - Oyuncunun ID'si
- * @param {Function} params.socketService - Socket servisi
- * @param {Function} params.setTiles - Taşları güncelleyen fonksiyon
- * @param {Function} params.setGameState - Oyun durumunu güncelleyen fonksiyon
- * @param {Function} params.setError - Hata mesajını güncelleyen fonksiyon
- * @param {Function} params.setLoading - Yükleme durumunu güncelleyen fonksiyon
- * @param {Function} params.setDiscardedTiles - Atılan taşları güncelleyen fonksiyon
- * @param {Function} params.getPlayerCorner - Oyuncunun köşesini belirleyen fonksiyon
- * @param {Number} params.currentPlayerIndex - Mevcut oyuncunun indeksi
- * @returns {void}
- */
-export const handleDiscardTile = ({
-    tiles,
-    tileIndex,
-    gameState,
-    playerId,
-    socketService,
-    setTiles,
-    setGameState,
-    setError,
-    setLoading,
-    setDiscardedTiles,
-    getPlayerCorner,
-    currentPlayerIndex
-}) => {
-    const tileToDiscard = tiles[tileIndex];
-
-    if (!tileToDiscard) {
-        console.error('Lütfen atmak için bir taş seçin');
-        return;
-    }
-
-    // Oyuncunun sırası olup olmadığını kontrol et
-    if (gameState.currentPlayerId !== playerId) {
-        console.error('Şu anda taş atamazsınız, sıranız değil');
-        return;
-    }
-
-    // Taş atma işlemini başlat
-    setLoading(true);
-
-    socketService.discardTile(tileToDiscard.id, (response) => {
-        setLoading(false);
-
-        if (response.success) {
-            // Taşı listeden kaldır
-            setTiles(prevTiles => prevTiles.filter(t => t.id !== tileToDiscard.id));
-
-            // Taşı atılan taşlar listesine ekle
-            if (setDiscardedTiles && getPlayerCorner) {
-                const corner = getPlayerCorner(currentPlayerIndex);
-                if (corner) {
-                    setDiscardedTiles(prevDiscardedTiles => {
-                        const newDiscardedTiles = { ...prevDiscardedTiles };
-                        newDiscardedTiles[corner] = [
-                            ...(newDiscardedTiles[corner] || []),
-                            { ...tileToDiscard, discardedBy: playerId }
-                        ];
-                        return newDiscardedTiles;
-                    });
-                }
-            }
-
-            // Oyun durumunu güncelle
-            setGameState(prevState => ({
-                ...prevState,
-                currentPlayerId: response.nextPlayerId,
-                turnAction: 'draw'
-            }));
-        } else {
-            setError(response.error || 'Taş atılırken bir hata oluştu');
-        }
-    });
-};
-
-/**
  * Taş taşıma işlemi
  * @param {Object} params - Parametreler
  * @param {Number} params.sourceIndex - Kaynak indeks
@@ -172,7 +91,7 @@ export const handleDiscardTile = ({
  * @param {Number} targetIdx - Hedef pozisyon indeksi
  * @returns {Array} Güncellenmiş pozisyon dizisi
  */
-const insertShift = (positions, sourceIdx, targetIdx) => {
+export const insertShift = (positions, sourceIdx, targetIdx) => {
     const newPos = [...positions];
     const tileId = newPos[sourceIdx];
     newPos[sourceIdx] = null;
@@ -189,17 +108,17 @@ const insertShift = (positions, sourceIdx, targetIdx) => {
     const targetRow = targetIdx < 15 ? 0 : 1;
 
     if (sourceRow === targetRow) {
-        // Aynı satır: zincir kaydırma (hareket yönünde tüm ara elemanlar kayar)
+        // Aynı satır: hedefteki taşlar kaynağa doğru yalnızca İLK boşluğa kadar itilir.
+        // (Önceden kaynağa kadar her şey kayıyordu; aradaki boşluklar ve diziler bozuluyordu.)
+        // Kaynak hücre artık boş olduğu için döngü her zaman durur.
         if (targetIdx > sourceIdx) {
-            // Sağa hareket: sourceIdx..targetIdx-1 arası sola kayar
-            for (let i = sourceIdx; i < targetIdx; i++) {
-                newPos[i] = newPos[i + 1];
-            }
+            let gap = targetIdx;
+            while (newPos[gap] !== null) gap--;
+            for (let i = gap; i < targetIdx; i++) newPos[i] = newPos[i + 1];
         } else {
-            // Sola hareket: targetIdx+1..sourceIdx arası sağa kayar
-            for (let i = sourceIdx; i > targetIdx; i--) {
-                newPos[i] = newPos[i - 1];
-            }
+            let gap = targetIdx;
+            while (newPos[gap] !== null) gap++;
+            for (let i = gap; i > targetIdx; i--) newPos[i] = newPos[i - 1];
         }
         newPos[targetIdx] = tileId;
     } else {
@@ -331,6 +250,7 @@ export const handleTileMove = ({
                 console.log('Taş başarıyla atıldı:', tileToDiscard);
             } else {
                 console.error('Taş atılamadı:', response.error || 'Taş atılırken bir hata oluştu');
+                setError(response.error || 'Taş atılırken bir hata oluştu');
 
                 // Hata durumunda taşı orijinal pozisyonuna geri getir
                 // Burada hiçbir şey yapmamıza gerek yok, çünkü taşın pozisyonu değiştirilmedi

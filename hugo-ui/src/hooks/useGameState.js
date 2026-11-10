@@ -15,11 +15,16 @@ const useGameState = (player, room) => {
     const [selectedTile, setSelectedTile] = useState(null);
     const [timeLeft, setTimeLeft] = useState(60);
     const [tilePositions, setTilePositions] = useState(Array(30).fill(null));
-    const [discardedTiles, setDiscardedTiles] = useState({
-        topLeft: [],
-        topRight: [],
-        bottomRight: [],
-        bottomLeft: []
+    // Sayfa yenilenip oyuna dönülünce son atılan taş, atanın köşesinde yeniden gösterilir
+    // shortcut: yalnızca son taş geri kurulur (köşeler zaten sadece son taşı gösterir); tam geçmiş gerekirse sunucu köşe başına yığın göndermeli
+    const [discardedTiles, setDiscardedTiles] = useState(() => {
+        const empty = { topLeft: [], topRight: [], bottomRight: [], bottomLeft: [] };
+        const pile = room.game?.discardPile || [];
+        const by = room.game?.lastDiscardPlayerId;
+        if (!pile.length || !by) return empty;
+        const rel = (room.players.findIndex(p => p.id === by) - room.players.findIndex(p => p.id === player.id) + 4) % 4;
+        const corner = ['bottomRight', 'topRight', 'topLeft', 'bottomLeft'][rel];
+        return { ...empty, [corner]: [{ ...pile[pile.length - 1], discardedBy: by }] };
     });
     // En son taş atan oyuncunun ID'si (hangi köşeden çekilebileceğini belirlemek için)
     const [lastDiscardPlayerId, setLastDiscardPlayerId] = useState(room.game?.lastDiscardPlayerId || null);
@@ -148,6 +153,7 @@ const useGameState = (player, room) => {
                 setPlayerOpenStates(prev => ({
                     ...prev,
                     [response.playerId]: {
+                        ...prev[response.playerId], // ceza, puan geçmişi ve bağlantı bilgisi korunur
                         isOpen: response.isOpen,
                         openedTotal: response.openedTotal,
                         lastOpenedValue: response.lastOpenedValue
@@ -297,6 +303,8 @@ const useGameState = (player, room) => {
             socketService.offPenalty();
             socketService.offAutoPlayed();
         };
+        // Dinleyiciler oyuncu başına bir kez kurulur; room.players oyun boyunca değişmez
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [player.id]);
 
     // Oyuncunun ID'sine göre köşeyi belirle

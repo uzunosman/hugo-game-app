@@ -32,26 +32,34 @@ function Login({ onLogin }) {
     };
 
     return (
-        <div>
-            <h2>Hugo Oyunu - Giriş</h2>
-            {error && <p style={{ color: 'red' }}>{error}</p>}
-
-            <form onSubmit={handleSubmit}>
-                <div>
-                    <label htmlFor="name">İsminiz:</label>
-                    <input
-                        type="text"
-                        id="name"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        disabled={loading}
-                    />
+        <div className="screen">
+            <div className="panel">
+                <div className="panel-head">
+                    <div className="tile-dots" aria-hidden="true"><span /><span /><span /><span /></div>
+                    <h1 className="panel-title">Hugo</h1>
+                    <p className="panel-sub">4 kişilik masa, 9 el. En az puanla bitiren kazanır.</p>
                 </div>
 
-                <button type="submit" disabled={loading}>
-                    {loading ? 'Giriş Yapılıyor...' : 'Giriş Yap'}
-                </button>
-            </form>
+                <form className="field" onSubmit={handleSubmit}>
+                    <label className="section-label" htmlFor="name">Masadaki adın</label>
+                    <div className="form-row">
+                        <input
+                            type="text"
+                            id="name"
+                            value={name}
+                            maxLength={20}
+                            autoFocus
+                            autoComplete="nickname"
+                            onChange={(e) => setName(e.target.value)}
+                            disabled={loading}
+                        />
+                        <button className="btn btn-primary" type="submit" disabled={loading}>
+                            {loading ? 'Giriliyor…' : 'Masaya otur'}
+                        </button>
+                    </div>
+                    {error && <p className="form-error" role="alert">{error}</p>}
+                </form>
+            </div>
         </div>
     );
 }

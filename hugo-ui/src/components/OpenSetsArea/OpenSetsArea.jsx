@@ -71,11 +71,11 @@ function getEdgeValues(tiles, isOkey = (t) => t.isJoker) {
 /**
  * Aktif taş ve set bilgisine göre geçerli ekleme pozisyonlarını hesapla.
  */
-function calculateValidPositions(set, activeTile, okeyTile, round) {
+function calculateValidPositions(set, activeTile, okeyTile, isHugo) {
     if (!activeTile) return [];
     const positions = [];
     const tiles = set.tiles;
-    const isOkey = (t) => isOkeyTile(t, okeyTile, round);
+    const isOkey = (t) => isOkeyTile(t, okeyTile, isHugo);
 
     if (isSequentialSet(tiles, isOkey)) {
         const color = getSetColor(tiles, isOkey);
@@ -146,7 +146,7 @@ function calculateValidPositions(set, activeTile, okeyTile, round) {
 
 // ── Bileşen ──────────────────────────────────────────────
 
-const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTileToSet, okeyTile, round }) => {
+const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTileToSet, okeyTile, isHugo }) => {
     const [hoveredSetId, setHoveredSetId] = useState(null);
 
     const positionMap = { 0: 'bottom', 1: 'right', 2: 'top', 3: 'left' };
@@ -215,12 +215,10 @@ const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTil
                             {playerSets.map((set) => {
                                 const isExpanded = hoveredSetId === set.id;
                                 const validPositions = isExpanded
-                                    ? calculateValidPositions(set, activeTile, okeyTile, round)
+                                    ? calculateValidPositions(set, activeTile, okeyTile, isHugo)
                                     : [];
                                 const hasStartSlot = validPositions.some(p => p.position === 'start');
                                 const hasEndSlot = validPositions.some(p => p.position === 'end');
-                                const startSlot = validPositions.find(p => p.position === 'start');
-                                const endSlot = validPositions.find(p => p.position === 'end');
 
                                 return (
                                     <div
@@ -247,7 +245,7 @@ const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTil
 
                                         {/* Mevcut taşlar */}
                                         {set.tiles.map((tile) => {
-                                            const tileIsOkey = isOkeyTile(tile, okeyTile, round);
+                                            const tileIsOkey = isOkeyTile(tile, okeyTile, isHugo);
                                             return (
                                                 <div
                                                     key={tile.id}

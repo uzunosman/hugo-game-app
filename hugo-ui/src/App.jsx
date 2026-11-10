@@ -4,6 +4,7 @@ import Lobby from './components/Lobby'
 import Room from './components/Room'
 import socketService from './services/socketService'
 import './assets/css/global.css';
+import './assets/css/components/Screens.css';
 
 function App() {
   const [player, setPlayer] = useState(null)

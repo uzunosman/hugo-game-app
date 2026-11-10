@@ -3,7 +3,7 @@ import Tile from '../Tile/Tile';
 import { isOkeyTile } from '../../utils/gameUtils';
 import '../../assets/css/components/TileHolder.css';
 
-const TileHolder = ({ tiles, tilePositions, onTileClick, onTileMove, onTileDoubleClick, onDrawDiscardedTile, onDrawFromDeck, selectedTileIndex, onTileDragStart, onTileDragEnd, okeyTile, round, flippedTileIds, onOkeyFlip }) => {
+const TileHolder = ({ tiles, tilePositions, onTileClick, onTileMove, onTileDoubleClick, onDrawDiscardedTile, onDrawFromDeck, selectedTileIndex, onTileDragStart, onTileDragEnd, okeyTile, isHugo, flippedTileIds, onOkeyFlip, onArrange }) => {
     const firstRowRef = useRef(null);
     const secondRowRef = useRef(null);
 
@@ -157,11 +157,10 @@ const TileHolder = ({ tiles, tilePositions, onTileClick, onTileMove, onTileDoubl
                         value={tile.value}
                         color={tile.color}
                         isSelected={isSelected}
-                        isOkey={isOkeyTile(tile, okeyTile, round)}
                         isFlipped={flippedTileIds?.has(tileId)}
                         onClick={() => onTileClick(index)}
                         onDoubleClick={() => onTileDoubleClick && onTileDoubleClick(index)}
-                        onContextMenu={onOkeyFlip && isOkeyTile(tile, okeyTile, round) ? (e) => { e.preventDefault(); onOkeyFlip(tileId); } : undefined}
+                        onContextMenu={onOkeyFlip && isOkeyTile(tile, okeyTile, isHugo) ? (e) => { e.preventDefault(); onOkeyFlip(tileId); } : undefined}
                         onDragStartCallback={() => onTileDragStart?.(index)}
                         onDragEndCallback={() => onTileDragEnd?.()}
                     />
@@ -176,6 +175,12 @@ const TileHolder = ({ tiles, tilePositions, onTileClick, onTileMove, onTileDoubl
 
     return (
         <div className="tile-holder-container">
+            {onArrange && (
+                <div className="rack-tools">
+                    <button type="button" className="rack-tool-btn" onClick={() => onArrange('seri')}>Seri diz</button>
+                    <button type="button" className="rack-tool-btn" onClick={() => onArrange('cift')}>Çift diz</button>
+                </div>
+            )}
             <div className="tile-holder">
                 <div
                     ref={firstRowRef}

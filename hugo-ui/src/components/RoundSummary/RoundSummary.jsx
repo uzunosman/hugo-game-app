@@ -1,23 +1,27 @@
 import React from 'react';
 import '../../assets/css/components/RoundSummary.css';
 
-const RoundSummary = ({ roundData, isLastRound, onClose }) => {
+const RoundSummary = ({ roundData, isLastRound, onClose, onLeave }) => {
     if (!roundData) return null;
 
     const { results, round, isHugoRound } = roundData;
     if (!results || results.length === 0) return null;
 
     const sorted = [...results].sort((a, b) => a.totalScore - b.totalScore);
+    // Oyun sonu: en düşük toplam kazanır (beraberlikte hepsi)
+    const winners = sorted.filter(r => r.totalScore === sorted[0].totalScore);
 
     return (
         <div className="round-summary-overlay">
             <div className="round-summary-modal">
                 <div className="round-summary-header">
                     <span className="round-summary-title">
-                        Tur {round} Sonu
+                        {isLastRound ? 'Oyun Bitti' : `Tur ${round} Sonu`}
                         {isHugoRound && <span className="hugo-tag">HUGO ×2</span>}
                     </span>
-                    <button className="round-summary-close" onClick={onClose}>&times;</button>
+                    {!isLastRound && (
+                        <button className="round-summary-close" onClick={onClose} aria-label="Kapat">&times;</button>
+                    )}
                 </div>
 
                 <div className="round-summary-cards">
@@ -95,7 +99,14 @@ const RoundSummary = ({ roundData, isLastRound, onClose }) => {
 
                 <div className="round-summary-footer">
                     {isLastRound ? (
-                        <span className="game-over-text">Oyun Bitti!</span>
+                        <>
+                            <span className="game-over-text">
+                                Kazanan: {winners.map(w => w.playerName).join(', ')} · {winners[0].totalScore} puan
+                            </span>
+                            {onLeave && (
+                                <button className="round-summary-continue-btn" onClick={onLeave}>Lobiye dön</button>
+                            )}
+                        </>
                     ) : (
                         <button className="round-summary-continue-btn" onClick={onClose}>Devam Et</button>
                     )}

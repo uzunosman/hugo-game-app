@@ -1,0 +1,148 @@
+/* Giriş, lobi ve oda ekranları: masa keçesi zeminde ıstaka renginde tek panel */
+:root {
+    --screen-panel: #fffaf0;
+    --screen-ink: #15333b;
+    --screen-muted: #5d7479;
+    --screen-line: #e3dccb;
+    --screen-accent: #0b6e7f;
+    --screen-accent-ink: #ffffff;
+    --screen-danger: #b42318;
+    --tile-red: #d62828;
+    --tile-yellow: #e0a100;
+    --tile-blue: #1f7fc4;
+    --tile-black: #1b1b1b;
+}
+
+.screen {
+    width: 100%;
+    min-height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-block: 24px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+.screen-note { color: #fff; font-size: 1rem; }
+
+.panel {
+    width: min(460px, 100%);
+    background: var(--screen-panel);
+    color: var(--screen-ink);
+    border-radius: 14px;
+    box-shadow: 0 12px 32px rgba(0, 45, 55, 0.35);
+    padding: 28px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.panel-head { display: flex; flex-direction: column; gap: 6px; }
+.panel-title { font-size: 1.6rem; font-weight: 800; letter-spacing: 0.01em; line-height: 1.15; }
+.panel-sub { color: var(--screen-muted); font-size: 0.95rem; }
+
+/* Okey taşlarının dört rengi: başlık imzası */
+.tile-dots { display: flex; gap: 6px; }
+.tile-dots span { width: 10px; height: 10px; border-radius: 50%; }
+.tile-dots span:nth-child(1) { background: var(--tile-red); }
+.tile-dots span:nth-child(2) { background: var(--tile-yellow); }
+.tile-dots span:nth-child(3) { background: var(--tile-blue); }
+.tile-dots span:nth-child(4) { background: var(--tile-black); }
+
+.section-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--screen-muted);
+}
+
+.form-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.form-row input { flex: 1 1 180px; min-width: 0; }
+
+.field { display: flex; flex-direction: column; gap: 6px; }
+
+.panel input[type="text"] {
+    font: inherit;
+    color: var(--screen-ink);
+    background: #fff;
+    border: 1px solid var(--screen-line);
+    border-radius: 8px;
+    padding: 10px 12px;
+}
+
+.panel input[type="text"]:focus-visible,
+.btn:focus-visible { outline: 3px solid rgba(11, 110, 127, 0.35); outline-offset: 2px; }
+
+.btn {
+    font: inherit;
+    font-weight: 700;
+    border-radius: 8px;
+    padding: 10px 16px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: transform 0.08s ease, background 0.15s ease;
+}
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-primary { background: var(--screen-accent); color: var(--screen-accent-ink); }
+.btn-primary:hover:not(:disabled) { background: #095c6b; }
+.btn-ghost { background: transparent; color: var(--screen-ink); border-color: var(--screen-line); }
+.btn-ghost:hover:not(:disabled) { background: #f3ecdd; }
+.btn-ready { background: #2f7d32; color: #fff; }
+
+.panel-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.panel-actions .btn { flex: 1 1 auto; }
+
+.form-error { color: var(--screen-danger); font-size: 0.9rem; }
+
+.room-list { list-style: none; display: flex; flex-direction: column; border-top: 1px solid var(--screen-line); }
+.room-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--screen-line);
+}
+.room-name { flex: 1; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.room-count { font-variant-numeric: tabular-nums; color: var(--screen-muted); font-size: 0.9rem; }
+.empty-note { color: var(--screen-muted); font-size: 0.95rem; }
+
+/* Oda: masanın dört koltuğu */
+.seat-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.seat {
+    border: 1px solid var(--screen-line);
+    border-radius: 10px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    background: #fff;
+}
+.seat.empty { background: transparent; border-style: dashed; color: var(--screen-muted); }
+.seat.me { border-color: var(--screen-accent); box-shadow: inset 0 0 0 1px var(--screen-accent); }
+.seat-name { font-weight: 700; overflow-wrap: anywhere; }
+.seat-meta { font-size: 0.8rem; color: var(--screen-muted); display: flex; gap: 8px; flex-wrap: wrap; }
+.seat-ready { color: #2f7d32; font-weight: 700; }
+
+/* Oyun içi bildirim */
+.game-toast {
+    position: fixed;
+    left: 50%;
+    top: calc(56px + env(safe-area-inset-top, 0px));
+    transform: translateX(-50%);
+    max-width: calc(100% - 32px);
+    background: #1f2a2e;
+    color: #fff;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .btn { transition: none; }
+}

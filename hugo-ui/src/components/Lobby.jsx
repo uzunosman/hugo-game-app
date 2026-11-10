@@ -66,53 +66,60 @@ function Lobby({ player, onJoinRoom }) {
     };
 
     return (
-        <div>
-            <h2>Hugo Oyunu - Lobi</h2>
-            <p>Hoş geldin, {player.name}!</p>
+        <div className="screen">
+            <div className="panel">
+                <div className="panel-head">
+                    <div className="tile-dots" aria-hidden="true"><span /><span /><span /><span /></div>
+                    <h1 className="panel-title">Lobi</h1>
+                    <p className="panel-sub">Hoş geldin, {player.name}. Bir masaya katıl ya da yenisini aç.</p>
+                </div>
 
-            {error && <p style={{ color: 'red' }}>{error}</p>}
-
-            <div>
-                <h3>Yeni Oda Oluştur</h3>
-                <form onSubmit={handleCreateRoom}>
-                    <div>
-                        <label htmlFor="roomName">Oda Adı:</label>
+                <form className="field" onSubmit={handleCreateRoom}>
+                    <label className="section-label" htmlFor="roomName">Yeni masa</label>
+                    <div className="form-row">
                         <input
                             type="text"
                             id="roomName"
                             value={newRoomName}
+                            maxLength={30}
+                            placeholder="Örn. Cuma akşamı"
                             onChange={(e) => setNewRoomName(e.target.value)}
                             disabled={loading}
                         />
+                        <button className="btn btn-primary" type="submit" disabled={loading}>
+                            {loading ? 'Açılıyor…' : 'Masa aç'}
+                        </button>
                     </div>
-
-                    <button type="submit" disabled={loading}>
-                        {loading ? 'Oluşturuluyor...' : 'Oda Oluştur'}
-                    </button>
                 </form>
-            </div>
 
-            <div>
-                <h3>Mevcut Odalar</h3>
-                {rooms.length === 0 ? (
-                    <p>Henüz oda bulunmuyor.</p>
-                ) : (
-                    <ul>
-                        {rooms.map((room) => (
-                            <li key={room.id}>
-                                {room.name} ({room.players.length}/{room.maxPlayers})
-                                {room.status === 'waiting' && (
-                                    <button
-                                        onClick={() => handleJoinRoom(room.id)}
-                                        disabled={loading || room.players.length >= room.maxPlayers}
-                                    >
-                                        Katıl
-                                    </button>
-                                )}
-                            </li>
-                        ))}
-                    </ul>
-                )}
+                {error && <p className="form-error" role="alert">{error}</p>}
+
+                <div className="field">
+                    <span className="section-label">Açık masalar</span>
+                    {rooms.length === 0 ? (
+                        <p className="empty-note">Henüz açık masa yok. İlk masayı sen aç.</p>
+                    ) : (
+                        <ul className="room-list">
+                            {rooms.map((room) => (
+                                <li className="room-item" key={room.id}>
+                                    <span className="room-name">{room.name}</span>
+                                    <span className="room-count">{room.players.length}/{room.maxPlayers}</span>
+                                    {room.status === 'waiting' ? (
+                                        <button
+                                            className="btn btn-ghost"
+                                            onClick={() => handleJoinRoom(room.id)}
+                                            disabled={loading || room.players.length >= room.maxPlayers}
+                                        >
+                                            {room.players.length >= room.maxPlayers ? 'Dolu' : 'Otur'}
+                                        </button>
+                                    ) : (
+                                        <span className="room-count">{room.status === 'finished' ? 'bitti' : 'oyunda'}</span>
+                                    )}
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
             </div>
         </div>
     );

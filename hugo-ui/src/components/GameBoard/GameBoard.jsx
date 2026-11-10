@@ -29,13 +29,14 @@ const GameBoard = ({
     isMyTurn,
     turnAction,
     playerCorner,
-    currentPlayerIndex,
     lastDiscardCorner,
     deckCount,
     indicatorTile,
     okeyTile,
     gameRound,
     isHugoRound,
+    onArrange,
+    onTapDiscard,
     selectedTile,
     tableSets,
     orderedPlayers,
@@ -347,8 +348,9 @@ const GameBoard = ({
                     turnAction={turnAction}
                     playerCorner={playerCorner}
                     tilesLength={tiles.length}
-                    currentPlayerIndex={currentPlayerIndex}
                     lastDiscardCorner={lastDiscardCorner}
+                    hasSelection={selectedTile !== null && selectedTile !== undefined}
+                    onTapDiscard={onTapDiscard}
                 />
 
                 {/* Masadaki Açık Setler */}
@@ -359,7 +361,7 @@ const GameBoard = ({
                     activeTile={activeTile}
                     onAddTileToSet={onAddTileToSet}
                     okeyTile={okeyTile}
-                    round={gameRound}
+                    isHugo={isHugoRound}
                 />
 
                 {/* Merkez Alan */}
@@ -385,9 +387,10 @@ const GameBoard = ({
                     onTileDragStart={onTileDragStart}
                     onTileDragEnd={onTileDragEnd}
                     okeyTile={okeyTile}
-                    round={gameRound}
+                    isHugo={isHugoRound}
                     flippedTileIds={flippedTileIds || new Set()}
                     onOkeyFlip={onOkeyFlip}
+                    onArrange={onArrange}
                 />
             </div>
         </div>

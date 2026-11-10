@@ -77,3 +77,18 @@
 .tile-row:hover {
     background-color: rgba(255, 255, 255, 0.05);
 }
+/* Otomatik dizme butonları: ıstakanın üst kenarında */
+.rack-tools { display: flex; gap: 6px; justify-content: flex-end; margin-bottom: 4px; }
+.rack-tool-btn {
+    font: 600 0.75rem/1 var(--font-family);
+    color: #fff;
+    background: rgba(0, 0, 0, 0.28);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 6px;
+    padding: 6px 10px;
+    cursor: pointer;
+}
+.rack-tool-btn:hover { background: rgba(0, 0, 0, 0.42); }
+.rack-tool-btn:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+/* Istaka genişliğinde, sağa yaslı: ortadaki oyuncu panelinin üstüne binmez */
+.rack-tools { width: calc(var(--tile-w, 40px) * 15 + 24px); max-width: 100%; }

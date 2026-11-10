@@ -74,13 +74,32 @@ Bu repo, Hugo taş oyununun çok oyunculu bir versiyonunu içerir. Proje, bir No
 
 ## Oyun Nasıl Oynanır
 
-1. İstemci uygulamasını açın ve bir kullanıcı adı ile giriş yapın.
-2. Lobi ekranında yeni bir oda oluşturun veya mevcut bir odaya katılın.
-3. Odada "Hazır" butonuna tıklayarak hazır olduğunuzu belirtin.
-4. Oda sahibi, tüm oyuncular hazır olduğunda "Oyunu Başlat" butonuna tıklayabilir.
-5. Oyun başladığında, sıranız geldiğinde desteden veya atılan taşlardan bir taş çekebilirsiniz.
-6. Elinizden bir taş seçip "Seçili Taşı At" butonuna tıklayarak taş atabilirsiniz.
-7. Oyun, bir oyuncu Hugo yapana kadar devam eder.
+1. İsminle masaya otur, lobide bir masa aç ya da açık bir masaya katıl.
+2. Odada "Hazırım"a bas; 4 kişi hazır olunca masa sahibi "Oyunu başlat"a basar.
+3. Sıran gelince desteden ya da solundaki oyuncunun attığı taştan çek, sonra bir taşı kendi köşene at
+   (sürükle-bırak, çift tıklama ya da dokunmatikte: taşa dokun, sonra köşene dokun).
+4. "Seri diz" / "Çift diz" ıstakayı otomatik dizer; per toplamı "El Aç" butonunda görünür.
+5. 9 el sonunda en düşük toplam puan kazanır.
+
+Kurallar `document.txt` içindedir. Önemli olanlar: yandan alınan taş o turda kullanılmalıdır
+(kullanılmazsa yalnızca o taş 100 cezayla geri atılabilir), işlenebilir taş atmak taş × 10 ceza,
+yetersiz değerle açma denemesi 100 ceza. Sıra süresi 60 sn; süre dolunca sunucu taş çekip en küçük
+taşı atar. Bağlantısı kopan oyuncunun koltuğu tutulur, sayfa yenilenince aynı koltuğa dönülür.
+
+## Test
+
+```
+cd hugo-server
+npm test           # tur akışı ve kural motoru öz-testleri
+npm run test:e2e   # sunucuyu 3099'da başlatır, 4 bot 9 eli oynar (süre aşımı ve yeniden bağlanma dahil)
+
+cd hugo-ui
+npm test           # ıstaka mantığı (satır ayrımı, kaydırma, otomatik dizme)
+```
+
+Ortam değişkenleri (sunucu): `TEST_MODE=true` eli başlatana hazır bir açılış eli verir,
+`TURN_TIMEOUT_MS` sıra süresi, `DISCONNECTED_TURN_MS` kopuk oyuncunun sırası.
+İstemci: `VITE_SOCKET_URL` sunucu adresi (varsayılan `http://localhost:3001`).
 
 ## Geliştirme
 
