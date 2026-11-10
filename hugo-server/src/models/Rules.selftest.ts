@@ -121,4 +121,36 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     assert.strictEqual(game.isHugoRound(), true);
 }
 
-console.log('Rules.selftest: el açma, set doğrulama, sıra, işleme, yandan alma, işlek taş, otomatik atış ve Hugo kuralları ✓');
+// Normal elde sahte okey (joker) okeyin değeriyle oynanır, joker gibi davranmaz; gerçek okey jokerdir
+{
+    const normal = () => {
+        const g = setup();
+        g.game.round = 2;
+        g.game.indicatorTile = t(RED, 5);
+        g.game.okeyTile = t(RED, 6); // okey: kırmızı 6
+        return g;
+    };
+    const joker = () => new Tile(TileColor.PURPLE, 'H', true);
+    const thirteens = () => [t(BLUE, 13), t(BLACK, 13), t(YELLOW, 13)];
+
+    // kırmızı 4-5 + sahte okey (= kırmızı 6) geçerli seri: 15 + 39 = 54
+    const a = normal();
+    const h1 = give(a.p0, [t(RED, 4), t(RED, 5), joker(), ...thirteens()]);
+    const r1 = a.game.openHand(a.p0.id, [ids(h1.slice(0, 3)), ids(h1.slice(3))]);
+    assert.strictEqual(r1.success, true, r1.error);
+    assert.strictEqual(r1.openedTotal, 54);
+
+    // mavi 3-4 + sahte okey geçersiz: sahte okey mavi 5 olamaz
+    const b = normal();
+    const h2 = give(b.p0, [t(BLUE, 3), t(BLUE, 4), joker(), ...thirteens()]);
+    assert.strictEqual(b.game.openHand(b.p0.id, [ids(h2.slice(0, 3)), ids(h2.slice(3))]).success, false);
+
+    // mavi 3-4 + gerçek okey (kırmızı 6) geçerli: okey mavi 5 yerine geçer → 12 + 39 = 51
+    const c = normal();
+    const h3 = give(c.p0, [t(BLUE, 3), t(BLUE, 4), t(RED, 6), ...thirteens()]);
+    const r3 = c.game.openHand(c.p0.id, [ids(h3.slice(0, 3)), ids(h3.slice(3))]);
+    assert.strictEqual(r3.success, true, r3.error);
+    assert.strictEqual(r3.openedTotal, 51);
+}
+
+console.log('Rules.selftest: el açma, set doğrulama, sıra, işleme, yandan alma, işlek taş, otomatik atış, Hugo ve sahte okey kuralları ✓');

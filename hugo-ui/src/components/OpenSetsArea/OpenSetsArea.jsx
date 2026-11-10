@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { isOkeyTile } from '../../utils/gameUtils';
+import { isOkeyTile, asPlayedTile } from '../../utils/gameUtils';
 import '../../assets/css/components/OpenSetsArea.css';
 
 /**
@@ -71,10 +71,12 @@ function getEdgeValues(tiles, isOkey = (t) => t.isJoker) {
 /**
  * Aktif taş ve set bilgisine göre geçerli ekleme pozisyonlarını hesapla.
  */
-function calculateValidPositions(set, activeTile, okeyTile, isHugo) {
-    if (!activeTile) return [];
+function calculateValidPositions(set, rawActiveTile, okeyTile, isHugo) {
+    if (!rawActiveTile) return [];
     const positions = [];
-    const tiles = set.tiles;
+    // Sahte okeyler okeyin değeriyle hesaba girer
+    const tiles = set.tiles.map(t => asPlayedTile(t, okeyTile, isHugo));
+    const activeTile = asPlayedTile(rawActiveTile, okeyTile, isHugo);
     const isOkey = (t) => isOkeyTile(t, okeyTile, isHugo);
 
     if (isSequentialSet(tiles, isOkey)) {

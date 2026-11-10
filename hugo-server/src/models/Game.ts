@@ -29,6 +29,9 @@ export interface RoundResult {
     totalScore: number;         // bu el dahil toplam puan
 }
 
+// Sahte okeyin oynandığı hâli (doğrulamada kullanılan geçici kopya)
+type SahteTile = Tile & { sahte?: boolean };
+
 export interface Penalty {
     playerId: string;
     amount: number;
@@ -312,11 +315,12 @@ export class Game {
 
     // Taş masadaki bir perin başına ya da sonuna eklenebiliyorsa ceza = değer × 10
     islekPenalty(tile: Tile): number {
-        if (tile.isJoker || this.isOkeyTile(tile) || typeof tile.value !== 'number') return 0;
+        const played = this.asPlayed(tile); // sahte okey, okeyin değeriyle işlenebilir
+        if (this.isOkeyTile(played) || typeof played.value !== 'number') return 0;
         const fits = this.tableSets.some(set =>
             this.validateSetTiles([tile, ...set.tiles]) > 0 || this.validateSetTiles([...set.tiles, tile]) > 0
         );
-        return fits ? tile.value * 10 : 0;
+        return fits ? played.value * 10 : 0;
     }
 
     nextTurn(): void {
@@ -507,8 +511,8 @@ export class Game {
 
         // 1. Okey swap denemesi — sette joker/okey varsa yerine gerçek taşı koy
         // Bu turda okey işlemiş oyuncu tekrar okey alamaz
-        const okeyIndex = targetSet.tiles.findIndex(t => t.isJoker || this.isOkeyTile(t));
-        if (okeyIndex !== -1 && !this.okeyPlayedThisTurn && !tile.isJoker && !this.isOkeyTile(tile)) {
+        const okeyIndex = targetSet.tiles.findIndex(t => this.isOkeyTile(t));
+        if (okeyIndex !== -1 && !this.okeyPlayedThisTurn && !this.isOkeyTile(tile)) {
             // Erkek per (aynı sayı seti): okey swap ancak set 4 taşla doluyken
             // Sıralı per: tek taş ile swap mümkün
             const isSameNumber = this.isSameNumberSet(targetSet.tiles);
@@ -574,7 +578,7 @@ export class Game {
         targetSet.value = newValue;
 
         // Okey (joker veya okey taşı) işlendiyse bu turda geri alınamaz
-        if (tile.isJoker || this.isOkeyTile(tile)) {
+        if (this.isOkeyTile(tile)) {
             this.okeyPlayedThisTurn = true;
         }
 
@@ -583,10 +587,11 @@ export class Game {
         let penalty: { targetPlayerId: string; amount: number } | undefined;
         if (setOwner && setOwner.id !== playerId) {
             let effectiveValue: number;
-            if (tile.isJoker || this.isOkeyTile(tile)) {
+            if (this.isOkeyTile(tile)) {
                 effectiveValue = this.calculateEffectiveValue(targetSet.tiles, tile, position);
             } else {
-                effectiveValue = typeof tile.value === 'number' ? tile.value : 0;
+                const played = this.asPlayed(tile); // sahte okey, okeyin değeri kadar ceza yazar
+                effectiveValue = typeof played.value === 'number' ? played.value : 0;
             }
             const penaltyAmount = effectiveValue * 10;
             setOwner.addPenalty(penaltyAmount);
@@ -713,7 +718,7 @@ export class Game {
     // ── Server-side Set Doğrulama ────────────────────────
 
     private isSameNumberSet(tiles: Tile[]): boolean {
-        const normalTiles = tiles.filter(t => !t.isJoker);
+        const normalTiles = tiles.map(t => this.asPlayed(t)).filter(t => !this.isOkeyTile(t));
         if (normalTiles.length === 0) return false;
         const value = normalTiles[0].value;
         return normalTiles.every(t => t.value === value);
@@ -721,12 +726,20 @@ export class Game {
 
     private isOkeyTile(tile: Tile): boolean {
         if (this.isHugoRound()) return tile.isJoker;
-        if (!this.okeyTile) return false;
+        // Normal elde joker sahte okeydir: okeyin değerini taşır ama joker gibi davranmaz
+        if (tile.isJoker || (tile as SahteTile).sahte || !this.okeyTile) return false;
         return tile.color === this.okeyTile.color && tile.value === this.okeyTile.value;
     }
 
-    private validateSetTiles(tiles: Tile[]): number {
-        if (tiles.length < 3) return 0;
+    // Normal elde sahte okey (joker), okey taşının rengi ve sayısıyla sıradan taş gibi oynanır
+    private asPlayed(tile: Tile): Tile {
+        if (this.isHugoRound() || !tile.isJoker || !this.okeyTile) return tile;
+        return { ...tile, color: this.okeyTile.color, value: this.okeyTile.value, isJoker: false, sahte: true } as SahteTile;
+    }
+
+    private validateSetTiles(rawTiles: Tile[]): number {
+        if (rawTiles.length < 3) return 0;
+        const tiles = rawTiles.map(t => this.asPlayed(t));
 
         const sameNumberScore = this.validateSameNumberSetTiles(tiles);
         if (sameNumberScore > 0) return sameNumberScore;

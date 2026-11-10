@@ -1,6 +1,6 @@
 // Istaka mantığı öz-testi: `npm test` ile çalışır (saf fonksiyonlar, tarayıcı gerekmez).
 import assert from 'node:assert';
-import { getConsecutiveGroups, arrangeTiles, calculateHandScore, CELLS_PER_ROW } from './gameUtils.js';
+import { getConsecutiveGroups, arrangeTiles, calculateHandScore, validateSet, CELLS_PER_ROW } from './gameUtils.js';
 import { insertShift } from './tileHandlers.js';
 
 let n = 0;
@@ -58,4 +58,15 @@ const row = (cells) => [...cells, ...Array(CELLS_PER_ROW * 2 - cells.length).fil
     assert.strictEqual(new Set(pos.filter(Boolean)).size, 15);
 }
 
-console.log('rack.selftest: satır ayrımı, kaydırma ve otomatik dizme ✓');
+// Normal elde sahte okey okeyin değeriyle oynanır; gerçek okey jokerdir (sunucu kuralıyla aynı)
+{
+    const opts = { okeyTile: { color: 'red', value: 6 }, isHugo: false };
+    const joker = () => tile('purple', 'H', { isJoker: true });
+    assert.strictEqual(validateSet([tile('red', 4), tile('red', 5), joker()], opts), 15, 'sahte okey = kırmızı 6');
+    assert.strictEqual(validateSet([tile('blue', 3), tile('blue', 4), joker()], opts), 0, 'sahte okey mavi 5 olamaz');
+    assert.strictEqual(validateSet([tile('blue', 3), tile('blue', 4), tile('red', 6)], opts), 12, 'gerçek okey mavi 5 yerine');
+    // Hugo elinde joker gerçek okeydir
+    assert.strictEqual(validateSet([tile('blue', 3), tile('blue', 4), joker()], { isHugo: true }), 12);
+}
+
+console.log('rack.selftest: satır ayrımı, kaydırma, otomatik dizme ve sahte okey ✓');

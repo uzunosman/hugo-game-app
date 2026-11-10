@@ -81,7 +81,8 @@ export const isOkeyTile = (tile, okeyTile, isHugo) => {
     if (!tile) return false;
     // isHugo sunucudan gelir (gameState.isHugoRound): sahte okey göstergesi de Hugo yapar
     if (isHugo) return !!tile.isJoker;
-    if (!okeyTile) return false;
+    // Normal elde joker sahte okeydir: okeyin değerini taşır ama joker gibi davranmaz
+    if (tile.isJoker || tile.sahte || !okeyTile) return false;
     return tile.color === okeyTile.color && tile.value === okeyTile.value;
 };
 
@@ -229,10 +230,20 @@ const trySequentialDirection = (group, color, direction, isWildcard) => {
  * @param {Object} opts - { okeyTile, round } Hugo dışında okey taşı wildcard
  * @returns {number} - Geçerliyse set toplam değeri, değilse 0
  */
-export const validateSet = (group, opts = {}) => {
-    if (group.length < 3) return 0;
+/**
+ * Normal elde sahte okey (joker), okey taşının rengi ve sayısıyla sıradan bir taş gibi oynanır.
+ * Hugo elinde ve okey bilinmiyorsa taş olduğu gibi döner.
+ */
+export const asPlayedTile = (tile, okeyTile, isHugo) =>
+    (!isHugo && tile?.isJoker && okeyTile)
+        ? { ...tile, color: okeyTile.color, value: okeyTile.value, isJoker: false, sahte: true }
+        : tile;
+
+export const validateSet = (rawGroup, opts = {}) => {
+    if (rawGroup.length < 3) return 0;
 
     const { okeyTile, isHugo } = opts;
+    const group = rawGroup.map(t => asPlayedTile(t, okeyTile, isHugo));
     const isWildcard = (t) => isOkeyTile(t, okeyTile, isHugo);
 
     const sameNumberScore = validateSameNumberSet(group, isWildcard);
@@ -292,8 +303,9 @@ export const calculateHandScore = (tilePositions, tiles, indicatorTile, okeyTile
         if (!tilesInSets.has(tile.id)) {
             if (isOkeyTile(tile, okeyTile, isHugo)) {
                 perTotal += okeyValue;
-            } else if (typeof tile.value === 'number') {
-                perTotal += tile.value;
+            } else {
+                const played = asPlayedTile(tile, okeyTile, isHugo);
+                if (typeof played.value === 'number') perTotal += played.value;
             }
         }
     }
@@ -309,8 +321,10 @@ export const calculateHandScore = (tilePositions, tiles, indicatorTile, okeyTile
 export const arrangeTiles = (tiles, mode, okeyTile, isHugo) => {
     const COLOR_ORDER = ['red', 'yellow', 'blue', 'black'];
     const colorIdx = (t) => { const i = COLOR_ORDER.indexOf(t.color); return i === -1 ? 9 : i; };
-    const wild = tiles.filter(t => isOkeyTile(t, okeyTile, isHugo) || typeof t.value !== 'number');
-    const plain = tiles.filter(t => !wild.includes(t));
+    // Sahte okeyler okeyin değeriyle dizilir; pozisyonlar id ile tutulduğu için kopya sorun değil
+    const played = tiles.map(t => asPlayedTile(t, okeyTile, isHugo));
+    const wild = played.filter(t => isOkeyTile(t, okeyTile, isHugo) || typeof t.value !== 'number');
+    const plain = played.filter(t => !wild.includes(t));
 
     const byColor = (a, b) => colorIdx(a) - colorIdx(b) || a.value - b.value;
     const byValue = (a, b) => a.value - b.value || colorIdx(a) - colorIdx(b);
