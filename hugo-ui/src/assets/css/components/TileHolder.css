@@ -92,3 +92,9 @@
 .rack-tool-btn:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
 /* Istaka genişliğinde, sağa yaslı: ortadaki oyuncu panelinin üstüne binmez */
 .rack-tools { width: calc(var(--tile-w, 40px) * 15 + 24px); max-width: 100%; }
+
+/* Dar ekran: butonlar küçülür, ortadaki oyuncu paneline binmez */
+@media (max-width: 640px) {
+    .rack-tools { gap: 4px; }
+    .rack-tool-btn { font-size: 0.65rem; padding: 4px 7px; }
+}
