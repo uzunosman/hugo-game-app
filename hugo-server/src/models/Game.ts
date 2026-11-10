@@ -44,6 +44,7 @@ export class Game {
     deck: Tile[];
     discardPile: Tile[];
     currentPlayerIndex: number;
+    firstPlayerIndex: number;
     status: GameStatus;
     round: number;
     turnAction: TurnAction;
@@ -64,6 +65,7 @@ export class Game {
         this.deck = [];
         this.discardPile = [];
         this.currentPlayerIndex = 0;
+        this.firstPlayerIndex = 0;
         this.status = GameStatus.WAITING;
         this.round = 1;
         this.turnAction = TurnAction.DRAW;
@@ -175,9 +177,9 @@ export class Game {
     }
 
     private dealTiles(): void {
-        // İlk oyuncuya 15 taş, diğerlerine 14 taş dağıt
+        // Eli başlatan oyuncuya 15 taş, diğerlerine 14 taş dağıt
         this.players.forEach((player, index) => {
-            const tileCount = index === 0 ? 15 : 14;
+            const tileCount = index === this.currentPlayerIndex ? 15 : 14;
 
             for (let i = 0; i < tileCount; i++) {
                 if (this.deck.length > 0) {
@@ -297,7 +299,8 @@ export class Game {
     }
 
     isPlayerTurn(playerId: string): boolean {
-        return this.players[this.currentPlayerIndex].id === playerId;
+        // Tur arası (ROUND_ENDED) ve oyun sonunda kimse hamle yapamaz
+        return this.status === GameStatus.STARTED && this.players[this.currentPlayerIndex].id === playerId;
     }
 
     getPlayerById(playerId: string): Player | undefined {
@@ -887,31 +890,10 @@ export class Game {
         this.tableSets = [];
         this.discardPile = [];
 
-        // Advance to next round (capped at 9 for 9-round game)
-        if (this.round < 9) {
-            this.round += 1;
-            this.initializeRound();
-        } else {
-            this.status = GameStatus.FINISHED;
-        }
+        // Tur numarası burada artmaz; yeni eli yalnızca startNextRound() başlatır
+        this.status = this.round >= 9 ? GameStatus.FINISHED : GameStatus.ROUND_ENDED;
 
         return results;
-    }
-
-    private initializeRound(): void {
-        // Re-create and shuffle a fresh deck
-        this.deck = [];
-        this.createTiles();
-        this.shuffleDeck();
-        this.indicatorTile = null;
-        this.okeyTile = null;
-        this.determineIndicatorTile();
-        this.dealTiles();
-        this.setFirstPlayer();
-        this.status = GameStatus.STARTED;
-        this.turnAction = TurnAction.DRAW;
-        this.okeyPlayedThisTurn = false;
-        this.lastActionTime = new Date();
     }
 
     startNextRound(): void {
@@ -934,14 +916,17 @@ export class Game {
         this.finisherPlayerId = null;
         this.lastDiscardPlayerId = null;
 
+        // Eli başlatan, bir önceki eli başlatanın bir sonrakidir.
+        // dealTiles() 15 taşı currentPlayerIndex'e verdiği için dağıtımdan önce belirlenir.
+        this.firstPlayerIndex = (this.firstPlayerIndex + 1) % this.players.length;
+        this.currentPlayerIndex = this.firstPlayerIndex;
+
         // Yeni tur için oyunu yeniden başlat
+        this.okeyTile = null;
         this.createTiles();
         this.shuffleDeck();
         this.determineIndicatorTile();
         this.dealTiles();
-
-        // İlk oyuncuyu ayarla (bir önceki turun ilk oyuncusunun bir sonraki)
-        this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
         this.players[this.currentPlayerIndex].setTurn(true);
         this.turnAction = TurnAction.DRAW;
         this.status = GameStatus.STARTED;

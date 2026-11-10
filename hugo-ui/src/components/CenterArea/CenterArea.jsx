@@ -38,8 +38,8 @@ const CenterArea = ({ remainingTiles = [], openTile = null, onDrawTile, gameRoun
         setTimeout(() => document.body.removeChild(ghost), 0);
     };
 
-    // Hugo eli kontrolü (1, 4, 9. eller)
-    const isHugoRound = [1, 4, 9].includes(gameRound);
+    // Hugo eli kontrolü (1, 5, 9. eller — sunucudaki config.game.hugoRounds ile aynı)
+    const isHugoRound = [1, 5, 9].includes(gameRound);
 
     return (
         <div className="center-area">

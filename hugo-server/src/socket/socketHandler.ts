@@ -1,10 +1,30 @@
 import { Server, Socket } from 'socket.io';
 import { GameManager } from '../utils/GameManager';
 import { config } from '../config/config';
-import { RoundResult } from '../models/Game';
+import { Game, GameStatus } from '../models/Game';
 
 export const setupSocketHandlers = (io: Server) => {
     const gameManager = GameManager.getInstance();
+
+    // Tek tur sonu yolu: puanla, bildir, 4 sn sonra yeni eli başlat (son elde başlatma)
+    const finishRound = (roomId: string, game: Game, finisherPlayerId?: string) => {
+        const results = game.endRound(finisherPlayerId);
+        io.to(roomId).emit('game:roundEnded', {
+            results,
+            round: game.round,
+            isHugoRound: game.isHugoRound(),
+            finisherPlayerId: finisherPlayerId ?? null,
+            finishedWithJoker: results[0]?.finishedWithJoker ?? false,
+            gameStatus: game.status
+        });
+
+        if (game.status === GameStatus.ROUND_ENDED) {
+            setTimeout(() => {
+                game.startNextRound();
+                io.to(roomId).emit('game:roundStarted', { game: game.toPublicJSON() });
+            }, 4000);
+        }
+    };
 
     io.on('connection', (socket: Socket) => {
         console.log(`Yeni bağlantı: ${socket.id}`);
@@ -419,24 +439,8 @@ export const setupSocketHandlers = (io: Server) => {
 
                 if (!drawnTile) {
                     // Deste bitti mi kontrol et
-                    if (room.game.deck.length === 0 && !fromDiscard && room.game.checkRoundEnd()) {
-                        const results = room.game.endRound();
-                        io.to(player.roomId).emit('game:roundEnded', {
-                            results,
-                            round: room.game.round,
-                            isHugoRound: room.game.isHugoRound()
-                        });
-
-                        if (room.game.round < 9) {
-                            setTimeout(() => {
-                                if (!room.game) return;
-                                room.game.startNextRound();
-                                io.to(player.roomId!).emit('game:roundStarted', {
-                                    game: room.game.toPublicJSON()
-                                });
-                            }, 4000);
-                        }
-
+                    if (room.game.deck.length === 0 && !fromDiscard && room.game.isPlayerTurn(playerId) && room.game.checkRoundEnd()) {
+                        finishRound(player.roomId, room.game);
                         return callback({ success: false, error: 'Deste bitti', roundEnded: true });
                     }
 
@@ -511,24 +515,9 @@ export const setupSocketHandlers = (io: Server) => {
                 // Tur sonu kontrolü: oyuncunun eli bitti mi?
                 const atan = gameManager.getPlayerById(playerId);
                 if (atan && atan.tiles.length === 0 && room.game.checkRoundEnd(playerId)) {
-                    const results = room.game.endRound();
-                    io.to(player.roomId).emit('game:roundEnded', {
-                        results,
-                        round: room.game.round,
-                        isHugoRound: room.game.isHugoRound()
-                    });
-
-                    // 4 saniye sonra yeni tur başlat
-                    if (room.game.round < 9) {
-                        setTimeout(() => {
-                            if (!room.game) return;
-                            room.game.startNextRound();
-                            io.to(player.roomId!).emit('game:roundStarted', {
-                                game: room.game.toPublicJSON()
-                            });
-                        }, 4000);
-                    }
-
+                    // Son atılan taş jokerse joker ×2 çarpanı uygulanır
+                    room.game.finishedWithJoker = discardedTile.isJoker === true;
+                    finishRound(player.roomId, room.game, playerId);
                     callback({ success: true, roundEnded: true });
                     return;
                 }
@@ -723,93 +712,6 @@ export const setupSocketHandlers = (io: Server) => {
                     success: false,
                     error: 'Per indirilirken bir hata oluştu'
                 });
-            }
-        });
-
-        // Tur Bitirme — Oyuncu son taşını atarak turu bitirir
-        socket.on('game:finishRound', (data: { playerId: string; tileId: string }, callback) => {
-            try {
-                const { playerId, tileId } = data;
-
-                const player = gameManager.getPlayerById(playerId);
-                if (!player || !player.roomId) {
-                    return callback({ success: false, error: 'Oyuncu bulunamadı veya bir odada değil' });
-                }
-
-                const room = gameManager.getRoomById(player.roomId);
-                if (!room || !room.game) {
-                    return callback({ success: false, error: 'Oda veya oyun bulunamadı' });
-                }
-
-                const game = room.game;
-
-                // Verify it is this player's turn and they can discard
-                if (!game.isPlayerTurn(playerId)) {
-                    return callback({ success: false, error: 'Sıra bu oyuncuda değil' });
-                }
-
-                // Find the tile in player's hand to check isJoker before discarding
-                const finishTile = player.tiles.find(t => t.id === tileId);
-                if (!finishTile) {
-                    return callback({ success: false, error: 'Taş oyuncunun elinde bulunamadı' });
-                }
-
-                // Set joker finish flag BEFORE calling endRound
-                game.finishedWithJoker = finishTile.isJoker === true;
-
-                // Calculate round results
-                const results: RoundResult[] = game.endRound(playerId);
-
-                // Completed round number: endRound() increments round when advancing to next
-                const completedRound = game.status === 'finished' ? game.round : game.round - 1;
-
-                // Broadcast round end to all players in the room
-                io.to(player.roomId).emit('game:roundEnd', {
-                    success: true,
-                    round: completedRound,
-                    finisherPlayerId: playerId,
-                    finishedWithJoker: results[0]?.finishedWithJoker ?? false,
-                    results: results.map((r: RoundResult) => ({
-                        playerId: r.playerId,
-                        playerName: r.playerName,
-                        isFinisher: r.isFinisher,
-                        handScore: r.handScore,
-                        effectiveHandScore: r.effectiveHandScore,
-                        penaltyScore: r.penaltyScore,
-                        rawTotal: r.rawTotal,
-                        roundTotal: r.roundTotal,
-                        multiplier: r.multiplier,
-                        isHugoRound: r.isHugoRound,
-                        finishedWithJoker: r.finishedWithJoker,
-                        stars: r.stars,
-                    })),
-                    gameStatus: game.status,
-                });
-
-                // Notify all players of the new game state (new round tiles)
-                if (game.status !== 'finished') {
-                    room.players.forEach(p => {
-                        io.to(p.socketId).emit('game:tiles', {
-                            success: true,
-                            tiles: p.tiles.map(tile => tile.toJSON()),
-                            round: game.round,
-                            isHugoRound: game.isHugoRound(),
-                        });
-                    });
-
-                    // Broadcast new game state to room
-                    io.to(player.roomId).emit('game:newRound', {
-                        success: true,
-                        round: game.round,
-                        isHugoRound: game.isHugoRound(),
-                        currentPlayerId: room.players.find(p => p.isTurn)?.id || null,
-                    });
-                }
-
-                callback({ success: true, results });
-            } catch (error) {
-                console.error('Tur bitirme hatası:', error);
-                callback({ success: false, error: 'Tur bitirilirken bir hata oluştu' });
             }
         });
 
