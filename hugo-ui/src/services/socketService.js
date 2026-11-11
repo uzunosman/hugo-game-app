@@ -16,16 +16,32 @@ class SocketService {
     connect() {
         if (!this.socket) {
             this.socket = io(SOCKET_URL);
-            // Bağlantı kopup geri gelince (ağ kesintisi ya da sunucu yeniden başladı) sayfayı yenile:
-            // kopukken kaçan olaylar telafi edilir; açılışta kayıtlı oturumla aynı koltuğa dönülür,
-            // oyuncu sunucuda yoksa giriş ekranı açılır
+            // Bağlantı kopup geri gelince (ağ kesintisi ya da sunucu yeniden başladı) sayfa yenilenmez:
+            // aynı oyuncu olarak yeniden tanıtılır, ekran sunucudaki güncel durumla yeniden kurulur
+            // (kopukken kaçan olaylar böyle telafi edilir); oyuncu sunucuda yoksa girişe dönülür
             let connectedBefore = false;
             this.socket.on('connect', () => {
-                if (connectedBefore && this.playerId) window.location.reload();
+                if (connectedBefore && this.playerId) {
+                    this.socket.emit('player:reconnect', { playerId: this.playerId }, (response) => {
+                        if (response?.success) {
+                            this.activeRoomId = response.room?.id || null;
+                        } else {
+                            writeSession(null);
+                            this.playerId = null;
+                            this.activeRoomId = null;
+                        }
+                        this.resyncHandler?.(response || { success: false });
+                    });
+                }
                 connectedBefore = true;
             });
         }
         return this.socket;
+    }
+
+    // Yeniden bağlanınca App ekranı tazeler
+    onResync(callback) {
+        this.resyncHandler = callback;
     }
 
     savedPlayerId() {
