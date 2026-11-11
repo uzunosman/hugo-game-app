@@ -8,6 +8,9 @@ import { saveState } from '../utils/Persistence';
 import { planOpening, planSets } from '../ai/AiPlanner';
 
 const BOT_NAMES = ['Robo Rıza', 'Robo Nur', 'Robo Can', 'Robo Ece'];
+const CHAT_MAX_LEN = 200;
+const CHAT_HISTORY = 50;
+const CHAT_MIN_GAP_MS = 700; // soket başına mesaj aralığı: sel engeli
 
 export const setupSocketHandlers = (io: Server) => {
     const gameManager = GameManager.getInstance();
@@ -22,6 +25,9 @@ export const setupSocketHandlers = (io: Server) => {
             try { saveState(gameManager); } catch (error) { console.error('Durum kaydedilemedi:', error); }
         }, 300);
     };
+
+    // shortcut: sohbet geçmişi bellekte, sunucu yeniden başlayınca silinir; kalıcı olmalıysa Persistence'a eklenmeli
+    const chatLogs = new Map<string, { id: string; playerId: string; name: string; text: string; ts: number }[]>();
 
     // Sıra süresi sunucuda tutulur: süre dolunca taş otomatik çekilip en küçük taş atılır
     const scheduleTurn = (roomId: string, game: Game, overrideMs?: number) => {
@@ -64,9 +70,11 @@ export const setupSocketHandlers = (io: Server) => {
 
     // Anlık ceza: masadaki herkesin ceza rozetini güncellemesi için
     const emitPenalty = (roomId: string, game: Game, p: Penalty) => {
+        const playerName = game.getPlayerById(p.playerId)?.name ?? '';
+        (game.roundPenalties ||= []).push({ ...p, playerName });
         io.to(roomId).emit('game:penalty', {
             ...p,
-            playerName: game.getPlayerById(p.playerId)?.name ?? '',
+            playerName,
             penaltyScore: game.getPlayerById(p.playerId)?.penaltyScore ?? 0
         });
     };
@@ -185,8 +193,10 @@ export const setupSocketHandlers = (io: Server) => {
         clearTimeout(turnTimers.get(roomId));
         turnTimers.delete(roomId);
         const results = game.endRound(finisherPlayerId);
+        const history = game.recordRoundHistory(results);
         io.to(roomId).emit('game:roundEnded', {
             results,
+            history,
             round: game.round,
             isHugoRound: game.isHugoRound(),
             finisherPlayerId: finisherPlayerId ?? null,
@@ -196,30 +206,41 @@ export const setupSocketHandlers = (io: Server) => {
             players: game.players.map(p => p.toPublicJSON())
         });
 
-        if (game.status === GameStatus.FINISHED) {
-            // Oyun bitti: masa lobide 'bitti' görünür, oyuncular lobiye dönebilir
-            gameManager.endGame(roomId);
-            io.emit('rooms:list', { success: true, rooms: gameManager.getAllRooms().map(r => r.toJSON()) });
-        }
-
         persist();
         if (game.status === GameStatus.ROUND_ENDED) startNextRoundLater(roomId, game);
+        if (game.status === GameStatus.FINISHED) resetRoomLater(roomId, game);
     };
 
-    // Tur sonu ekranı için 4 sn bekleyip yeni eli başlat
+    // Oyun sonu: tabela 5 sn görünür, sonra masa oda ekranına döner; puanlar sıfırlanır.
+    // Yeni oyun için insan oyuncular yeniden hazır olur (yapay zekâ hazırdır), masa sahibi başlatır.
+    const resetRoomLater = (roomId: string, game: Game) => {
+        setTimeout(() => {
+            const room = gameManager.getRoomById(roomId);
+            if (!room || room.game !== game) return;
+            room.players.forEach(p => p.resetForNewGame());
+            room.resetGame();
+            room.players.forEach(p => p.setReady(!!p.isBot));
+            io.to(roomId).emit('room:reset', { success: true, room: room.toJSON() });
+            io.emit('rooms:list', { success: true, rooms: gameManager.getAllRooms().map(r => r.toJSON()) });
+            persist();
+        }, config.game.roundBreakMs);
+    };
+
+    // El sonu tabelası 5 sn görünür, sonra yeni el başlar
     const startNextRoundLater = (roomId: string, game: Game) => {
         setTimeout(() => {
             if (game.status !== GameStatus.ROUND_ENDED) return;
             game.startNextRound();
             io.to(roomId).emit('game:roundStarted', { game: game.toPublicJSON() });
             scheduleTurn(roomId, game);
-        }, 4000);
+        }, config.game.roundBreakMs);
     };
 
     // Diskten geri yüklenen oyunlar kaldığı yerden sürer; oyuncular dönebilsin diye ilk sırada tam süre
     gameManager.getAllRooms().forEach(room => {
         if (room.game?.status === GameStatus.STARTED) scheduleTurn(room.id, room.game, config.game.turnTimeout);
         if (room.game?.status === GameStatus.ROUND_ENDED) startNextRoundLater(room.id, room.game);
+        if (room.game?.status === GameStatus.FINISHED && room.status === RoomStatus.PLAYING) resetRoomLater(room.id, room.game);
     });
 
     io.on('connection', (socket: Socket) => {
@@ -232,6 +253,37 @@ export const setupSocketHandlers = (io: Server) => {
             return !!p && !p.isBot && p.socketId === socket.id;
         };
         const notYours = { success: false, error: 'Bu oyuncu adına işlem yapamazsın' };
+
+        // Masa sohbeti: yalnızca o masadaki oyuncular yazar ve okur; son 50 mesaj bellekte tutulur
+        let lastChatAt = 0;
+        socket.on('chat:send', (data: { playerId: string; text: string }, callback) => {
+            try {
+                if (!owns(data?.playerId)) return callback?.(notYours);
+                const player = gameManager.getPlayerById(data.playerId)!;
+                const room = player.roomId ? gameManager.getRoomById(player.roomId) : undefined;
+                if (!room) return callback?.({ success: false, error: 'Bir masada değilsin' });
+                const text = String(data.text ?? '').replace(/\s+/g, ' ').trim().slice(0, CHAT_MAX_LEN);
+                if (!text) return callback?.({ success: false, error: 'Boş mesaj gönderilemez' });
+                const now = Date.now();
+                if (now - lastChatAt < CHAT_MIN_GAP_MS) return callback?.({ success: false, error: 'Biraz yavaş: mesajlar arasında kısa bir ara olmalı' });
+                lastChatAt = now;
+                const message = { id: `${now}-${Math.random().toString(36).slice(2, 7)}`, playerId: player.id, name: player.name, text, ts: now };
+                const list = chatLogs.get(room.id) || [];
+                list.push(message);
+                chatLogs.set(room.id, list.slice(-CHAT_HISTORY));
+                io.to(room.id).emit('chat:message', message);
+                callback?.({ success: true });
+            } catch (error) {
+                console.error('Sohbet hatası:', error);
+                callback?.({ success: false, error: 'Mesaj gönderilemedi' });
+            }
+        });
+
+        socket.on('chat:history', (data: { playerId: string }, callback) => {
+            if (!owns(data?.playerId)) return callback?.(notYours);
+            const roomId = gameManager.getPlayerById(data.playerId)?.roomId;
+            callback?.({ success: true, messages: roomId ? chatLogs.get(roomId) || [] : [] });
+        });
 
         // Yapay zekâ oyuncu ekle / çıkar: yalnızca oda sahibi, oyun başlamadan
         socket.on('room:addBot', (data: { roomId: string; playerId: string }, callback) => {
@@ -593,6 +645,10 @@ export const setupSocketHandlers = (io: Server) => {
                         success: false,
                         error: 'Oda bulunamadı'
                     });
+                }
+
+                if (!room.areAllPlayersReady()) {
+                    return callback({ success: false, error: 'Herkes hazır olmadan oyun başlamaz' });
                 }
 
                 // Oyunu başlat

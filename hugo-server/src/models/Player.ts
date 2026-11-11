@@ -110,6 +110,13 @@ export class Player {
         this.openedAtTurn = -1;
     }
 
+    // Aynı masada yeni oyun: puan tabelası da sıfırlanır
+    resetForNewGame(): void {
+        this.resetForNewRound();
+        this.roundScores = [];
+        this.per100PlusCount = 0;
+    }
+
     getTotalScore(): number {
         return this.roundScores.reduce((sum, s) => sum + s, 0);
     }

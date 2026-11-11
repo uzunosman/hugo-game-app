@@ -4,6 +4,7 @@ import GameBoard from '../GameBoard/GameBoard';
 import Scoreboard from '../Scoreboard/Scoreboard';
 import RoundSummary from '../RoundSummary/RoundSummary';
 import PenaltyLog from '../PenaltyLog/PenaltyLog';
+import Chat from '../Chat/Chat';
 import useGameState from '../../hooks/useGameState';
 import socketService from '../../services/socketService';
 import { getOrderedPlayers, getPlayerPosition, getPlayerCorner, getCurrentPlayerIndex, calculateHandScore, calculatePairScore, findPairPartner, getConsecutiveGroups, validateSet, arrangeTiles } from '../../utils/gameUtils';
@@ -18,7 +19,7 @@ import '../../assets/css/layout.css';
  * @param {Object} props.room - Oda bilgisi
  * @returns {JSX.Element} - Oyun bileşeni
  */
-function Game({ player, room, onLeaveRoom }) {
+function Game({ player, room, onGameFinished }) {
     // Oyun durumu ve taşlarla ilgili state'leri al
     const {
         tiles,
@@ -40,8 +41,15 @@ function Game({ player, room, onLeaveRoom }) {
         playerOpenStates,
         roundEndResults,
         setRoundEndResults,
-        penaltyLog
+        penaltyLog,
+        roundHistory
     } = useGameState(player, room);
+
+    // Oyun sonu tabelası masa (Room) düzeyinde gösterilir: aynı masada yeni oyun başlasa da açık kalır
+    const isGameOver = roundEndResults?.gameStatus === 'finished';
+    useEffect(() => {
+        if (isGameOver) onGameFinished?.(roundEndResults);
+    }, [isGameOver, roundEndResults, onGameFinished]);
 
     // Yandan alınan taş ve alındığı köşe: kullanılmadıkça o köşede "Kustu" görünür
     const [takenInfo, setTakenInfo] = useState(null);
@@ -536,6 +544,7 @@ function Game({ player, room, onLeaveRoom }) {
             />
 
             <PenaltyLog entries={penaltyLog} />
+            <Chat playerId={player.id} />
 
             {/* Sağ üst: el bilgisi ve tabela */}
             <div className="top-right-tools">
@@ -546,16 +555,16 @@ function Game({ player, room, onLeaveRoom }) {
                 <Scoreboard
                     players={players}
                     playerOpenStates={playerOpenStates}
+                    roundHistory={roundHistory}
                 />
             </div>
 
             {/* Tur Sonu Ekranı */}
-            {roundEndResults && (
+            {roundEndResults && !isGameOver && (
                 <RoundSummary
                     roundData={roundEndResults}
-                    isLastRound={roundEndResults.gameStatus === 'finished'}
+                    isLastRound={false}
                     onClose={() => setRoundEndResults(null)}
-                    onLeave={onLeaveRoom}
                 />
             )}
         </div>

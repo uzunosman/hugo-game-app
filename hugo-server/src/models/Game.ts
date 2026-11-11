@@ -43,6 +43,13 @@ export interface Penalty {
     tile?: string;    // kısa taş bilgisi, örn. "kırmızı 7"
 }
 
+export interface RoundHistoryEntry {
+    round: number;
+    isHugoRound: boolean;
+    results: RoundResult[];
+    penalties: (Penalty & { playerName: string })[];
+}
+
 // Sıra içi geri alma: masaya ilk oynamadan önceki durum (yalnızca id'ler, kalıcılığa uygun)
 export interface TurnSnapshot {
     playerId: string;
@@ -98,6 +105,8 @@ export class Game {
     finishedWithJoker: boolean;
     takenDiscardTileId: string | null; // yandan alınan, bu turda kullanılması gereken taş
     takenPenalty: Penalty | null;      // yandan alınınca atana yazılan ceza (kusulursa geri alınır)
+    roundPenalties: (Penalty & { playerName: string })[]; // bu elde yazılan cezalar (tabela geçmişi için)
+    roundHistory: RoundHistoryEntry[]; // biten ellerin sonuçları ve cezaları
     returnedTileId: string | null;     // bu sırada kusulan taş: aynı sırada tekrar alınamaz
     lockedDiscardTileId: string | null; // işlek atılan taş: sıradaki oyuncu alamaz
     playedToTableThisTurn: boolean;    // bu sırada el açıldı / per indirildi / işlendi: kusmak yasak
@@ -126,6 +135,8 @@ export class Game {
         this.finishedWithJoker = false;
         this.takenDiscardTileId = null;
         this.takenPenalty = null;
+        this.roundPenalties = [];
+        this.roundHistory = [];
         this.returnedTileId = null;
         this.lockedDiscardTileId = null;
         this.playedToTableThisTurn = false;
@@ -1208,6 +1219,14 @@ export class Game {
         return results;
     }
 
+    // El sonu kaydı: sonuçlar ve o elde yazılan cezalar tabela geçmişine eklenir
+    recordRoundHistory(results: RoundResult[]): RoundHistoryEntry {
+        const entry = { round: this.round, isHugoRound: this.isHugoRound(), results, penalties: [...(this.roundPenalties || [])] };
+        this.roundHistory = [...(this.roundHistory || []), entry];
+        this.roundPenalties = [];
+        return entry;
+    }
+
     startNextRound(): void {
         if (this.round >= 9) {
             this.status = GameStatus.FINISHED;
@@ -1282,6 +1301,7 @@ export class Game {
         return {
             id: this.id,
             players: this.players.map(player => player.toPublicJSON()),
+            roundHistory: this.roundHistory || [],
             deckCount: this.deck.length,
             discardPile: this.discardPile.map(tile => tile.toJSON()),
             currentPlayerIndex: this.currentPlayerIndex,

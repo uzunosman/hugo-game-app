@@ -5,22 +5,23 @@
    ├──── kendi bandı: aksiyon butonları · kendi kartın · dizme butonları ──────────┤
    └──────────────────────────────── ıstaka ───────────────────────────────────────┘ */
 :root {
-    --rack-h: calc(var(--tile-h, 60px) * 2 + 46px);
-    --top-band: 56px;
-    --side-band: 84px;
-    --self-band: 54px;
-    --set-tile-w: 28px;
-    --set-tile-h: 40px;
-    --set-tile-font: 16px;
+    --rack-h: calc(var(--tile-h, 60px) * 2 + 34px);
+    --top-band: 46px;
+    --side-band: 72px;
+    --self-band: 46px;
+    /* Masadaki her taş (açılan perler, atılan taşlar, deste, gösterge) aynı ölçüde */
+    --set-tile-w: 34px;
+    --set-tile-h: 48px;
+    --set-tile-font: 20px;
 }
 @media (max-width: 640px) {
     :root {
-        --top-band: 40px;
-        --side-band: 54px;
-        --self-band: 80px; /* dar ekranda butonlar kartın üstüne ikinci satıra iner */
-        --set-tile-w: 20px;
-        --set-tile-h: 29px;
-        --set-tile-font: 12px;
+        --top-band: 34px;
+        --side-band: 50px;
+        --self-band: 66px; /* dar ekranda butonlar kartın üstüne ikinci satıra iner */
+        --set-tile-w: 22px;
+        --set-tile-h: 31px;
+        --set-tile-font: 13px;
     }
 }
 
@@ -44,36 +45,36 @@
 .tile-holder-container { padding: 0 0 6px; }
 .tile-holder-container .rack-tools {
     position: fixed;
-    bottom: calc(var(--rack-h) + 12px);
-    left: calc(50% + 120px);
+    bottom: calc(var(--rack-h) + 8px);
+    left: calc(50% + 110px);
     width: auto;
     margin: 0;
 }
 
 /* ── Kendi bandı: [aksiyonlar] [kendi kartın] [dizme] ── */
 .player-panel.current-player {
-    bottom: calc(var(--rack-h) + 8px);
+    bottom: calc(var(--rack-h) + 3px);
     max-width: 240px;
 }
 .action-buttons {
-    bottom: calc(var(--rack-h) + 12px);
+    bottom: calc(var(--rack-h) + 6px);
     left: auto;
-    right: calc(50% + 120px);
+    right: calc(50% + 110px);
     transform: none;
 }
 
 /* ── Üst bant ── */
 /* Yan oyuncular ekranın değil masanın dikey ortasında */
-.player-panel.top { top: 6px; }
+.player-panel.top { top: 3px; }
 .player-panel.left,
 .player-panel.right { top: calc(var(--top-band) + (100vh - var(--top-band) - var(--rack-h) - var(--self-band)) / 2); }
-.player-panel.left { left: 10px; }
-.player-panel.right { right: 10px; }
+.player-panel.left { left: 4px; }
+.player-panel.right { right: 4px; }
 
 .top-right-tools {
     position: fixed;
-    top: 12px;
-    right: 12px;
+    top: 4px;
+    right: 4px;
     z-index: 100;
     display: flex;
     align-items: center;
@@ -84,7 +85,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    height: 40px;
+    height: 38px;
     padding: 0 12px;
     border-radius: 10px;
     background: rgba(0, 0, 0, 0.35);
@@ -155,7 +156,7 @@
         right: auto;
         left: 50%;
         transform: translateX(-50%);
-        bottom: calc(var(--rack-h) + 44px);
+        bottom: calc(var(--rack-h) + 36px);
     }
     .player-panel.current-player { max-width: 52vw; }
     .tile-holder-container .rack-tools {
@@ -166,11 +167,11 @@
         gap: 4px;
     }
     .round-chip { height: 32px; font-size: 12px; padding: 0 8px; }
-    .top-right-tools { top: 6px; right: 6px; gap: 4px; }
+    .top-right-tools { top: 2px; right: 2px; gap: 4px; }
     .top-right-tools .scoreboard-toggle { width: 32px; height: 32px; }
-    .player-panel.left { left: 4px; }
-    .player-panel.right { right: 4px; }
-    .player-panel.top { top: 3px; }
+    .player-panel.left { left: 2px; }
+    .player-panel.right { right: 2px; }
+    .player-panel.top { top: 2px; }
 }
 
 /* ── Köşe taş atma alanları: ince ve sakin; yalnızca hamle sırasında belirginleşir ── */
@@ -191,4 +192,31 @@
     background-color: rgba(255, 255, 255, 0.14);
     box-shadow: none;
     transform: none;
+}
+
+/* Orta taşlar: deste ve gösterge masadaki diğer taşlarla aynı ölçüde */
+.center-area .center-tile {
+    width: var(--set-tile-w);
+    height: var(--set-tile-h);
+    font-size: var(--set-tile-font);
+    border-radius: 4px;
+}
+.center-area .center-tile.indicator.green { font-size: calc(var(--set-tile-font) * 1.25); }
+.center-area .center-tiles { padding: 0; gap: 8px; }
+
+/* Atılan taşlar da aynı ölçüde; köşe alanı taşı saracak kadar */
+.tile-drop-zone {
+    --tile-w: var(--set-tile-w);
+    --tile-h: var(--set-tile-h);
+    --tile-font: var(--set-tile-font);
+    --tile-pb: calc(var(--set-tile-h) * 0.2);
+    --tile-dot: 5px;
+    --tile-dot-b: 5px;
+    width: calc(var(--set-tile-w) + 12px);
+    height: calc(var(--set-tile-h) + 12px);
+}
+.tile-drop-zone .tile { border-radius: 4px; }
+.tile-drop-zone.active {
+    width: calc(var(--set-tile-w) + 24px);
+    height: calc(var(--set-tile-h) + 24px);
 }

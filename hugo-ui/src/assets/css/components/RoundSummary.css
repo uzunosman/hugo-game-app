@@ -1,216 +1,119 @@
-.round-summary-overlay {
+/* Kıraathane tabelası: krem kâğıt, mavi kalem çizgileri, el yazısı */
+.tabela-overlay {
     position: fixed;
     inset: 0;
-    z-index: 300;
-    background: rgba(0, 0, 0, 0.75);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    backdrop-filter: blur(4px);
-    animation: fadeIn 0.3s ease;
+    z-index: 900;
+    display: grid;
+    place-items: center;
+    padding: 16px;
+    background: rgba(10, 20, 16, 0.55);
 }
-
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-.round-summary-modal {
-    background: #1a1a2e;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 16px;
-    min-width: 320px;
-    max-width: 92vw;
-    max-height: 88vh;
-    overflow-y: auto;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
-    animation: slideUp 0.35s ease;
-}
-
-@keyframes slideUp {
-    from { opacity: 0; transform: translateY(24px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.round-summary-header {
-    padding: 18px 22px 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-}
-
-.round-summary-title {
-    color: #fff;
-    font-size: 18px;
-    font-weight: 700;
-}
-
-.hugo-tag {
-    display: inline-block;
-    background: #e74c3c;
-    color: #fff;
-    font-size: 11px;
-    font-weight: 700;
+.tabela {
+    width: min(440px, 100%);
+    max-height: calc(100vh - 32px);
+    overflow: auto;
+    padding: 22px 24px 18px 46px;
+    color: #23324a;
+    font-family: 'Kalam', 'Comic Sans MS', cursive;
+    background:
+        linear-gradient(90deg, transparent 32px, rgba(200, 60, 60, 0.45) 32px, rgba(200, 60, 60, 0.45) 34px, transparent 34px),
+        repeating-linear-gradient(180deg, transparent 0 31px, rgba(60, 100, 170, 0.18) 31px 32px),
+        #fbf6e6;
     border-radius: 4px;
-    padding: 2px 8px;
-    margin-left: 8px;
-    vertical-align: middle;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 0, 0, 0.06);
+    transform: rotate(-0.6deg);
 }
-
-.round-summary-cards {
+.tabela { position: relative; }
+.tabela-close {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    width: 30px;
+    height: 30px;
+    font: 700 22px/1 'Kalam', cursive;
+    color: #6b7891;
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    cursor: pointer;
+}
+.tabela-close:hover { color: #23324a; background: rgba(35, 50, 74, 0.08); }
+.tabela-close:focus-visible { outline: 3px solid rgba(35, 50, 74, 0.4); }
+.tabela-actions { display: flex; gap: 6px; }
+.tabela-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 6px;
+    font-size: 30px;
+    font-weight: 700;
+    line-height: 1.1;
+}
+.tabela-hugo {
+    font-size: 16px;
+    padding: 0 8px;
+    border: 2px solid #c0392b;
+    border-radius: 999px;
+    color: #c0392b;
+    transform: rotate(-4deg);
+}
+.tabela-table { width: 100%; border-collapse: collapse; font-size: 19px; }
+.tabela-table thead th {
+    font-size: 15px;
+    font-weight: 400;
+    color: #6b7891;
+    text-align: right;
+    padding: 2px 4px 4px;
+    border-bottom: 2px solid #23324a;
+}
+.tabela-table thead th:first-child { text-align: left; }
+.tabela-table tbody th,
+.tabela-table td { padding: 5px 4px; border-bottom: 1px dashed rgba(35, 50, 74, 0.25); }
+.tabela-table tbody th { display: flex; align-items: center; gap: 8px; font-weight: 700; text-align: left; }
+.tabela-table tbody th img { width: 28px; height: 28px; border-radius: 50%; flex: none; }
+.tabela-name { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 6px; min-width: 0; }
+.tabela-name small { width: 100%; font-size: 13px; font-weight: 400; color: #2f7d32; }
+.tabela-stars { color: #d4a017; letter-spacing: 1px; }
+.tabela-table td { text-align: right; font-variant-numeric: tabular-nums; }
+.tabela-round { color: #c0392b; }
+.is-finisher .tabela-round { color: #2f7d32; }
+.tabela-total { font-weight: 700; }
+/* Kazananın toplamı kalemle daire içine alınmış gibi */
+.tabela-total.is-winner { position: relative; }
+.tabela-total.is-winner::after {
+    content: '';
+    position: absolute;
+    inset: 1px -4px 1px auto;
+    width: 3.2em;
+    border: 2px solid #2f7d32;
+    border-radius: 50%;
+    transform: rotate(-6deg);
+}
+.tabela-winner { margin: 12px 0 0; font-size: 22px; font-weight: 700; color: #2f7d32; }
+.tabela-foot {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
-    padding: 8px 18px 14px;
-    justify-content: center;
-}
-
-.summary-card {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 10px;
-    padding: 14px 16px;
-    min-width: 150px;
-    flex: 1;
-    max-width: 200px;
-}
-
-.summary-card.best {
-    border-color: rgba(76, 175, 80, 0.4);
-    background: rgba(76, 175, 80, 0.06);
-}
-
-.summary-rank {
-    color: rgba(255, 255, 255, 0.35);
-    font-size: 11px;
-    font-weight: 600;
-    margin-bottom: 2px;
-}
-
-.summary-card.best .summary-rank {
-    color: #4CAF50;
-}
-
-.summary-name {
-    color: #fff;
-    font-size: 15px;
-    font-weight: 600;
-    margin-bottom: 10px;
-}
-
-.summary-breakdown {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    margin-bottom: 10px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.breakdown-row {
-    display: flex;
+    align-items: center;
     justify-content: space-between;
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.5);
-}
-
-.breakdown-row.penalty span:last-child {
-    color: #e74c3c;
-}
-
-.breakdown-row.bonus span:last-child {
-    color: #4CAF50;
-}
-
-.breakdown-row.multiplier span:last-child {
-    color: #FFC107;
-    font-weight: 700;
-}
-
-.summary-scores {
-    display: flex;
-    gap: 14px;
-}
-
-.round-score,
-.total-score {
-    flex: 1;
-}
-
-.summary-scores .label {
-    display: block;
-    font-size: 10px;
-    color: rgba(255, 255, 255, 0.35);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 2px;
-}
-
-.summary-scores .value {
-    font-size: 18px;
-    font-weight: 700;
-    color: #fff;
-    font-variant-numeric: tabular-nums;
-}
-
-.summary-scores .value.negative {
-    color: #4CAF50;
-}
-
-.round-summary-footer {
-    padding: 12px 22px 18px;
-    text-align: center;
-}
-
-.round-summary-close {
-    position: absolute;
-    right: 16px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: none;
-    border: none;
-    color: rgba(255, 255, 255, 0.4);
-    font-size: 24px;
-    cursor: pointer;
-    padding: 0 4px;
-    line-height: 1;
-}
-
-.round-summary-close:hover {
-    color: #fff;
-}
-
-.round-summary-continue-btn {
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    color: #fff;
-    padding: 8px 28px;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.2s ease;
-}
-
-.round-summary-continue-btn:hover {
-    background: rgba(255, 255, 255, 0.15);
-}
-
-.game-over-text {
-    color: #FFC107;
+    gap: 8px;
+    margin: 12px 0 0;
     font-size: 16px;
-    font-weight: 700;
+    color: #6b7891;
 }
-
+.tabela-leave {
+    font: inherit;
+    font-size: 15px;
+    color: #23324a;
+    background: transparent;
+    border: 2px solid #23324a;
+    border-radius: 8px;
+    padding: 2px 10px;
+    cursor: pointer;
+}
+.tabela-leave:focus-visible { outline: 3px solid rgba(35, 50, 74, 0.4); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .tabela { transform: none; } }
 @media (max-width: 640px) {
-    .round-summary-cards {
-        flex-direction: column;
-        align-items: center;
-    }
-
-    .summary-card {
-        max-width: 100%;
-        width: 100%;
-    }
+    .tabela { padding: 16px 14px 14px 40px; }
+    .tabela-title { font-size: 24px; }
+    .tabela-table { font-size: 16px; }
 }

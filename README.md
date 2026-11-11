@@ -110,6 +110,15 @@ Ortam değişkenleri (sunucu): `TEST_MODE=true` eli başlatana hazır bir açıl
 `PERSIST=false` durumu diske yazmayı kapatır, `STATE_FILE` durum dosyasının yolu,
 `BOT_THINK_MS` yapay zekânın düşünme payı (varsayılan 900 ms; bu ile 2 katı arası).
 
+## El ve oyun sonu
+
+- Her el sonunda kıraathane tabelası açılır; 5 sn sonra yeni el başlar (`ROUND_BREAK_MS`), tabela oyuncu kapatana kadar kalır.
+- 9. elden sonra tabela 5 sn görünür, masa oda ekranına döner; puanlar sıfırlanır. Yeni oyun için insan oyuncular
+  yeniden **Hazırım** der (yapay zekâ hazırdır), masa sahibi başlatır. Sunucu, herkes hazır olmadan oyunu başlatmaz.
+- Sağ üstteki tabelada oynanmış bir ele tıklanınca o elin dökümü (elde kalan, cezalar, okey, çarpan, yıldız, el puanı)
+  ve o elde yazılan cezaların listesi açılır.
+- Sol altta masa sohbeti: yalnızca masadaki oyuncular yazar/okur, 200 karakter sınırı, son 50 mesaj bellekte tutulur.
+
 ## Yapay zekâ oyuncu
 
 Masa sahibi, oda ekranında boş koltuktaki **Yapay zekâ ekle** ile oyuncu ekler (oyun başlamadan, × ile çıkarır).

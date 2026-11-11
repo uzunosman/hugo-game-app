@@ -22,7 +22,7 @@ const startServer = () => new Promise<ReturnType<typeof spawn>>((resolve, reject
         cwd: path.join(__dirname, '..'),
         env: {
             ...process.env, PORT: String(PORT), TEST_MODE: 'false', AUTO_START_GAME: 'false',
-            TURN_TIMEOUT_MS: '300', DISCONNECTED_TURN_MS: '100', STATE_FILE, PERSIST: 'true',
+            TURN_TIMEOUT_MS: '300', ROUND_BREAK_MS: '300', DISCONNECTED_TURN_MS: '100', STATE_FILE, PERSIST: 'true',
         },
     });
     srv.stdout.on('data', d => { if (String(d).includes('Sunucu çalışıyor')) resolve(srv); });

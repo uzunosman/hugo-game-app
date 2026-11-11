@@ -2,11 +2,14 @@ import { useState, useEffect } from 'react';
 import socketService from '../services/socketService';
 import Game from '../components/Game/Game';
 import { avatarFor } from '../utils/avatar';
+import RoundSummary from './RoundSummary/RoundSummary';
 
 function Room({ player, room, onLeaveRoom }) {
     const [currentRoom, setCurrentRoom] = useState(room);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    // Son oyunun tabelası: yeni oyun başlasa da oyuncu kapatana kadar açık kalır
+    const [finalResults, setFinalResults] = useState(null);
 
     useEffect(() => {
         // Oyuncu katılma olayını dinle
@@ -30,6 +33,11 @@ function Room({ player, room, onLeaveRoom }) {
             }
         });
 
+        // Oyun bitti: masa oda ekranına döner, yeni oyun için herkes yeniden hazır olur
+        socketService.socket.on('room:reset', (response) => {
+            if (response?.success) setCurrentRoom(response.room);
+        });
+
         // Oyun başlama olayını dinle
         socketService.onGameStarted((response) => {
             if (response.success) {
@@ -43,6 +51,7 @@ function Room({ player, room, onLeaveRoom }) {
             socketService.socket.off('player:left');
             socketService.socket.off('player:ready');
             socketService.socket.off('game:started');
+            socketService.socket.off('room:reset');
         };
     }, []);
 
@@ -108,9 +117,25 @@ function Room({ player, room, onLeaveRoom }) {
     const allPlayersReady = currentRoom.players.length === currentRoom.maxPlayers &&
         currentRoom.players.every(p => p.isReady);
 
+    // Oyun sonu tabelası: oda ekranına dönülse de oyuncu kapatana kadar açık kalır
+    const finalSummary = finalResults && (
+        <RoundSummary
+            roundData={finalResults}
+            isLastRound={true}
+            onClose={() => setFinalResults(null)}
+            onLeave={handleLeaveRoom}
+        />
+    );
+
     // Eğer oyun başladıysa, Game bileşenini göster
     if (currentRoom.status === 'playing' && currentRoom.game) {
-        return <Game player={player} room={currentRoom} onLeaveRoom={handleLeaveRoom} />;
+        // Aynı masada yeni oyun başlayınca (oyun id'si değişir) oyun ekranı baştan kurulur
+        return (
+            <>
+                <Game key={currentRoom.game.id} player={player} room={currentRoom} onGameFinished={setFinalResults} />
+                {finalSummary}
+            </>
+        );
     }
 
     const seats = Array.from({ length: currentRoom.maxPlayers }, (_, i) => currentRoom.players[i] || null);
@@ -118,6 +143,7 @@ function Room({ player, room, onLeaveRoom }) {
 
     return (
         <div className="screen">
+            {finalSummary}
             <div className="panel">
                 <div className="panel-head">
                     <div className="tile-dots" aria-hidden="true"><span /><span /><span /><span /></div>

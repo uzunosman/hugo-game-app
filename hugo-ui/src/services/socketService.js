@@ -296,6 +296,22 @@ class SocketService {
         this.socket.off('player:connection');
     }
 
+    sendChat(text, callback) {
+        this.socket.emit('chat:send', { playerId: this.playerId, text }, callback);
+    }
+
+    chatHistory(callback) {
+        this.socket.emit('chat:history', { playerId: this.playerId }, callback);
+    }
+
+    onChatMessage(callback) {
+        this.socket.on('chat:message', callback);
+    }
+
+    offChatMessage(callback) {
+        this.socket.off('chat:message', callback);
+    }
+
     addBot(roomId, callback) {
         this.socket.emit('room:addBot', { roomId, playerId: this.playerId }, callback);
     }

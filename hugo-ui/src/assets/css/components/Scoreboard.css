@@ -132,3 +132,39 @@
         font-size: 12px;
     }
 }
+
+/* Oynanmış el satırları tıklanınca o elin dökümü açılır */
+.round-row.is-played { cursor: pointer; }
+.round-row.is-played:hover td { background: #faf5e6; }
+.round-link {
+    font: inherit;
+    font-weight: 700;
+    color: #1d4f91;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+}
+.round-link:focus-visible, .round-back:focus-visible { outline: 2px solid #1d4f91; outline-offset: 2px; }
+.round-detail { min-width: min(520px, 86vw); }
+.round-detail-head { display: flex; align-items: center; gap: 12px; margin: 0 28px 10px 0; }
+.round-back {
+    font: 700 14px/1 'Kalam', cursive;
+    color: #1d4f91;
+    background: none;
+    border: 1px solid #1d4f91;
+    border-radius: 6px;
+    padding: 4px 8px;
+    cursor: pointer;
+}
+.round-detail-title { font-size: 20px; font-weight: 700; }
+.finisher-mark { color: #0d5c0d; font-weight: 400; }
+.round-penalties { margin-top: 12px; font-size: 14px; }
+.round-penalties-title { font-weight: 700; margin-bottom: 4px; }
+.round-penalties ul { list-style: none; margin: 0; padding: 0; max-height: 160px; overflow: auto; }
+.round-penalties li { padding: 2px 0; border-bottom: 1px dashed #ddd; }
+.round-penalties li b { color: #b42318; }
+.round-penalties li.cancel b { color: #0d5c0d; }
+.round-penalties-empty { margin: 0; color: #666; }

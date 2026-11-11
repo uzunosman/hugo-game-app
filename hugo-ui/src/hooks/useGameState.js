@@ -30,6 +30,8 @@ const useGameState = (player, room) => {
     const [lastDiscardPlayerId, setLastDiscardPlayerId] = useState(room.game?.lastDiscardPlayerId || null);
     // Masadaki açık setler
     const [tableSets, setTableSets] = useState(room.game?.tableSets || []);
+    // Biten ellerin sonuçları ve cezaları (tabelada ele tıklayınca gösterilir)
+    const [roundHistory, setRoundHistory] = useState(room.game?.roundHistory || []);
     // Ceza kaydı: masadaki herkesin gördüğü son cezalar
     const [penaltyLog, setPenaltyLog] = useState([]);
     // Tur sonu sonuçları (null = tur devam ediyor)
@@ -190,6 +192,7 @@ const useGameState = (player, room) => {
         socketService.onRoundEnded((data) => {
             console.log('Tur sonu:', data);
             setRoundEndResults(data);
+            if (data.history) setRoundHistory(prev => [...prev.filter(h => h.round !== data.history.round), data.history]);
             // Tabela: el puanları, toplam ve yıldızlar
             setPlayerOpenStates(prev => {
                 const next = { ...prev };
@@ -278,7 +281,7 @@ const useGameState = (player, room) => {
             setDiscardedTiles({ topLeft: [], topRight: [], bottomRight: [], bottomLeft: [] });
             setLastDiscardPlayerId(null);
             setSelectedTile(null);
-            setPenaltyLog([]);
+            setPenaltyLog([]); // el sonu tabelası açık kalır; oyuncu kendisi kapatır
 
             // Oyuncu açık durumlarını sıfırla
             const states = {};
@@ -395,7 +398,8 @@ const useGameState = (player, room) => {
         setPlayerOpenStates,
         roundEndResults,
         setRoundEndResults,
-        penaltyLog
+        penaltyLog,
+        roundHistory
     };
 };
 

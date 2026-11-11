@@ -12,7 +12,7 @@ const emit = (s: Socket, ev: string, data: any) => new Promise<Ack>(res => s.emi
 const startServer = () => new Promise<ReturnType<typeof spawn>>((resolve, reject) => {
     const srv = spawn(process.execPath, ['-r', 'ts-node/register', 'src/index.ts'], {
         cwd: path.join(__dirname, '..'),
-        env: { ...process.env, PORT: String(PORT), TEST_MODE: 'false', AUTO_START_GAME: 'false', TURN_TIMEOUT_MS: '200', BOT_THINK_MS: '5', PERSIST: 'false' },
+        env: { ...process.env, PORT: String(PORT), TEST_MODE: 'false', AUTO_START_GAME: 'false', TURN_TIMEOUT_MS: '200', BOT_THINK_MS: '5', ROUND_BREAK_MS: '200', PERSIST: 'false' },
     });
     srv.stdout.on('data', d => { if (String(d).includes('Sunucu çalışıyor')) resolve(srv); });
     srv.on('exit', code => reject(new Error(`sunucu kapandı: ${code}`)));
@@ -50,11 +50,29 @@ const startServer = () => new Promise<ReturnType<typeof spawn>>((resolve, reject
         assert.strictEqual((await emit(me, 'game:drawTile', { playerId: botIds[0], fromDiscard: false })).success, false, 'yapay zekâ adına taş çekilemez');
         assert.strictEqual((await emit(me, 'game:discardTile', { playerId: botIds[0], tileId: 'x' })).success, false);
 
+        // Sohbet: masadaki herkese gider, uzun mesaj kırpılır, başkası adına yazılamaz
+        const got = new Promise<Ack>(res => me.once('chat:message', res));
+        assert.ok((await emit(me, 'chat:send', { playerId: myId, text: '  merhaba   masa ' })).success);
+        const msg = await got;
+        assert.strictEqual(msg.text, 'merhaba masa');
+        assert.strictEqual(msg.name, 'İnsan');
+        assert.strictEqual((await emit(me, 'chat:send', { playerId: botIds[0], text: 'sahte' })).success, false, 'başkası adına yazılamaz');
+        assert.strictEqual((await emit(me, 'chat:history', { playerId: myId })).messages.length, 1);
+
         // İnsan oyuncu hamle yapmaz: sunucu süre dolunca onun yerine oynar
         await done;
         assert.deepStrictEqual(ends.map(e => e.round), [1, 2, 3, 4, 5, 6, 7, 8, 9]);
+        assert.ok(ends.every(e => e.history?.round === e.round && e.history.results.length === 4 && Array.isArray(e.history.penalties)), 'her el geçmişe yazılır');
         assert.ok(botOpened > 0, 'yapay zekâ en az bir elde açmalı');
-        console.log(`e2e-ai: 9 el yapay zekâyla tamamlandı (${botOpened} açılış); el gizli, başkası adına hamle yapılamıyor ✓`);
+        // Oyun sonu tabelasından sonra masa oda ekranına döner: puanlar sıfır, insanlar yeniden hazır olur
+        const reset = await new Promise<Ack>(res => me.once('room:reset', res));
+        assert.strictEqual(reset.room.status, 'waiting');
+        assert.ok(reset.room.players.every((p: Ack) => p.totalScore === 0 && p.roundScores.length === 0), 'yeni oyunda puanlar sıfır');
+        assert.ok(reset.room.players.every((p: Ack) => p.isReady === !!p.isBot), 'yalnızca yapay zekâ hazır');
+        assert.strictEqual((await emit(me, 'game:start', { roomId: room.id, playerId: myId })).success, false, 'herkes hazır olmadan başlamaz');
+        await emit(me, 'player:ready', { roomId: room.id, playerId: myId, ready: true });
+        assert.ok((await emit(me, 'game:start', { roomId: room.id, playerId: myId })).success, 'hazır olunca yeni oyun başlar');
+        console.log(`e2e-ai: 9 el yapay zekâyla tamamlandı (${botOpened} açılış); el gizli, başkası adına hamle yapılamıyor, sohbet çalışıyor, oyun sonunda masa yeniden hazır olmayı bekliyor ✓`);
         me.close();
     } finally {
         clearTimeout(fail);

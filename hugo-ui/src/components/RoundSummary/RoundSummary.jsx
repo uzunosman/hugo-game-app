@@ -1,129 +1,86 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { avatarFor } from '../../utils/avatar';
 import '../../assets/css/components/RoundSummary.css';
 
-const RoundSummary = ({ roundData, isLastRound, onClose, onLeave }) => {
-    if (!roundData) return null;
+const BREAK_SECONDS = 5; // sunucudaki el / oyun arası (ROUND_BREAK_MS) ile aynı
 
-    const { results, round, isHugoRound } = roundData;
-    if (!results || results.length === 0) return null;
+// Kıraathane tabelası: kâğıda kalemle yazılmış gibi. 5 sn sonra yeni el başlar (oyun sonunda masa
+// oda ekranına döner); tabela oyuncu kapatana kadar açık kalır.
+const RoundSummary = ({ roundData, isLastRound, onLeave, onClose }) => {
+    const [left, setLeft] = useState(BREAK_SECONDS);
+    useEffect(() => {
+        const t = setInterval(() => setLeft(s => Math.max(0, s - 1)), 1000);
+        return () => clearInterval(t);
+    }, []);
 
-    const sorted = [...results].sort((a, b) => a.totalScore - b.totalScore);
-    // Oyun sonu: en düşük toplam kazanır (beraberlikte hepsi)
-    const winners = sorted.filter(r => r.totalScore === sorted[0].totalScore);
+    const results = roundData?.results || [];
+    if (!results.length) return null;
+
+    const low = Math.min(...results.map(r => r.totalScore));
+    const botIds = new Set((roundData.players || []).filter(p => p.isBot).map(p => p.id));
+    const winners = results.filter(r => r.totalScore === low);
+
+    const note = (r) => {
+        const parts = [];
+        if (r.isFinisher) parts.push('bitirdi');
+        if (r.isFinisher && r.finishedWithJoker) parts.push('okeyle');
+        if (r.isFinisher && r.finishedWithPairs) parts.push('çiftten');
+        if (r.isFinisher && r.finishedElden) parts.push('elden');
+        return parts.join(', ');
+    };
 
     return (
-        <div className="round-summary-overlay">
-            <div className="round-summary-modal">
-                <div className="round-summary-header">
-                    <span className="round-summary-title">
-                        {isLastRound ? 'Oyun Bitti' : `Tur ${round} Sonu`}
-                        {isHugoRound && <span className="hugo-tag">HUGO ×2</span>}
+        <div className="tabela-overlay" role="dialog" aria-modal="true" aria-label={isLastRound ? 'Oyun sonu tabelası' : `${roundData.round}. el tabelası`}>
+            <div className="tabela">
+                {onClose && (
+                    <button type="button" className="tabela-close" onClick={onClose} aria-label="Tabelayı kapat">×</button>
+                )}
+                <h2 className="tabela-title">
+                    {isLastRound ? 'Oyun bitti' : `${roundData.round}. el`}
+                    {roundData.isHugoRound && <span className="tabela-hugo">Hugo</span>}
+                </h2>
+
+                <table className="tabela-table">
+                    <thead>
+                        <tr><th scope="col">Oyuncu</th><th scope="col">Bu el</th><th scope="col">Toplam</th></tr>
+                    </thead>
+                    <tbody>
+                        {results.map(r => (
+                            <tr key={r.playerId} className={r.isFinisher ? 'is-finisher' : undefined}>
+                                <th scope="row">
+                                    <img src={avatarFor(r.playerId, botIds.has(r.playerId))} alt="" />
+                                    <span className="tabela-name">
+                                        {r.playerName}
+                                        {r.stars > 0 && <span className="tabela-stars" aria-label={`${r.stars} yıldız`}>{'★'.repeat(r.stars)}</span>}
+                                        {note(r) && <small>{note(r)}</small>}
+                                    </span>
+                                </th>
+                                <td className="tabela-round">{r.roundTotal}</td>
+                                <td className={`tabela-total ${isLastRound && r.totalScore === low ? 'is-winner' : ''}`}>{r.totalScore}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+
+                {isLastRound && (
+                    <p className="tabela-winner">
+                        {winners.length > 1 ? 'Kazananlar' : 'Kazanan'}: {winners.map(w => w.playerName).join(' ve ')}
+                    </p>
+                )}
+
+                <p className="tabela-foot">
+                    <span>
+                        {isLastRound
+                            ? (left > 0 ? `${left} sn sonra masaya dönülüyor` : 'Yeni oyun için herkes hazır olmalı')
+                            : (left > 0 ? `Sıradaki el ${left} sn sonra başlıyor` : 'Yeni el başladı')}
                     </span>
-                    {!isLastRound && (
-                        <button className="round-summary-close" onClick={onClose} aria-label="Kapat">&times;</button>
-                    )}
-                </div>
-
-                <div className="round-summary-cards">
-                    {sorted.map((r, idx) => (
-                        <div key={r.playerId} className={`summary-card ${idx === 0 ? 'best' : ''}`}>
-                            <div className="summary-rank">#{idx + 1}</div>
-                            <div className="summary-name">{r.playerName}</div>
-
-                            <div className="summary-breakdown">
-                                {r.handScore > 0 && (
-                                    <div className="breakdown-row">
-                                        <span>Elde kalan</span>
-                                        <span>+{r.handScore}</span>
-                                    </div>
-                                )}
-                                {r.penaltyEntries && r.penaltyEntries.length > 0 && (
-                                    r.penaltyEntries.map((entry, i) => (
-                                        <div key={i} className="breakdown-row penalty">
-                                            <span>Ceza</span>
-                                            <span>+{entry}</span>
-                                        </div>
-                                    ))
-                                )}
-                                {r.openBonus !== 0 && (
-                                    <div className="breakdown-row bonus">
-                                        <span>Per 100+ ★</span>
-                                        <span>{r.openBonus}</span>
-                                    </div>
-                                )}
-                                {r.finishBonus !== 0 && (
-                                    <div className="breakdown-row bonus">
-                                        <span>Bitirme</span>
-                                        <span>{r.finishBonus}</span>
-                                    </div>
-                                )}
-                                {r.isFinisher && (
-                                    <div className="breakdown-row bonus">
-                                        <span>Eli bitirdi</span>
-                                        <span>
-                                            {[r.finishedWithJoker && 'okeyle', r.finishedWithPairs && 'çiftten', r.finishedElden && 'elden']
-                                                .filter(Boolean).join(', ') || '✓'}
-                                        </span>
-                                    </div>
-                                )}
-                                {r.unusedOkeyPenalty > 0 && (
-                                    <div className="breakdown-row penalty">
-                                        <span>Kullanılmayan okey</span>
-                                        <span>+{r.unusedOkeyPenalty}</span>
-                                    </div>
-                                )}
-                                {r.isHugoRound && (
-                                    <div className="breakdown-row multiplier">
-                                        <span>Hugo çarpanı</span>
-                                        <span>×2</span>
-                                    </div>
-                                )}
-                                {!r.isFinisher && r.handScore > 0 && [
-                                    r.finishedWithJoker && 'Okeyle bitme',
-                                    r.finishedWithPairs && 'Çiftten bitme',
-                                    r.finishedElden && 'Elden bitme',
-                                ].filter(Boolean).map(label => (
-                                    <div key={label} className="breakdown-row multiplier">
-                                        <span>{label} (elde kalan)</span>
-                                        <span>×2</span>
-                                    </div>
-                                ))}
-                                {r.stars > 0 && (
-                                    <div className="breakdown-row bonus">
-                                        <span>{'★'.repeat(Math.min(r.stars, 8))} yıldız</span>
-                                        <span>−{r.stars * 100}</span>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="summary-scores">
-                                <div className="round-score">
-                                    <span className="label">Tur</span>
-                                    <span className={`value ${r.roundTotal < 0 ? 'negative' : ''}`}>{r.roundTotal}</span>
-                                </div>
-                                <div className="total-score">
-                                    <span className="label">Toplam</span>
-                                    <span className={`value ${r.totalScore < 0 ? 'negative' : ''}`}>{r.totalScore}</span>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-
-                <div className="round-summary-footer">
-                    {isLastRound ? (
-                        <>
-                            <span className="game-over-text">
-                                Kazanan: {winners.map(w => w.playerName).join(', ')} · {winners[0].totalScore} puan
-                            </span>
-                            {onLeave && (
-                                <button className="round-summary-continue-btn" onClick={onLeave}>Lobiye dön</button>
-                            )}
-                        </>
-                    ) : (
-                        <button className="round-summary-continue-btn" onClick={onClose}>Devam Et</button>
-                    )}
-                </div>
+                    <span className="tabela-actions">
+                        {isLastRound && onLeave && (
+                            <button type="button" className="tabela-leave" onClick={onLeave}>Masadan kalk</button>
+                        )}
+                        {onClose && <button type="button" className="tabela-leave" onClick={onClose}>Kapat</button>}
+                    </span>
+                </p>
             </div>
         </div>
     );
