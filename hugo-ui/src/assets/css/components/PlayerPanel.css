@@ -88,6 +88,7 @@
 .pp-set { color: var(--pp-set); }
 .pp-set.valid { color: var(--pp-open); }
 .pp-offline { color: var(--pp-set); }
+.pp-hint { background: var(--pp-turn); color: #0b1a14; }
 
 .pp-timer {
     margin-left: auto;

@@ -9,6 +9,7 @@ import socketService from '../../services/socketService';
 import { getOrderedPlayers, getPlayerPosition, getPlayerCorner, getCurrentPlayerIndex, calculateHandScore, calculatePairScore, findPairPartner, getConsecutiveGroups, validateSet, arrangeTiles } from '../../utils/gameUtils';
 import { handleDrawTile, handleTileMove, handleDrawDiscardedTile } from '../../utils/tileHandlers';
 import '../../assets/css/components/GameBoard.css';
+import '../../assets/css/layout.css';
 
 /**
  * Ana Oyun bileşeni
@@ -430,6 +431,9 @@ function Game({ player, room, onLeaveRoom }) {
                         openedTotal={openState?.openedTotal}
                         penaltyScore={openState?.penaltyScore || 0}
                         connected={openState?.connected !== false}
+                        turnHint={index === 0 && p.id === gameState.currentPlayerId
+                            ? (gameState.turnAction === 'draw' && !isFirstHandBlock ? 'Taş çek' : 'Taş at')
+                            : null}
                     />
                 );
             })}
@@ -531,11 +535,17 @@ function Game({ player, room, onLeaveRoom }) {
 
             <PenaltyLog entries={penaltyLog} />
 
-            {/* Tabela */}
-            <Scoreboard
-                players={players}
-                playerOpenStates={playerOpenStates}
-            />
+            {/* Sağ üst: el bilgisi ve tabela */}
+            <div className="top-right-tools">
+                <div className="round-chip" aria-label={`${gameState.round}. el${gameState.isHugoRound ? ', Hugo eli' : ''}`}>
+                    El {gameState.round}/9
+                    {gameState.isHugoRound && <span className="hugo-tag">Hugo</span>}
+                </div>
+                <Scoreboard
+                    players={players}
+                    playerOpenStates={playerOpenStates}
+                />
+            </div>
 
             {/* Tur Sonu Ekranı */}
             {roundEndResults && (

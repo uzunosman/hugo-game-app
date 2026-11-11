@@ -80,11 +80,6 @@ const CenterArea = ({ remainingTiles = [], openTile = null, onDrawTile, gameRoun
                     )}
                 </div>
             </div>
-
-            {/* El numarası göstergesi */}
-            <div className="round-indicator">
-                {gameRound}. El {isHugoRound && '(Hugo)'}
-            </div>
         </div>
     );
 };

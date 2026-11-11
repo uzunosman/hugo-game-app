@@ -1,0 +1,171 @@
+/* Oyun ekranı yerleşimi: her şeyin kendi bandı var, hiçbir şey masanın üstüne binmez.
+   ┌──────────── üst bant: ayarlar · karşı oyuncu · el bilgisi + tabela ────────────┐
+   │ sol │                        MASA (perler kenarlarda)                    │ sağ │
+   │kart │                                                                   │kart │
+   ├──── kendi bandı: aksiyon butonları · kendi kartın · dizme butonları ──────────┤
+   └──────────────────────────────── ıstaka ───────────────────────────────────────┘ */
+:root {
+    --rack-h: calc(var(--tile-h, 60px) * 2 + 46px);
+    --top-band: 68px;
+    --side-band: 100px;
+    --self-band: 66px;
+    --set-tile-w: 28px;
+    --set-tile-h: 40px;
+    --set-tile-font: 16px;
+}
+@media (max-width: 640px) {
+    :root {
+        --top-band: 46px;
+        --side-band: 58px;
+        --self-band: 92px; /* dar ekranda butonlar kartın üstüne ikinci satıra iner */
+        --set-tile-w: 20px;
+        --set-tile-h: 29px;
+        --set-tile-font: 12px;
+    }
+}
+
+/* ── Masa ── */
+.game-container .game-board {
+    position: fixed;
+    top: var(--top-band);
+    left: var(--side-band);
+    right: var(--side-band);
+    bottom: calc(var(--rack-h) + var(--self-band));
+    width: auto;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    margin: 0;
+    border-radius: 18px;
+}
+.game-container .board-content { max-width: none; }
+
+/* ── Istaka: dizme butonları kendi bandına taşınır ── */
+.tile-holder-container { padding: 0 0 6px; }
+.tile-holder-container .rack-tools {
+    position: fixed;
+    bottom: calc(var(--rack-h) + 14px);
+    left: calc(50% + 140px);
+    width: auto;
+    margin: 0;
+}
+
+/* ── Kendi bandı: [aksiyonlar] [kendi kartın] [dizme] ── */
+.player-panel.current-player {
+    bottom: calc(var(--rack-h) + 8px);
+    max-width: 260px;
+}
+.action-buttons {
+    bottom: calc(var(--rack-h) + 14px);
+    left: auto;
+    right: calc(50% + 140px);
+    transform: none;
+}
+
+/* ── Üst bant ── */
+.player-panel.top { top: 8px; }
+.player-panel.left { left: 12px; }
+.player-panel.right { right: 12px; }
+
+.top-right-tools {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.top-right-tools .scoreboard-toggle { position: static; }
+.round-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 40px;
+    padding: 0 12px;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.35);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+.round-chip .hugo-tag {
+    font-size: 11px;
+    padding: 3px 6px;
+    border-radius: 6px;
+    background: #f2b134;
+    color: #1b1405;
+}
+
+/* ── Açılan perler: masanın kenarında düzenli ızgara ── */
+.open-sets-area { max-width: 46%; max-height: none; gap: 8px 16px; }
+/* Seri perler ve çiftler yan yana: alan masanın ortasına doğru uzamaz */
+.open-sets-area.open-sets-top,
+.open-sets-area.open-sets-bottom,
+.open-sets-area.open-sets-left { flex-direction: row; align-items: flex-start; }
+.open-sets-area.open-sets-right { flex-direction: row-reverse; align-items: flex-start; }
+.open-sets-area.open-sets-bottom { align-items: flex-end; }
+.open-sets-top { top: 12px; }
+.open-sets-bottom { bottom: 12px; }
+.open-sets-left { left: 12px; }
+.open-sets-right { right: 12px; }
+
+/* Seri perler sütun sütun dizilir: üst/alt 2 satır, yanlar 4 satır, sonra yeni sütun */
+.open-sets-list,
+.open-sets-bottom .open-sets-list,
+.open-sets-top .open-sets-list {
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-rows: repeat(var(--set-rows, 2), auto);
+    gap: 6px 14px;
+    justify-content: center;
+    align-items: start;
+    max-width: none;
+}
+.open-sets-left .open-sets-list,
+.open-sets-right .open-sets-list { --set-rows: 4; justify-content: start; }
+/* Sağdaki oyuncunun yeni sütunları masanın içine doğru (sola) açılır */
+.open-sets-right .open-sets-list { direction: rtl; }
+.open-sets-right .open-set-group { direction: ltr; }
+.open-pairs-list { --set-rows: 2; gap: 6px 10px; }
+.open-sets-left .open-pairs-list,
+.open-sets-right .open-pairs-list { --set-rows: 4; }
+
+.open-set-group { padding: 2px; gap: 2px; justify-self: start; }
+.open-sets-right .open-set-group { justify-self: end; }
+.open-set-tile,
+.insertion-slot,
+.pair-slot span {
+    width: var(--set-tile-w);
+    height: var(--set-tile-h);
+    font-size: var(--set-tile-font);
+    border-radius: 4px;
+}
+.open-set-tile { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25); }
+.open-set-group.expanded { transform: scale(1.3); }
+
+/* ── Mobil: aksiyonlar kartın üstünde ortalanır, dizme butonları sağ kenarda ── */
+@media (max-width: 640px) {
+    .game-container .game-board { border-radius: 12px; }
+    .action-buttons {
+        right: auto;
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: calc(var(--rack-h) + 52px);
+    }
+    .player-panel.current-player { max-width: 52vw; }
+    .tile-holder-container .rack-tools {
+        left: auto;
+        right: 8px;
+        bottom: calc(var(--rack-h) + 12px);
+        flex-direction: column;
+        gap: 4px;
+    }
+    .round-chip { height: 32px; font-size: 12px; padding: 0 8px; }
+    .top-right-tools { top: 6px; right: 6px; gap: 4px; }
+    .top-right-tools .scoreboard-toggle { width: 32px; height: 32px; }
+    .player-panel.left { left: 4px; }
+    .player-panel.right { right: 4px; }
+    .player-panel.top { top: 4px; }
+}
