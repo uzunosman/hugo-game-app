@@ -147,11 +147,39 @@
     }
 }
 
-/* Üst ve alt oyuncunun perleri yan yana sarılır: çok per/çift açılınca masanın ortasına uzanmaz */
-.open-sets-bottom .open-sets-list,
-.open-sets-top .open-sets-list {
+/* Seri perler alt alta; çiftler yan yana sarılır (çok çift masanın ortasına uzanmasın) */
+.open-pairs-list {
     flex-direction: row;
     flex-wrap: wrap;
-    justify-content: center;
-    gap: 6px 12px;
+    gap: 4px 8px;
+    max-width: 320px;
+}
+.open-sets-bottom .open-pairs-list,
+.open-sets-top .open-pairs-list { justify-content: center; }
+.open-sets-right .open-pairs-list { justify-content: flex-end; }
+
+/* Çift işleme yeri: çiftlerin önünde soluk iki taşlık alan */
+.pair-slot {
+    display: flex;
+    gap: 1px;
+    padding: 3px;
+    border-radius: 4px;
+    outline: 1px dashed rgba(255, 255, 255, 0.45);
+    cursor: pointer;
+    animation: pair-slot-pulse 1.2s ease-in-out infinite alternate;
+}
+.pair-slot span {
+    width: 22px;
+    height: 32px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.14);
+    pointer-events: none;
+}
+.pair-slot:hover, .pair-slot.hover { outline-color: #fff; }
+.pair-slot:hover span, .pair-slot.hover span { background: rgba(255, 255, 255, 0.32); }
+@keyframes pair-slot-pulse { from { opacity: 0.65; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .pair-slot { animation: none; } }
+@media (max-width: 640px) {
+    .pair-slot span { width: 18px; height: 26px; }
+    .open-pairs-list { max-width: 200px; }
 }

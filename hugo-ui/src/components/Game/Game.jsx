@@ -3,6 +3,7 @@ import PlayerPanel from '../PlayerPanel/PlayerPanel';
 import GameBoard from '../GameBoard/GameBoard';
 import Scoreboard from '../Scoreboard/Scoreboard';
 import RoundSummary from '../RoundSummary/RoundSummary';
+import PenaltyLog from '../PenaltyLog/PenaltyLog';
 import useGameState from '../../hooks/useGameState';
 import socketService from '../../services/socketService';
 import { getOrderedPlayers, getPlayerPosition, getPlayerCorner, getCurrentPlayerIndex, calculateHandScore, calculatePairScore, findPairPartner, getConsecutiveGroups, validateSet, arrangeTiles } from '../../utils/gameUtils';
@@ -37,8 +38,12 @@ function Game({ player, room, onLeaveRoom }) {
         tableSets,
         playerOpenStates,
         roundEndResults,
-        setRoundEndResults
+        setRoundEndResults,
+        penaltyLog
     } = useGameState(player, room);
+
+    // Yandan alınan taş ve alındığı köşe: kullanılmadıkça o köşede "Kustu" görünür
+    const [takenInfo, setTakenInfo] = useState(null);
 
 
     // Sürüklenen taş bilgisi (işleme için activeTile hesaplamada kullanılır)
@@ -142,7 +147,18 @@ function Game({ player, room, onLeaveRoom }) {
             setTilePositions,
             setDiscardedTiles,
             setGameState,
-            setError
+            setError,
+            onTaken: setTakenInfo
+        });
+    };
+
+    const kustuCorner = takenInfo && isMyTurn && gameState.turnAction === 'discard'
+        && tiles.some(t => t.id === takenInfo.tileId) ? takenInfo.corner : null;
+
+    const onKustu = () => {
+        socketService.returnTaken((response) => {
+            if (response?.success) setTakenInfo(null);
+            else setError(response?.error || 'Taş geri konamadı');
         });
     };
 
@@ -193,8 +209,7 @@ function Game({ player, room, onLeaveRoom }) {
         (max, s) => (s.lastOpenedValue > max ? s.lastOpenedValue : max), 0
     );
 
-    // Kural: yetersiz değerle açma denemesi 100 ceza yer (geri alma yok), bu yüzden
-    // buton değer eşiğine göre kilitlenmez; eşiği geçip geçmediği set-score rozetinde görünür
+    // Yetersiz değerle açma denemesi ceza yazmaz; eşiği geçip geçmediği rozette görünür
     const canOpenHand = isMyTurn
         && (gameState.turnAction === 'discard' || isFirstHandBlock)
         && handScore.validSetCount > 0;
@@ -203,9 +218,9 @@ function Game({ player, room, onLeaveRoom }) {
     const myOpenState = playerOpenStates[player.id] || { isOpen: false, openedTotal: 0 };
     const canAct = isMyTurn && (gameState.turnAction === 'discard' || isFirstHandBlock);
 
-    // Çiftle açma: çiftlerin toplamı 51 ve üstü; yetersiz deneme 100 ceza (buton eşikle kilitlenmez)
+    // Çiftle açma: seriyle aynı eşik (ilk açılış 51, sonra masadaki en yüksek açılışı geçmeli)
     const canOpenPairs = canAct && !myOpenState.isOpen && pairScore.pairCount > 0;
-    const openPairsShort = pairScore.pairTotal < 51;
+    const openPairsShort = maxOpenedValue === 0 ? pairScore.pairTotal < 51 : pairScore.pairTotal <= maxOpenedValue;
 
     // İşleme: seçili taşın gerçek ID'si (OpenSetsArea'ya iletilir)
     const selectedTileId = (selectedTile !== null && tilePositions[selectedTile] && myOpenState.isOpen && isMyTurn
@@ -386,7 +401,7 @@ function Game({ player, room, onLeaveRoom }) {
                                 className={`open-hand-btn ${canOpenHand ? 'active' : 'disabled'} ${canOpenHand && openHandShort ? 'short' : ''}`}
                                 onClick={() => onOpenHand('seri')}
                                 disabled={!canOpenHand}
-                                title={canOpenHand && openHandShort ? 'Değer yetersiz: açarsan 100 ceza yazılır' : undefined}
+                                title={canOpenHand && openHandShort ? `Değer yetersiz: ${maxOpenedValue === 0 ? 'en az 51' : `${maxOpenedValue}'i geçmeli`}` : undefined}
                             >
                                 El Aç
                                 {handScore.setTotal > 0 && (
@@ -398,7 +413,7 @@ function Game({ player, room, onLeaveRoom }) {
                                     className={`open-hand-btn ${canOpenPairs ? 'active' : 'disabled'} ${canOpenPairs && openPairsShort ? 'short' : ''}`}
                                     onClick={() => onOpenHand('cift')}
                                     disabled={!canOpenPairs}
-                                    title={openPairsShort ? 'Çiftlerin toplamı 51\'in altında: açarsan 100 ceza yazılır' : undefined}
+                                    title={openPairsShort ? `Değer yetersiz: ${maxOpenedValue === 0 ? 'en az 51' : `${maxOpenedValue}'i geçmeli`}` : undefined}
                                 >
                                     Çift Aç
                                     <span className="open-hand-score">{pairScore.pairTotal}</span>
@@ -445,6 +460,8 @@ function Game({ player, room, onLeaveRoom }) {
                     setTilePositions(arrangeTiles(tiles, mode, gameState.okeyTile, gameState.isHugoRound));
                     setSelectedTile(null);
                 }}
+                kustuCorner={kustuCorner}
+                onKustu={onKustu}
                 onTapDiscard={() => {
                     onTileMove(selectedTile, -1);
                     setSelectedTile(null);
@@ -460,6 +477,8 @@ function Game({ player, room, onLeaveRoom }) {
                 flippedTileIds={flippedTileIds}
                 onOkeyFlip={handleOkeyFlip}
             />
+
+            <PenaltyLog entries={penaltyLog} />
 
             {/* Tabela */}
             <Scoreboard

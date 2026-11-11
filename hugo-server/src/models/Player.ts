@@ -88,6 +88,13 @@ export class Player {
         this.penaltyEntries.push(points);
     }
 
+    // Geri alınan ceza: tutarı ve son eşleşen kaydı siler
+    removePenalty(points: number): void {
+        this.penaltyScore -= points;
+        const i = this.penaltyEntries.lastIndexOf(points);
+        if (i !== -1) this.penaltyEntries.splice(i, 1);
+    }
+
     resetForNewRound(): void {
         this.tiles = [];
         this.isOpen = false;

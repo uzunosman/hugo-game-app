@@ -124,6 +124,7 @@ const Tile = ({ value, color, onClick, onDoubleClick, index, tile, isDiscarded, 
             onClick={handleClick}
             onDoubleClick={onDoubleClick}
             onContextMenu={onContextMenu}
+            title={onContextMenu ? (isFlipped ? 'Okey (kapalı) · sağ tık: aç' : 'Okey · sağ tık: kapat') : undefined}
             draggable="true"
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}

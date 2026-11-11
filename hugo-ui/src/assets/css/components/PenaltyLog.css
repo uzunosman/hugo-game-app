@@ -1,0 +1,27 @@
+.penalty-log {
+    position: fixed;
+    right: 12px;
+    bottom: 12px;
+    width: min(260px, calc(100% - 24px));
+    background: rgba(15, 32, 36, 0.82);
+    color: #f3efe4;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    line-height: 1.35;
+    z-index: 60;
+    pointer-events: auto;
+}
+.penalty-log ul {
+    list-style: none;
+    margin: 0;
+    padding: 6px 10px;
+    max-height: 7.5em;
+    overflow-y: auto;
+}
+.penalty-log li { overflow-wrap: anywhere; }
+.penalty-log .pl-tag { color: #ffcf66; }
+.penalty-log .pl-amount { color: #ff8a80; font-variant-numeric: tabular-nums; }
+.penalty-log li.cancel .pl-amount { color: #9be29f; }
+@media (max-width: 640px) {
+    .penalty-log { width: 200px; font-size: 0.7rem; right: 6px; bottom: 6px; }
+}

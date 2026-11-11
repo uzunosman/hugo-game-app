@@ -38,6 +38,8 @@ const GameBoard = ({
     onArrange,
     pairPartnerId,
     onTapDiscard,
+    kustuCorner,
+    onKustu,
     selectedTile,
     tableSets,
     orderedPlayers,
@@ -352,6 +354,8 @@ const GameBoard = ({
                     lastDiscardCorner={lastDiscardCorner}
                     hasSelection={selectedTile !== null && selectedTile !== undefined}
                     onTapDiscard={onTapDiscard}
+                    kustuCorner={kustuCorner}
+                    onKustu={onKustu}
                 />
 
                 {/* Masadaki Açık Setler */}

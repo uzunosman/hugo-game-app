@@ -36,7 +36,7 @@ export const setupSocketHandlers = (io: Server) => {
         const { tile, penalties, error } = game.discardTile(playerId, tileId);
         if (!tile) return { success: false, error: error || 'Taş atılamadı' };
 
-        io.to(roomId).emit('game:tileDiscard', { success: true, playerId, tile: { ...tile.toJSON(), playerId } });
+        io.to(roomId).emit('game:tileDiscard', { success: true, playerId, tile: { ...tile.toJSON(), playerId, locked: game.lockedDiscardTileId === tile.id } });
         penalties.forEach(p => emitPenalty(roomId, game, p));
 
         const atan = game.getPlayerById(playerId);
@@ -57,6 +57,7 @@ export const setupSocketHandlers = (io: Server) => {
     const emitPenalty = (roomId: string, game: Game, p: Penalty) => {
         io.to(roomId).emit('game:penalty', {
             ...p,
+            playerName: game.getPlayerById(p.playerId)?.name ?? '',
             penaltyScore: game.getPlayerById(p.playerId)?.penaltyScore ?? 0
         });
     };
@@ -65,6 +66,11 @@ export const setupSocketHandlers = (io: Server) => {
         turnTimers.delete(roomId);
         const player = game.getPlayerById(playerId);
         if (!player || !game.isPlayerTurn(playerId)) return;
+
+        // Yandan alınıp kullanılmamış taş önce kusulur (cezasız), sonra desteden çekilir
+        if (game.takenDiscardTileId && player.tiles.some(t => t.id === game.takenDiscardTileId)) {
+            returnTaken(roomId, game, playerId);
+        }
 
         let drawn: Tile | null = null;
         if (game.turnAction === TurnAction.DRAW && player.tiles.length !== 15) {
@@ -83,6 +89,16 @@ export const setupSocketHandlers = (io: Server) => {
         // Oyuncunun kendi ekranı: çekilen taşı ekle, atılan taşı çıkar
         io.to(player.socketId).emit('game:autoPlayed', { drawnTile: drawn?.toJSON() ?? null, discardedTile: tile.toJSON() });
         discardAndAdvance(roomId, game, playerId, tile.id);
+    };
+
+    // Kustu: taş atanın köşesine döner, atanın cezası silinir
+    const returnTaken = (roomId: string, game: Game, playerId: string) => {
+        const { tile, toPlayerId, revert, error } = game.returnTakenTile(playerId);
+        if (!tile) return { success: false, error };
+        io.to(roomId).emit('game:tileReturned', { playerId, toPlayerId, tile: tile.toJSON() });
+        if (revert) emitPenalty(roomId, game, revert);
+        persist();
+        return { success: true, tile: tile.toJSON(), remainingTiles: game.getPlayerById(playerId)?.tiles.map(t => t.toJSON()) };
     };
 
     // Tek tur sonu yolu: puanla, bildir, 4 sn sonra yeni eli başlat (son elde başlatma)
@@ -550,7 +566,7 @@ export const setupSocketHandlers = (io: Server) => {
 
                     return callback({
                         success: false,
-                        error: 'Taş çekilemedi'
+                        error: fromDiscard ? 'Bu taş yerden alınamaz' : 'Taş çekilemedi'
                     });
                 }
 
@@ -561,6 +577,8 @@ export const setupSocketHandlers = (io: Server) => {
                     fromDiscard,
                     fromDiscardOfPlayerId
                 });
+
+                if (fromDiscard && room.game.takenPenalty) emitPenalty(player.roomId, room.game, room.game.takenPenalty);
 
                 callback({
                     success: true,
@@ -606,6 +624,19 @@ export const setupSocketHandlers = (io: Server) => {
             }
         });
 
+        // Kustu: yandan alınan taşı geri koy
+        socket.on('game:returnTaken', (data: { playerId: string }, callback) => {
+            try {
+                const player = gameManager.getPlayerById(data?.playerId);
+                const room = player?.roomId ? gameManager.getRoomById(player.roomId) : undefined;
+                if (!player || player.socketId !== socket.id || !room?.game) return callback({ success: false, error: 'Oyun bulunamadı' });
+                callback(returnTaken(room.id, room.game, player.id));
+            } catch (error) {
+                console.error('Kusma hatası:', error);
+                callback({ success: false, error: 'Taş geri konamadı' });
+            }
+        });
+
         // El Açma / Taş Oynama
         socket.on('game:openHand', (data: { playerId: string, sets: string[][], kind?: SetKind }, callback) => {
             try {
@@ -631,9 +662,6 @@ export const setupSocketHandlers = (io: Server) => {
                 const result = gameManager.openHand(playerId, sets, kind);
 
                 if (!result.success) {
-                    if (result.penalty) {
-                        emitPenalty(player.roomId, room.game, { playerId, amount: result.penalty, reason: 'Yetersiz değerle açma' });
-                    }
                     return callback({
                         success: false,
                         error: result.error
@@ -709,9 +737,12 @@ export const setupSocketHandlers = (io: Server) => {
                     success: true,
                     playerId,
                     updatedSet: result.updatedSet,
-                    penalty: result.penalty,
                     swappedOkey: !!result.swappedOkeyTile
                 });
+                if (result.penalty) {
+                    const { targetPlayerId, amount, tag, tile } = result.penalty;
+                    emitPenalty(player.roomId, room.game, { playerId: targetPlayerId, amount, tag, tile, reason: tag === 'okey' ? 'Perindeki okey alındı' : 'Perine taş işlendi' });
+                }
 
                 // İsteği yapan oyuncuya kalan taşlarını ve swap edilen okey'i bildir
                 callback({
@@ -756,6 +787,8 @@ export const setupSocketHandlers = (io: Server) => {
                     emitPenalty(room.id, room.game, {
                         playerId: result.penalty.targetPlayerId,
                         amount: result.penalty.amount,
+                        tag: result.penalty.tag,
+                        tile: result.penalty.tile,
                         reason: 'Çiftine işlendi'
                     });
                 }

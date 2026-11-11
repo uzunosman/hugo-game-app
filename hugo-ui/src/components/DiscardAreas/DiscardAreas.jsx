@@ -24,7 +24,9 @@ const DiscardAreas = ({
     tilesLength,
     lastDiscardCorner,
     hasSelection,
-    onTapDiscard
+    onTapDiscard,
+    kustuCorner,
+    onKustu
 }) => {
 
     // Bir köşenin interaktif (pointer-events: all) olup olmayacağını belirle:
@@ -84,7 +86,8 @@ const DiscardAreas = ({
         if (corner !== lastDiscardCorner) return false;
         // Sadece köşedeki en son (üstteki) taş alınabilir
         const cornerTiles = discardedTiles[corner] || [];
-        return tileIndex === cornerTiles.length - 1;
+        // İşlek atılan / kusulan taş alınamaz
+        return tileIndex === cornerTiles.length - 1 && !cornerTiles[tileIndex]?.locked;
     };
 
     // Atılan taşa tıklama işleyicisi
@@ -113,7 +116,18 @@ const DiscardAreas = ({
                     if (corner === playerCorner && hasSelection && isMyTurn && (turnAction === 'discard' || isFirstHand)) onTapDiscard?.();
                 }}
             >
-                {lastTile && (
+                {corner === kustuCorner && (
+                    <button
+                        type="button"
+                        className="kustu-btn"
+                        title="Yandan aldığın taşı geri koy, desteden çek"
+                        onClick={(e) => { e.stopPropagation(); onKustu?.(); }}
+                    >
+                        Kustu
+                    </button>
+                )}
+                {lastTile && corner !== kustuCorner && (
+                    <div className={lastTile.locked ? 'discard-locked' : undefined} title={lastTile.locked ? 'Bu taş yerden alınamaz' : undefined}>
                     <Tile
                         tile={lastTile}
                         onClick={() => handleDiscardedTileClick(corner, lastIndex)}
@@ -122,6 +136,7 @@ const DiscardAreas = ({
                         discardedFrom={corner}
                         index={lastIndex}
                     />
+                    </div>
                 )}
             </div>
         );

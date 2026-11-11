@@ -84,12 +84,19 @@
   (tek özel durumda taş × 20, iki özel durumda × 40 ...). Hugo ×2 cezalara da uygulanır.
 - Elden bitme: oyuncu daha önce açmadan, aynı sırada açıp bitirir
 - Çift açma: aynı renk ve sayıdan çiftlerin değer toplamı 51 ve üstü (okey bir çifti tamamlar).
-  Çiftle açan sonra yalnızca çift indirir.
+  Seri ve çift ortak eşik kullanır: sonraki açılış masadaki en yüksek açılışı geçmeli.
+  Yetersiz değerle açma denemesi ceza yazmaz, el açılmaz. Çiftle açan sonra yalnızca çift indirir.
 - Çiftlere işleme: eli açık oyuncu elindeki çifti başka oyuncunun çiftlerine işler; çiftin sahibine
   (işlenen taşların toplamı × 10) × 2 ceza yazılır. Örn. iki 5: ((5 + 5) × 10) × 2 = 200.
   Çiftlere tek taş işlenmez; kendi çiftine işlemek cezasızdır.
 - Çiftten bitme özel durumdur (rakiplerin elde kalanı ×2); çiftten biten 1 yıldız alır
 - Kullanılmayan okey: el sonunda elde kalan her okey için 100 ceza
 - Normal elde sahte okey (joker) okeyin rengi ve sayısıyla oynanır, joker gibi davranmaz
-- Yandan alınan taş o turda kullanılmazsa yalnızca aynı taş 100 cezayla geri atılabilir
+- Yerden (yandan) alınan her taş için atana taş değeri × 10 ceza (Hugo elinde × 20)
+- Kustu: yandan alınan taş, kullanılmadıysa cezasız geri konur; atanın cezası silinir, oyuncu desteden çeker
+  (kusulan taş aynı sırada tekrar alınamaz). Kusmadan aynı taşı atmak 100 ceza.
+- İşlek (masadaki bir pere işlenebilir) atılan taş için atana ceza yazılır; sıradaki oyuncu o taşı alamaz
+- Süre dolunca: yandan alınmış taş kusulur, desteden taş çekilir, per adayına girmeyen en küçük taş atılır;
+  okey asla atılmaz
+- Tüm cezalar masadaki herkese sağ altta kayıt olarak gösterilir: "[etiket] oyuncu taş +ceza"
 - Açtıktan sonra tek buton: "Perleri indir" (çiftle açanda "Çiftleri indir")

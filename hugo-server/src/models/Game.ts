@@ -37,9 +37,14 @@ type SahteTile = Tile & { sahte?: boolean };
 
 export interface Penalty {
     playerId: string;
-    amount: number;
+    amount: number;   // iptalde negatif
     reason: string;
+    tag: string;      // log etiketi: işlek, yerden, işleme, çift işleme, okey, iptal
+    tile?: string;    // kısa taş bilgisi, örn. "kırmızı 7"
 }
+
+const COLOR_TR: Record<string, string> = { red: 'kırmızı', blue: 'mavi', black: 'siyah', yellow: 'sarı', purple: 'sahte okey' };
+export const tileLabel = (t: Tile): string => t.isJoker ? 'sahte okey' : `${COLOR_TR[t.color] ?? t.color} ${t.value}`;
 
 export interface DiscardResult {
     tile: Tile | null;
@@ -81,6 +86,9 @@ export class Game {
     finisherPlayerId: string | null;
     finishedWithJoker: boolean;
     takenDiscardTileId: string | null; // yandan alınan, bu turda kullanılması gereken taş
+    takenPenalty: Penalty | null;      // yandan alınınca atana yazılan ceza (kusulursa geri alınır)
+    returnedTileId: string | null;     // bu sırada kusulan taş: aynı sırada tekrar alınamaz
+    lockedDiscardTileId: string | null; // işlek atılan taş: sıradaki oyuncu alamaz
     turnCounter: number;               // eldeki sıra sayacı (elden bitme için)
     finishedElden: boolean;            // son taşı atan, aynı sırada açmıştı
     createdAt: Date;
@@ -104,6 +112,9 @@ export class Game {
         this.finisherPlayerId = null;
         this.finishedWithJoker = false;
         this.takenDiscardTileId = null;
+        this.takenPenalty = null;
+        this.returnedTileId = null;
+        this.lockedDiscardTileId = null;
         this.turnCounter = 0;
         this.finishedElden = false;
         this.tableSets = [];
@@ -255,10 +266,20 @@ export class Game {
         }
 
         let drawnTile: Tile | undefined;
+        this.takenPenalty = null;
 
-        if (fromDiscard && this.discardPile.length > 0) {
-            // Atılan taşlardan çek
+        if (fromDiscard) {
+            const top = this.discardPile[this.discardPile.length - 1];
+            // İşlek atılan ya da bu sırada kusulan taş yerden alınamaz
+            if (!top || top.id === this.lockedDiscardTileId || top.id === this.returnedTileId) return null;
             drawnTile = this.discardPile.pop();
+            const discarder = this.lastDiscardPlayerId ? this.getPlayerById(this.lastDiscardPlayerId) : undefined;
+            const value = drawnTile ? this.asPlayed(drawnTile).value : 0;
+            const amount = (typeof value === 'number' ? value : 0) * (this.isHugoRound() ? 20 : 10);
+            if (drawnTile && discarder && discarder.id !== playerId && amount > 0) {
+                discarder.addPenalty(amount);
+                this.takenPenalty = { playerId: discarder.id, amount, reason: 'Attığı taş yerden alındı', tag: 'yerden', tile: tileLabel(drawnTile) };
+            }
         } else {
             // Desteden çek
             drawnTile = this.deck.pop();
@@ -295,11 +316,11 @@ export class Game {
             return { tile: null, penalties: [], error: 'Yandan aldığın taşı kullanmalısın (ya da 100 ceza ile geri at)' };
         }
         if (pendingTaken) {
-            penalties.push({ playerId, amount: 100, reason: 'Yandan alınan taş kullanılmadı' });
+            penalties.push({ playerId, amount: 100, reason: 'Yandan alınan taş kullanılmadı', tag: 'kullanılmadı', tile: tileLabel(tile) });
         } else if (player.tiles.length > 1) {
             // Eli bitiren son taş hariç: masadaki bir pere eklenebilecek taşı atmak taş × 10 ceza
             const islek = this.islekPenalty(tile);
-            if (islek > 0) penalties.push({ playerId, amount: islek, reason: 'İşlenebilir taş atıldı' });
+            if (islek > 0) penalties.push({ playerId, amount: islek, reason: 'İşlenebilir taş atıldı', tag: 'işlek', tile: tileLabel(tile) });
         }
         penalties.forEach(p => player.addPenalty(p.amount));
 
@@ -311,6 +332,9 @@ export class Game {
         this.discardPile.push(tile);
         this.lastDiscardPlayerId = playerId;
         this.takenDiscardTileId = null;
+        this.takenPenalty = null;
+        // İşlek taş için zaten ceza yazıldı: sıradaki oyuncu bu taşı alıp atana ikinci ceza yazdıramaz
+        this.lockedDiscardTileId = penalties.some(p => p.tag === 'işlek') ? tile.id : null;
 
         // Sırayı bir sonraki oyuncuya geçir
         this.nextTurn();
@@ -322,6 +346,32 @@ export class Game {
     private pendingTakenTileId(player: Player): string | null {
         const id = this.takenDiscardTileId;
         return id && player.tiles.some(t => t.id === id) ? id : null;
+    }
+
+    // Kustu: yandan alınıp kullanılmayan taş cezasız geri konur, atanın cezası silinir; oyuncu desteden çeker
+    returnTakenTile(playerId: string): { tile: Tile | null; toPlayerId: string | null; revert: Penalty | null; error?: string } {
+        const player = this.getPlayerById(playerId);
+        if (!player || !this.isPlayerTurn(playerId) || this.turnAction !== TurnAction.DISCARD) {
+            return { tile: null, toPlayerId: null, revert: null, error: 'Şu an taş geri konamaz' };
+        }
+        const id = this.pendingTakenTileId(player);
+        const tile = id ? player.tiles.find(t => t.id === id) : undefined;
+        if (!tile) return { tile: null, toPlayerId: null, revert: null, error: 'Geri konacak yandan alınmış taş yok' };
+
+        player.removeTile(tile.id);
+        tile.setStatus(TileStatus.DISCARDED);
+        this.discardPile.push(tile);
+        let revert: Penalty | null = null;
+        if (this.takenPenalty) {
+            this.getPlayerById(this.takenPenalty.playerId)?.removePenalty(this.takenPenalty.amount);
+            revert = { ...this.takenPenalty, amount: -this.takenPenalty.amount, reason: 'Taş kusuldu, ceza iptal', tag: 'iptal' };
+        }
+        this.takenPenalty = null;
+        this.takenDiscardTileId = null;
+        this.returnedTileId = tile.id;
+        this.turnAction = TurnAction.DRAW;
+        this.lastActionTime = new Date();
+        return { tile, toPlayerId: this.lastDiscardPlayerId, revert };
     }
 
     // Taş masadaki bir perin başına ya da sonuna eklenebiliyorsa ceza = değer × 10
@@ -348,6 +398,7 @@ export class Game {
         // Tur aksiyonunu sıfırla
         this.turnAction = TurnAction.DRAW;
         this.okeyPlayedThisTurn = false;
+        this.returnedTileId = null;
     }
 
     isPlayerTurn(playerId: string): boolean {
@@ -361,9 +412,26 @@ export class Game {
         if (!player || player.tiles.length === 0) return null;
         const pendingTaken = this.pendingTakenTileId(player);
         if (pendingTaken) return player.tiles.find(t => t.id === pendingTaken) || null;
-        const plain = player.tiles.filter(t => !t.isJoker && !this.isOkeyTile(t) && typeof t.value === 'number');
+        // Okey asla atılmaz; önce bir per adayına girmeyen taşlar
+        const plain = player.tiles.filter(t => !this.isOkeyTile(t) && typeof this.asPlayed(t).value === 'number');
         if (plain.length === 0) return player.tiles[0];
-        return plain.reduce((min, t) => (t.value as number) < (min.value as number) ? t : min);
+        const loose = plain.filter(t => !this.inPotentialPer(t, plain));
+        const pool = loose.length ? loose : plain;
+        const val = (t: Tile) => this.asPlayed(t).value as number;
+        return pool.reduce((min, t) => val(t) < val(min) ? t : min);
+    }
+
+    // Taş, eldeki iki taşla geçerli bir 3'lü per (seri ya da aynı sayı) kurabiliyor mu
+    private inPotentialPer(tile: Tile, hand: Tile[]): boolean {
+        const others = hand.filter(t => t.id !== tile.id);
+        const val = (t: Tile) => this.asPlayed(t).value as number;
+        for (let i = 0; i < others.length; i++) {
+            for (let j = i + 1; j < others.length; j++) {
+                const trio = [tile, others[i], others[j]].sort((a, b) => val(a) - val(b));
+                if (this.validateSetTiles(trio) > 0) return true;
+            }
+        }
+        return false;
     }
 
     getPlayerById(playerId: string): Player | undefined {
@@ -379,7 +447,6 @@ export class Game {
         openedTotal?: number;
         remainingTiles?: Record<string, any>[];
         turnAction?: TurnAction;
-        penalty?: number;
     } {
         const player = this.getPlayerById(playerId);
         if (!player || !this.isPlayerTurn(playerId)) {
@@ -431,19 +498,13 @@ export class Game {
             p.lastOpenedValue > max ? p.lastOpenedValue : max, 0
         );
 
-        // Minimum değer kontrolü
-        // Yetersiz değerle açma denemesi: 100 ceza, geri alma yok
-        if (kind === 'cift' && totalValue < 51) {
-            player.addPenalty(100);
-            return { success: false, error: `Çift açmak için çiftlerin toplamı en az 51 olmalı (${totalValue}): 100 ceza`, penalty: 100 };
+        // Minimum değer: ilk açılış en az 51, sonrakiler (seri ya da çift) masadaki en yüksek açılışı geçmeli.
+        // Yetersizse açılmaz, ceza yazılmaz.
+        if (maxOpenedValue === 0 && totalValue < 51) {
+            return { success: false, error: `İlk açılış için en az 51 gerekli (${totalValue})` };
         }
-        if (kind === 'seri' && maxOpenedValue === 0 && totalValue < 51) {
-            player.addPenalty(100);
-            return { success: false, error: `İlk açılış için en az 51 gerekli (${totalValue}): 100 ceza`, penalty: 100 };
-        }
-        if (kind === 'seri' && maxOpenedValue > 0 && totalValue <= maxOpenedValue) {
-            player.addPenalty(100);
-            return { success: false, error: `Masadaki en yüksek açılışı (${maxOpenedValue}) geçmeli: 100 ceza`, penalty: 100 };
+        if (maxOpenedValue > 0 && totalValue <= maxOpenedValue) {
+            return { success: false, error: `Masadaki en yüksek açılışı (${maxOpenedValue}) geçmeli (${totalValue})` };
         }
 
         // Taşları elden masaya taşı
@@ -463,8 +524,8 @@ export class Game {
         player.isOpen = true;
         player.openedWithPairs = kind === 'cift';
         player.openedAtTurn = this.turnCounter;
-        // Çift açılışı seri açılış eşiğini (katlama) yükseltmez
-        if (kind === 'seri') player.lastOpenedValue = totalValue;
+        // Seri ve çift ortak eşik: sonraki açılış bu değeri geçmeli
+        player.lastOpenedValue = totalValue;
         player.openedTotal += totalValue;
         // openingScore sadece ilk açılışta set edilir (player.openingScore === 0 kontrolü)
         if (player.openingScore === 0) {
@@ -499,7 +560,7 @@ export class Game {
         error?: string;
         updatedSet?: Record<string, any>;
         swappedOkeyTile?: Record<string, any>;
-        penalty?: { targetPlayerId: string; amount: number };
+        penalty?: { targetPlayerId: string; amount: number; tag: string; tile: string };
         remainingTiles?: Record<string, any>[];
     } {
         const player = this.getPlayerById(playerId);
@@ -560,10 +621,10 @@ export class Game {
                     player.addTile(okeyTile);
 
                     // Set sahibine 100 puan ceza
-                    let penalty: { targetPlayerId: string; amount: number } | undefined;
+                    let penalty: { targetPlayerId: string; amount: number; tag: string; tile: string } | undefined;
                     if (setOwner) {
                         setOwner.addPenalty(100);
-                        penalty = { targetPlayerId: setOwner.id, amount: 100 };
+                        penalty = { targetPlayerId: setOwner.id, amount: 100, tag: 'okey', tile: tileLabel(tile) };
                     }
 
                     this.lastActionTime = new Date();
@@ -607,7 +668,7 @@ export class Game {
 
         // Ceza: sadece başka oyuncunun setine ekleme → taş değeri × 10
         // Joker/okey için pozisyondaki etkin değeri hesapla
-        let penalty: { targetPlayerId: string; amount: number } | undefined;
+        let penalty: { targetPlayerId: string; amount: number; tag: string; tile: string } | undefined;
         if (setOwner && setOwner.id !== playerId) {
             let effectiveValue: number;
             if (this.isOkeyTile(tile)) {
@@ -618,7 +679,7 @@ export class Game {
             }
             const penaltyAmount = effectiveValue * 10;
             setOwner.addPenalty(penaltyAmount);
-            penalty = { targetPlayerId: setOwner.id, amount: penaltyAmount };
+            penalty = { targetPlayerId: setOwner.id, amount: penaltyAmount, tag: 'işleme', tile: tileLabel(tile) };
         }
 
         this.lastActionTime = new Date();
@@ -637,7 +698,7 @@ export class Game {
         success: boolean;
         error?: string;
         newSet?: TableSet;
-        penalty?: { targetPlayerId: string; amount: number };
+        penalty?: { targetPlayerId: string; amount: number; tag: string; tile: string };
         remainingTiles?: Record<string, any>[];
     } {
         const player = this.getPlayerById(playerId);
@@ -666,12 +727,12 @@ export class Game {
         const newSet: TableSet = { id: uuidv4(), playerId: target.playerId, tiles: tiles as Tile[], value, kind: 'cift' };
         this.tableSets.push(newSet);
 
-        let penalty: { targetPlayerId: string; amount: number } | undefined;
+        let penalty: { targetPlayerId: string; amount: number; tag: string; tile: string } | undefined;
         const owner = this.getPlayerById(target.playerId);
         if (owner && owner.id !== playerId) {
             const amount = value * 10 * 2;
             owner.addPenalty(amount);
-            penalty = { targetPlayerId: owner.id, amount };
+            penalty = { targetPlayerId: owner.id, amount, tag: 'çift işleme', tile: (tiles as Tile[]).map(tileLabel).join(' + ') };
         }
 
         this.lastActionTime = new Date();

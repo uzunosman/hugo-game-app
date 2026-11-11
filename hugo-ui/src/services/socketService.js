@@ -296,6 +296,18 @@ class SocketService {
         this.socket.off('player:connection');
     }
 
+    returnTaken(callback) {
+        this.socket.emit('game:returnTaken', { playerId: this.playerId }, callback);
+    }
+
+    onTileReturned(callback) {
+        this.socket.on('game:tileReturned', callback);
+    }
+
+    offTileReturned() {
+        this.socket.off('game:tileReturned');
+    }
+
     onAutoPlayed(callback) {
         this.socket.on('game:autoPlayed', callback);
     }

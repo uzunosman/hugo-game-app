@@ -206,6 +206,66 @@ const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTil
 
     const isInteractive = !!selectedTileId || !!activeTile;
 
+    const renderSet = (set) => {
+        // Çiftlere işleme, çiftlerin önündeki soluk çift yerinden yapılır
+        const isExpanded = hoveredSetId === set.id && set.kind !== 'cift';
+        const validPositions = isExpanded
+            ? calculateValidPositions(set, activeTile, okeyTile, isHugo, pairPartnerId)
+            : [];
+        const hasStartSlot = validPositions.some(v => v.position === 'start');
+        const hasEndSlot = validPositions.some(v => v.position === 'end');
+
+        return (
+            <div
+                key={set.id}
+                className={`open-set-group ${isExpanded ? 'expanded' : ''} ${isInteractive && set.kind !== 'cift' ? 'droppable' : ''}`}
+                data-set-id={set.id}
+                onDragOver={handleDragOver}
+                onDragEnter={() => handleDragEnter(set.id)}
+                onDragLeave={(e) => handleDragLeave(e, set.id)}
+                onMouseEnter={() => handleMouseEnter(set.id)}
+                onMouseLeave={() => handleMouseLeave(set.id)}
+            >
+                {isExpanded && hasStartSlot && (
+                    <div
+                        className="insertion-slot"
+                        data-set-id={set.id}
+                        data-position="start"
+                        onClick={() => handleSlotClick(set.id, 'start')}
+                        onDragOver={handleDragOver}
+                        onDrop={(e) => handleSlotDrop(e, set.id, 'start')}
+                    />
+                )}
+                {set.tiles.map((tile) => {
+                    const tileIsOkey = isOkeyTile(tile, okeyTile, isHugo);
+                    return (
+                        <div
+                            key={tile.id}
+                            className={`open-set-tile ${tile.color} ${tileIsOkey ? 'is-okey' : ''}`}
+                            data-set-id={set.id}
+                            data-is-okey={tileIsOkey ? 'true' : undefined}
+                            onDragOver={tileIsOkey && isExpanded ? handleDragOver : undefined}
+                            onDrop={tileIsOkey && isExpanded ? (e) => handleSlotDrop(e, set.id, 'end') : undefined}
+                            onClick={tileIsOkey && isExpanded && selectedTileId ? () => handleSlotClick(set.id, 'end') : undefined}
+                        >
+                            {tile.value}
+                        </div>
+                    );
+                })}
+                {isExpanded && hasEndSlot && (
+                    <div
+                        className="insertion-slot"
+                        data-set-id={set.id}
+                        data-position="end"
+                        onClick={() => handleSlotClick(set.id, 'end')}
+                        onDragOver={handleDragOver}
+                        onDrop={(e) => handleSlotDrop(e, set.id, 'end')}
+                    />
+                )}
+            </div>
+        );
+    };
+
     return (
         <div className="open-sets-container">
             {players.map((p, index) => {
@@ -214,76 +274,39 @@ const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTil
 
                 if (playerSets.length === 0) return null;
 
+                const seriSets = playerSets.filter(st => st.kind !== 'cift');
+                const pairSets = playerSets.filter(st => st.kind === 'cift');
+                // Elinde eşi olan taş seçili/sürükleniyorsa çiftlerin önünde soluk bir çift yeri açılır
+                const showPairSlot = pairSets.length > 0 && !!activeTile && !!pairPartnerId;
+
                 return (
                     <div
                         key={p.id}
                         className={`open-sets-area open-sets-${position}`}
                     >
-                        <div className="open-sets-list">
-                            {playerSets.map((set) => {
-                                const isExpanded = hoveredSetId === set.id;
-                                const validPositions = isExpanded
-                                    ? calculateValidPositions(set, activeTile, okeyTile, isHugo, pairPartnerId)
-                                    : [];
-                                const hasStartSlot = validPositions.some(p => p.position === 'start');
-                                const hasEndSlot = validPositions.some(p => p.position === 'end');
-
-                                return (
+                        {seriSets.length > 0 && (
+                            <div className="open-sets-list">{seriSets.map(renderSet)}</div>
+                        )}
+                        {pairSets.length > 0 && (
+                            <div className="open-sets-list open-pairs-list">
+                                {showPairSlot && (
                                     <div
-                                        key={set.id}
-                                        className={`open-set-group ${isExpanded ? 'expanded' : ''} ${isInteractive ? 'droppable' : ''}`}
-                                        data-set-id={set.id}
+                                        className={`pair-slot ${hoveredSetId === `pair-${p.id}` ? 'hover' : ''}`}
+                                        role="button"
+                                        aria-label="Çifti buraya işle"
+                                        title="Çifti buraya işle"
+                                        onClick={() => handleSlotClick(pairSets[0].id, 'end')}
                                         onDragOver={handleDragOver}
-                                        onDragEnter={() => handleDragEnter(set.id)}
-                                        onDragLeave={(e) => handleDragLeave(e, set.id)}
-                                        onMouseEnter={() => handleMouseEnter(set.id)}
-                                        onMouseLeave={() => handleMouseLeave(set.id)}
+                                        onDragEnter={() => setHoveredSetId(`pair-${p.id}`)}
+                                        onDragLeave={() => setHoveredSetId(null)}
+                                        onDrop={(e) => handleSlotDrop(e, pairSets[0].id, 'end')}
                                     >
-                                        {/* Başa ekleme slot'u */}
-                                        {isExpanded && hasStartSlot && (
-                                            <div
-                                                className="insertion-slot"
-                                                data-set-id={set.id}
-                                                data-position="start"
-                                                onClick={() => handleSlotClick(set.id, 'start')}
-                                                onDragOver={handleDragOver}
-                                                onDrop={(e) => handleSlotDrop(e, set.id, 'start')}
-                                            />
-                                        )}
-
-                                        {/* Mevcut taşlar */}
-                                        {set.tiles.map((tile) => {
-                                            const tileIsOkey = isOkeyTile(tile, okeyTile, isHugo);
-                                            return (
-                                                <div
-                                                    key={tile.id}
-                                                    className={`open-set-tile ${tile.color} ${tileIsOkey ? 'is-okey' : ''}`}
-                                                    data-set-id={set.id}
-                                                    data-is-okey={tileIsOkey ? 'true' : undefined}
-                                                    onDragOver={tileIsOkey && isExpanded ? handleDragOver : undefined}
-                                                    onDrop={tileIsOkey && isExpanded ? (e) => handleSlotDrop(e, set.id, 'end') : undefined}
-                                                    onClick={tileIsOkey && isExpanded && selectedTileId ? () => handleSlotClick(set.id, 'end') : undefined}
-                                                >
-                                                    {tile.value}
-                                                </div>
-                                            );
-                                        })}
-
-                                        {/* Sona ekleme slot'u */}
-                                        {isExpanded && hasEndSlot && (
-                                            <div
-                                                className="insertion-slot"
-                                                data-set-id={set.id}
-                                                data-position="end"
-                                                onClick={() => handleSlotClick(set.id, 'end')}
-                                                onDragOver={handleDragOver}
-                                                onDrop={(e) => handleSlotDrop(e, set.id, 'end')}
-                                            />
-                                        )}
+                                        <span /><span />
                                     </div>
-                                );
-                            })}
-                        </div>
+                                )}
+                                {pairSets.map(renderSet)}
+                            </div>
+                        )}
                     </div>
                 );
             })}

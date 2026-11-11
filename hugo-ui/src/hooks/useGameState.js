@@ -30,6 +30,8 @@ const useGameState = (player, room) => {
     const [lastDiscardPlayerId, setLastDiscardPlayerId] = useState(room.game?.lastDiscardPlayerId || null);
     // Masadaki açık setler
     const [tableSets, setTableSets] = useState(room.game?.tableSets || []);
+    // Ceza kaydı: masadaki herkesin gördüğü son cezalar
+    const [penaltyLog, setPenaltyLog] = useState([]);
     // Tur sonu sonuçları (null = tur devam ediyor)
     const [roundEndResults, setRoundEndResults] = useState(null);
     // Oyuncu açık durumları { playerId: { isOpen, openedTotal, lastOpenedValue } }
@@ -173,21 +175,7 @@ const useGameState = (player, room) => {
                 setTableSets(prev => prev.map(s =>
                     s.id === response.updatedSet.id ? response.updatedSet : s
                 ));
-                // Ceza varsa oyuncu state'ini güncelle
-                if (response.penalty) {
-                    setPlayerOpenStates(prev => {
-                        const target = prev[response.penalty.targetPlayerId];
-                        if (!target) return prev;
-                        return {
-                            ...prev,
-                            [response.penalty.targetPlayerId]: {
-                                ...target,
-                                penaltyScore: (target.penaltyScore || 0) + response.penalty.amount,
-                                penaltyEntries: [...(target.penaltyEntries || []), response.penalty.amount]
-                            }
-                        };
-                    });
-                }
+                // Ceza ayrıca game:penalty ile gelir
             }
         });
 
@@ -218,16 +206,35 @@ const useGameState = (player, room) => {
         });
 
         // Anlık ceza (işlek taş, kullanılmayan yandan taş, yetersiz açma)
-        socketService.onPenalty(({ playerId, amount, reason, penaltyScore }) => {
-            setPlayerOpenStates(prev => ({
-                ...prev,
-                [playerId]: {
-                    ...prev[playerId],
-                    penaltyScore,
-                    penaltyEntries: [...(prev[playerId]?.penaltyEntries || []), amount]
-                }
-            }));
-            if (playerId === player.id) setError(`${reason}: +${amount} ceza`);
+        socketService.onPenalty(({ playerId, playerName, amount, reason, tag, tile, penaltyScore }) => {
+            setPlayerOpenStates(prev => {
+                const entries = [...(prev[playerId]?.penaltyEntries || [])];
+                // Negatif tutar: iptal edilen cezanın kaydı silinir
+                if (amount < 0) {
+                    const i = entries.lastIndexOf(-amount);
+                    if (i !== -1) entries.splice(i, 1);
+                } else entries.push(amount);
+                return { ...prev, [playerId]: { ...prev[playerId], penaltyScore, penaltyEntries: entries } };
+            });
+            setPenaltyLog(prev => [...prev, { id: `${Date.now()}-${prev.length}`, tag, playerName, tile, amount }].slice(-30));
+            if (playerId === player.id) setError(`${reason}: ${amount > 0 ? '+' : ''}${amount} ceza`);
+        });
+
+        // Kustu: yandan alınan taş, atanın köşesine geri döner
+        socketService.onTileReturned(({ playerId, toPlayerId, tile }) => {
+            const corner = getCornerByPlayerId(toPlayerId);
+            if (corner) {
+                setDiscardedTiles(prev => ({
+                    ...prev,
+                    [corner]: [...(prev[corner] || []), { ...tile, discardedBy: toPlayerId, locked: playerId === player.id }]
+                }));
+            }
+            setLastDiscardPlayerId(toPlayerId);
+            if (playerId === player.id) {
+                setTiles(prev => prev.filter(t => t.id !== tile.id));
+                setTilePositions(prev => prev.map(id => (id === tile.id ? null : id)));
+                setGameState(prev => ({ ...prev, turnAction: 'draw' }));
+            }
         });
 
         // Bir oyuncunun bağlantısı koptu / geri geldi
@@ -236,11 +243,12 @@ const useGameState = (player, room) => {
         });
 
         // Süre doldu: sunucu bizim yerimize çekti ve en küçük taşı attı
+        // Önce çekilen eklenir, sonra atılan çıkarılır: atılan, çekilen taşın kendisi olabilir
         socketService.onAutoPlayed(({ drawnTile, discardedTile }) => {
-            setTiles(prev => [...prev.filter(t => t.id !== discardedTile.id), ...(drawnTile ? [drawnTile] : [])]);
+            setTiles(prev => [...prev, ...(drawnTile ? [drawnTile] : [])].filter(t => t.id !== discardedTile.id));
             setTilePositions(prev => {
                 const next = prev.map(id => (id === discardedTile.id ? null : id));
-                if (drawnTile && !next.includes(drawnTile.id)) {
+                if (drawnTile && drawnTile.id !== discardedTile.id && !next.includes(drawnTile.id)) {
                     const empty = next.indexOf(null);
                     if (empty !== -1) next[empty] = drawnTile.id;
                 }
@@ -263,6 +271,7 @@ const useGameState = (player, room) => {
             setDiscardedTiles({ topLeft: [], topRight: [], bottomRight: [], bottomLeft: [] });
             setLastDiscardPlayerId(null);
             setSelectedTile(null);
+            setPenaltyLog([]);
 
             // Oyuncu açık durumlarını sıfırla
             const states = {};
@@ -304,6 +313,7 @@ const useGameState = (player, room) => {
             socketService.offPlayerConnection();
             socketService.offPenalty();
             socketService.offAutoPlayed();
+            socketService.offTileReturned();
         };
         // Dinleyiciler oyuncu başına bir kez kurulur; room.players oyun boyunca değişmez
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -375,7 +385,8 @@ const useGameState = (player, room) => {
         playerOpenStates,
         setPlayerOpenStates,
         roundEndResults,
-        setRoundEndResults
+        setRoundEndResults,
+        penaltyLog
     };
 };
 

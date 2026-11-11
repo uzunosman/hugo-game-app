@@ -24,7 +24,7 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     const r = game.openHand(p0.id, [ids(seq.slice(0, 3))]);
     assert.strictEqual(r.success, false, '18 değerle açılmamalı');
     assert.strictEqual(p0.isOpen, false);
-    assert.strictEqual(p0.penaltyScore, 100, 'yetersiz açma 100 ceza');
+    assert.strictEqual(p0.penaltyScore, 0, 'yetersiz açma denemesi ceza yazmaz');
 }
 
 // El açma: 51+ kabul edilir, taşlar masaya iner
@@ -162,15 +162,21 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     assert.strictEqual(r.success, true, r.error);
     assert.strictEqual(r.openedTotal, 26 + 24 + 2);
     assert.strictEqual(a.p0.openedWithPairs, true);
-    assert.strictEqual(a.p0.lastOpenedValue, 0, 'çift açılış seri eşiğini yükseltmez');
+    assert.strictEqual(a.p0.lastOpenedValue, 52, 'çift açılış da ortak eşiği belirler');
     assert.ok(a.game.tableSets.every(st => st.kind === 'cift'));
 
-    // 26 + 24 = 50 → yetersiz, 100 ceza
+    // 26 + 24 = 50 → yetersiz, ceza yok
     const b = setup();
     const hb = give(b.p0, pairs());
     const rb = b.game.openHand(b.p0.id, [ids(hb.slice(0, 2)), ids(hb.slice(2, 4))], 'cift');
     assert.strictEqual(rb.success, false);
-    assert.strictEqual(b.p0.penaltyScore, 100);
+    assert.strictEqual(b.p0.penaltyScore, 0);
+
+    // Çift açan da masadaki en yüksek açılışı geçmeli: masada 60 varken 52'lik çift açılmaz
+    const e = setup();
+    e.p1.lastOpenedValue = 60;
+    const he = give(e.p0, pairs());
+    assert.strictEqual(e.game.openHand(e.p0.id, [ids(he.slice(0, 2)), ids(he.slice(2, 4)), ids(he.slice(4, 6))], 'cift').success, false, '52 < 60');
 
     // Hugo elinde joker okeydir: joker + kırmızı 13 = 26, + mavi 12'ler 24 + siyah 1'ler 2 = 52
     const c = setup();
@@ -261,7 +267,7 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     assert.strictEqual(game.addPairToSet(p1.id, [f1.id, bad.id], 'cift0').success, false, 'farklı renk çift değil');
     const r = game.addPairToSet(p1.id, [f1.id, f2.id], 'cift0');
     assert.strictEqual(r.success, true, r.error);
-    assert.deepStrictEqual(r.penalty, { targetPlayerId: p0.id, amount: 200 });
+    assert.deepStrictEqual({ to: r.penalty?.targetPlayerId, amount: r.penalty?.amount, tag: r.penalty?.tag }, { to: p0.id, amount: 200, tag: 'çift işleme' });
     assert.strictEqual(p0.penaltyScore, 200);
     assert.strictEqual(r.newSet?.playerId, p0.id, 'işlenen çift sahibinin alanına konur');
     assert.deepStrictEqual(p1.tiles.map(x => x.id), [other.id, bad.id]);
@@ -282,6 +288,42 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     assert.strictEqual(ro.success, true, ro.error);
     assert.strictEqual(ro.penalty, undefined);
     assert.strictEqual(own.p0.penaltyScore, 0);
+}
+
+// Yerden alma: atana değer × 10 (Hugo ×20); kusunca ceza silinir ve taş aynı sırada tekrar alınamaz
+{
+    const { game, p0, p1 } = setup(); // 1. el Hugo
+    give(p0, [t(RED, 7), t(BLUE, 1)]);
+    give(p1, [t(BLACK, 2), t(BLACK, 3)]);
+    const r7 = p0.tiles[0];
+    assert.ok(game.discardTile(p0.id, r7.id).tile);
+    assert.ok(game.drawTile(p1.id, true), 'yerden alınmalı');
+    assert.strictEqual(p0.penaltyScore, 140, 'Hugo elinde 7 × 20');
+    const k = game.returnTakenTile(p1.id);
+    assert.ok(k.tile && k.revert && k.revert.amount === -140, k.error);
+    assert.strictEqual(p0.penaltyScore, 0, 'kusunca atanın cezası silinir');
+    assert.strictEqual(p1.penaltyScore, 0, 'kusmak cezasız');
+    assert.strictEqual(game.turnAction, TurnAction.DRAW, 'kusan desteden çeker');
+    assert.strictEqual(game.drawTile(p1.id, true), null, 'kusulan taş aynı sırada tekrar alınamaz');
+    assert.ok(game.drawTile(p1.id, false), 'desteden çekilir');
+}
+
+// İşlek atılan taş yerden alınamaz
+{
+    const { game, p0, p1 } = setup();
+    game.tableSets.push({ id: 's', playerId: p1.id, kind: 'seri', value: 15, tiles: [t(RED, 4), t(RED, 5), t(RED, 6)] });
+    give(p0, [t(RED, 7), t(BLUE, 1)]);
+    give(p1, [t(BLACK, 2)]);
+    const res = game.discardTile(p0.id, p0.tiles[0].id);
+    assert.ok(res.penalties.some(p => p.tag === 'işlek'));
+    assert.strictEqual(game.drawTile(p1.id, true), null, 'işlek taş alınamaz');
+}
+
+// Süre dolunca: okey ve per adayı atılmaz, en küçük boşta taş atılır
+{
+    const { game, p0 } = setup(); // Hugo: joker okeydir
+    give(p0, [new Tile(TileColor.PURPLE, 'H', true), t(RED, 1), t(RED, 2), t(RED, 3), t(BLUE, 5), t(BLACK, 9)]);
+    assert.strictEqual(game.pickAutoDiscard(p0.id)?.value, 5, 'kırmızı 1-2-3 per; okey atılmaz; mavi 5 atılır');
 }
 
 console.log('Rules.selftest: el açma, set doğrulama, sıra, işleme, yandan alma, işlek taş, otomatik atış, Hugo, sahte okey, çift açma, çift işleme ve el sonu puanlama kuralları ✓');

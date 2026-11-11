@@ -315,7 +315,8 @@ export const handleDrawDiscardedTile = ({
     setTilePositions,
     setDiscardedTiles,
     setGameState,
-    setError
+    setError,
+    onTaken
 }) => {
     // Sadece sıradaki oyuncu, draw aşamasında işlem yapabilir
     if (gameState.currentPlayerId !== playerId || gameState.turnAction !== 'draw') {
@@ -332,6 +333,10 @@ export const handleDrawDiscardedTile = ({
 
     // Sadece son atılan taş (en üstteki) çekilebilir
     const lastTileIndex = cornerTiles.length - 1;
+    if (cornerTiles[lastTileIndex].locked) {
+        setError('Bu taş yerden alınamaz');
+        return;
+    }
     if (tileIndex !== lastTileIndex) {
         setError('Sadece en son atılan taşı alabilirsiniz');
         return;
@@ -345,6 +350,7 @@ export const handleDrawDiscardedTile = ({
 
         if (response.success) {
             console.log('Sunucudan gelen taş:', response.tile);
+            onTaken?.({ tileId: response.tile.id, corner });
 
             // Yeni taşı elde ekle
             setTiles(prevTiles => [...prevTiles, response.tile]);
