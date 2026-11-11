@@ -422,7 +422,9 @@ function Game({ player, room, onLeaveRoom }) {
                 return (
                     <PlayerPanel
                         key={index}
+                        playerId={p.id}
                         name={p.name}
+                        isBot={!!p.isBot}
                         position={getPlayerPosition(index)}
                         isCurrentPlayer={p.id === gameState.currentPlayerId}
                         timeLeft={p.id === gameState.currentPlayerId ? timeLeft : null}

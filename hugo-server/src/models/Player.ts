@@ -20,6 +20,7 @@ export class Player {
     connected: boolean;
     openedWithPairs: boolean; // bu elde çiftle açtı (sonra da yalnızca çift indirir)
     openedAtTurn: number;     // ilk açtığı sıranın numarası (elden bitme kontrolü)
+    isBot: boolean;           // yapay zekâ oyuncu: sunucuda oynar, soketi yoktur
 
     constructor(name: string, socketId: string) {
         this.id = uuidv4();
@@ -38,6 +39,7 @@ export class Player {
         this.per100PlusCount = 0;
         this.openingScore = 0;
         this.connected = true;
+        this.isBot = false;
         this.openedWithPairs = false;
         this.openedAtTurn = -1;
     }
@@ -148,6 +150,7 @@ export class Player {
             openingScore: this.openingScore,
             connected: this.connected,
             openedWithPairs: this.openedWithPairs,
+            isBot: !!this.isBot,
         };
     }
 } 

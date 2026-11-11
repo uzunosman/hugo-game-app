@@ -958,7 +958,7 @@ export class Game {
         return normalTiles.every(t => t.value === value);
     }
 
-    private isOkeyTile(tile: Tile): boolean {
+    isOkeyTile(tile: Tile): boolean {
         if (this.isHugoRound()) return tile.isJoker;
         // Normal elde joker sahte okeydir: okeyin değerini taşır ama joker gibi davranmaz
         if (tile.isJoker || (tile as SahteTile).sahte || !this.okeyTile) return false;
@@ -966,7 +966,7 @@ export class Game {
     }
 
     // Normal elde sahte okey (joker), okey taşının rengi ve sayısıyla sıradan taş gibi oynanır
-    private asPlayed(tile: Tile): Tile {
+    asPlayed(tile: Tile): Tile {
         if (this.isHugoRound() || !tile.isJoker || !this.okeyTile) return tile;
         return { ...tile, color: this.okeyTile.color, value: this.okeyTile.value, isJoker: false, sahte: true } as SahteTile;
     }
@@ -990,7 +990,7 @@ export class Game {
         return base.value * 2;
     }
 
-    private validateSetTiles(rawTiles: Tile[]): number {
+    validateSetTiles(rawTiles: Tile[]): number {
         if (rawTiles.length < 3) return 0;
         const tiles = rawTiles.map(t => this.asPlayed(t));
 

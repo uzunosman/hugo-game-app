@@ -96,7 +96,9 @@ Oyun durumu `hugo-server/data/state.json` dosyasına yazılır; sunucu yeniden b
 ```
 cd hugo-server
 npm test           # tur akışı, kural motoru ve kalıcılık öz-testleri
-npm run test:e2e   # sunucuyu 3099'da başlatır, 4 bot 9 eli oynar (süre aşımı, yeniden bağlanma ve sunucu yeniden başlatma dahil)
+npm test           # + yapay zekâ planlayıcı öz-testi
+npm run test:e2e   # 4 bot 9 eli oynar (süre aşımı, yeniden bağlanma, sunucu yeniden başlatma dahil);
+                   # ardından 1 insan + 3 yapay zekâ 9 el (yapay zekânın eli gizli, onun adına hamle yapılamaz)
 
 cd hugo-ui
 npm test           # ıstaka mantığı (satır ayrımı, kaydırma, otomatik dizme)
@@ -105,7 +107,16 @@ npm test           # ıstaka mantığı (satır ayrımı, kaydırma, otomatik di
 Ortam değişkenleri (sunucu): `TEST_MODE=true` eli başlatana hazır bir açılış eli verir
 (`TEST_HAND=cift` ile çift eli),
 `TURN_TIMEOUT_MS` sıra süresi, `DISCONNECTED_TURN_MS` kopuk oyuncunun sırası,
-`PERSIST=false` durumu diske yazmayı kapatır, `STATE_FILE` durum dosyasının yolu.
+`PERSIST=false` durumu diske yazmayı kapatır, `STATE_FILE` durum dosyasının yolu,
+`BOT_THINK_MS` yapay zekânın düşünme payı (varsayılan 900 ms; bu ile 2 katı arası).
+
+## Yapay zekâ oyuncu
+
+Masa sahibi, oda ekranında boş koltuktaki **Yapay zekâ ekle** ile oyuncu ekler (oyun başlamadan, × ile çıkarır).
+Yapay zekâ tamamen sunucuda oynar (`hugo-server/src/ai/AiPlanner.ts`, sıra gelince `socketHandler` içindeki `botTurn`):
+desteden çeker, eşiği geçiyorsa açar, per indirir, masadaki perlere işler, per adayı olmayan en küçük taşı atar (okeyi atmaz).
+Soketi yoktur; eli hiçbir istemciye gönderilmez. Sunucu her oyun olayında isteği gönderen soketin o oyuncuya ait olduğunu
+denetler, bu yüzden tarayıcı konsolundan ne yapay zekâ ne de başka bir oyuncu adına hamle yapılabilir ya da el okunabilir.
 İstemci: `VITE_SOCKET_URL` sunucu adresi (varsayılan `http://localhost:3001`).
 
 ## Geliştirme

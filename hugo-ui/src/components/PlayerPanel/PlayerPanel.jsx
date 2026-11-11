@@ -1,14 +1,10 @@
 import React from 'react';
+import { avatarFor } from '../../utils/avatar';
 import '../../assets/css/components/PlayerPanel.css';
 
 const TURN_SECONDS = 60;
 
-// Ada göre sabit avatar rengi: aynı oyuncu her ekranda aynı renkte görünür
-const AVATAR_HUES = [4, 28, 145, 190, 215, 262, 318, 48];
-const hueOf = (name = '') => AVATAR_HUES[[...name].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) % AVATAR_HUES.length];
-const initials = (name = '') => name.trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toLocaleUpperCase('tr-TR') || '?';
-
-const PlayerPanel = ({ name, position, isCurrentPlayer, timeLeft, setScore, isOpen, openedTotal, penaltyScore, connected = true, turnHint = null }) => {
+const PlayerPanel = ({ playerId, name, isBot = false, position, isCurrentPlayer, timeLeft, setScore, isOpen, openedTotal, penaltyScore, connected = true, turnHint = null }) => {
     const seconds = isCurrentPlayer && typeof timeLeft === 'number' ? timeLeft : null;
     const progress = seconds === null ? 0 : Math.max(0, Math.min(1, seconds / TURN_SECONDS));
     const isWarning = seconds !== null && seconds <= 10;
@@ -17,14 +13,15 @@ const PlayerPanel = ({ name, position, isCurrentPlayer, timeLeft, setScore, isOp
     return (
         <div
             className={`player-panel ${position} ${isCurrentPlayer ? 'is-turn' : ''} ${isWarning ? 'is-warning' : ''} ${connected ? '' : 'offline'}`}
-            style={{ '--ring': progress, '--avatar-hue': hueOf(name) }}
-            aria-label={`${name}${isCurrentPlayer ? ', sırada' : ''}${connected ? '' : ', bağlantı koptu'}`}
+            style={{ '--ring': progress }}
+            aria-label={`${name}${isBot ? ', yapay zekâ' : ''}${isCurrentPlayer ? ', sırada' : ''}${connected ? '' : ', bağlantı koptu'}`}
         >
+            {/* Sıradaysa avatarın çevresindeki halka kalan süreyi gösterir */}
             <div className="pp-avatar" aria-hidden="true">
-                <span className="pp-initials">{initials(name)}</span>
+                <img src={avatarFor(playerId || name, isBot)} alt="" draggable="false" />
             </div>
             <div className="pp-body">
-                <div className="pp-name" title={name}>{name}</div>
+                <div className="pp-name" title={name}>{name}{isBot && <span className="pp-bot" title="Yapay zekâ">YZ</span>}</div>
                 <div className="pp-meta">
                     {turnHint && <span className="pp-chip pp-hint">{turnHint}</span>}
                     {!connected && <span className="pp-chip pp-offline">Koptu</span>}
@@ -35,7 +32,6 @@ const PlayerPanel = ({ name, position, isCurrentPlayer, timeLeft, setScore, isOp
                     )}
                 </div>
             </div>
-            {seconds !== null && <div className="pp-timer" aria-live="off">{seconds}</div>}
         </div>
     );
 };

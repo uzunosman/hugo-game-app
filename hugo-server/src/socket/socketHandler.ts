@@ -5,6 +5,9 @@ import { Game, GameStatus, Penalty, SetKind, TurnAction } from '../models/Game';
 import { Tile } from '../models/Tile';
 import { RoomStatus } from '../models/Room';
 import { saveState } from '../utils/Persistence';
+import { planOpening, planSets } from '../ai/AiPlanner';
+
+const BOT_NAMES = ['Robo Rıza', 'Robo Nur', 'Robo Can', 'Robo Ece'];
 
 export const setupSocketHandlers = (io: Server) => {
     const gameManager = GameManager.getInstance();
@@ -27,6 +30,12 @@ export const setupSocketHandlers = (io: Server) => {
         turnTimers.delete(roomId);
         if (game.status !== GameStatus.STARTED) return;
         const current = game.players[game.currentPlayerIndex];
+        if (current.isBot) {
+            // Yapay zekâ kısa bir düşünme payıyla sunucuda oynar
+            const think = config.game.botThinkMs + Math.floor(Math.random() * config.game.botThinkMs);
+            turnTimers.set(roomId, setTimeout(() => botTurn(roomId, game, current.id), think));
+            return;
+        }
         const ms = overrideMs ?? (current.connected ? config.game.turnTimeout : config.game.disconnectedTurnTimeout);
         turnTimers.set(roomId, setTimeout(() => autoPlay(roomId, game, current.id), ms));
     };
@@ -101,6 +110,76 @@ export const setupSocketHandlers = (io: Server) => {
         return { success: true, tile: tile.toJSON(), remainingTiles: game.getPlayerById(playerId)?.tiles.map(t => t.toJSON()) };
     };
 
+    const setJSON = (st: { id: string; playerId: string; tiles: Tile[]; value: number; kind?: SetKind }) =>
+        ({ id: st.id, playerId: st.playerId, tiles: st.tiles.map(t => t.toJSON()), value: st.value, kind: st.kind });
+
+    // Yapay zekâ hamlesi: desteden çek → açabiliyorsa aç / per indir → masaya işle → per adayı olmayan en küçük taşı at.
+    // Tümü sunucuda; istemcilere yalnızca herkesin göreceği masa olayları gider.
+    const botTurn = (roomId: string, game: Game, botId: string) => {
+        turnTimers.delete(roomId);
+        const bot = game.getPlayerById(botId);
+        if (!bot || !game.isPlayerTurn(botId)) return;
+        try {
+            if (game.turnAction === TurnAction.DRAW && bot.tiles.length !== 15) {
+                const drawn = game.drawTile(botId, false);
+                if (!drawn) {
+                    if (game.deck.length === 0 && game.checkRoundEnd()) finishRound(roomId, game);
+                    return;
+                }
+                io.to(roomId).emit('game:tileDraw', { success: true, playerId: botId, fromDiscard: false, fromDiscardOfPlayerId: null });
+            }
+
+            if (!bot.isOpen) {
+                const plan = planOpening(game, bot.tiles);
+                const r = plan ? game.openHand(botId, plan, 'seri') : null;
+                if (r?.success) {
+                    io.to(roomId).emit('game:handOpened', {
+                        success: true, playerId: botId, newSets: r.newSets?.map(setJSON), openedTotal: r.openedTotal,
+                        isOpen: bot.isOpen, openedWithPairs: bot.openedWithPairs, lastOpenedValue: bot.lastOpenedValue,
+                        turnAction: game.turnAction
+                    });
+                }
+            } else if (!bot.openedWithPairs) {
+                const extra = planSets(game, bot.tiles).filter(st => st.length >= 3);
+                while (extra.length && extra.flat().length >= bot.tiles.length) extra.pop();
+                const r = extra.length ? game.dropPer(botId, extra.map(st => st.map(t => t.id))) : null;
+                if (r?.success) io.to(roomId).emit('game:perDropped', { success: true, playerId: botId, newSets: r.newSets?.map(setJSON) });
+            }
+
+            // Masadaki perlere işle (okeyi işlemez; Game elde en az bir taş bırakır)
+            if (bot.isOpen) {
+                let moved = true;
+                while (moved && bot.tiles.length > 1) {
+                    moved = false;
+                    for (const tile of [...bot.tiles]) {
+                        if (game.isOkeyTile(tile)) continue;
+                        for (const set of game.tableSets.filter(st => st.kind !== 'cift')) {
+                            for (const pos of ['end', 'start'] as const) {
+                                const r = game.addTileToSet(botId, tile.id, set.id, pos);
+                                if (!r.success) continue;
+                                io.to(roomId).emit('game:tileAddedToSet', { success: true, playerId: botId, updatedSet: r.updatedSet, swappedOkey: !!r.swappedOkeyTile });
+                                if (r.penalty) {
+                                    const { targetPlayerId, amount, tag, tile: label } = r.penalty;
+                                    emitPenalty(roomId, game, { playerId: targetPlayerId, amount, tag, tile: label, reason: 'Perine taş işlendi' });
+                                }
+                                moved = true;
+                                break;
+                            }
+                            if (moved) break;
+                        }
+                        if (moved) break;
+                    }
+                }
+            }
+
+            const tile = game.pickAutoDiscard(botId);
+            if (tile) discardAndAdvance(roomId, game, botId, tile.id);
+        } catch (error) {
+            console.error('Yapay zekâ hamlesi hatası:', error);
+            autoPlay(roomId, game, botId); // güvenli yol: çek ve en küçük taşı at
+        }
+    };
+
     // Tek tur sonu yolu: puanla, bildir, 4 sn sonra yeni eli başlat (son elde başlatma)
     const finishRound = (roomId: string, game: Game, finisherPlayerId?: string) => {
         clearTimeout(turnTimers.get(roomId));
@@ -146,6 +225,52 @@ export const setupSocketHandlers = (io: Server) => {
     io.on('connection', (socket: Socket) => {
         console.log(`Yeni bağlantı: ${socket.id}`);
         socket.onAny(() => persist()); // her istemci olayından sonra kaydet
+
+        // İstemci yalnızca kendi oyuncusu adına iş yapabilir (yapay zekâ oyuncuların soketi yoktur, kimse onları yönetemez)
+        const owns = (playerId: string | undefined) => {
+            const p = playerId ? gameManager.getPlayerById(playerId) : undefined;
+            return !!p && !p.isBot && p.socketId === socket.id;
+        };
+        const notYours = { success: false, error: 'Bu oyuncu adına işlem yapamazsın' };
+
+        // Yapay zekâ oyuncu ekle / çıkar: yalnızca oda sahibi, oyun başlamadan
+        socket.on('room:addBot', (data: { roomId: string; playerId: string }, callback) => {
+            try {
+                const room = gameManager.getRoomById(data?.roomId);
+                if (!room || !owns(data?.playerId) || !gameManager.isRoomOwner(data.playerId, room.id)) return callback({ success: false, error: 'Yalnızca masa sahibi yapay zekâ ekleyebilir' });
+                if (room.game && room.game.status !== GameStatus.FINISHED) return callback({ success: false, error: 'Oyun sürerken eklenemez' });
+                if (room.players.length >= room.maxPlayers) return callback({ success: false, error: 'Masa dolu' });
+                const used = new Set(room.players.map(p => p.name));
+                const name = BOT_NAMES.find(n => !used.has(n)) || `Yapay zekâ ${room.players.length}`;
+                const bot = gameManager.createPlayer(name, `bot:${Math.random().toString(36).slice(2)}`);
+                bot.isBot = true;
+                bot.setReady(true);
+                gameManager.addPlayerToRoom(bot.id, room.id);
+                io.to(room.id).emit('player:joined', { success: true, player: bot.toPublicJSON(), room: room.toJSON() });
+                io.emit('rooms:list', { success: true, rooms: gameManager.getAllRooms().map(r => r.toJSON()) });
+                callback({ success: true, room: room.toJSON() });
+            } catch (error) {
+                console.error('Yapay zekâ ekleme hatası:', error);
+                callback({ success: false, error: 'Yapay zekâ eklenemedi' });
+            }
+        });
+
+        socket.on('room:removeBot', (data: { roomId: string; playerId: string; botId: string }, callback) => {
+            try {
+                const room = gameManager.getRoomById(data?.roomId);
+                const bot = data?.botId ? gameManager.getPlayerById(data.botId) : undefined;
+                if (!room || !owns(data?.playerId) || !gameManager.isRoomOwner(data.playerId, room.id) || !bot?.isBot) return callback({ success: false, error: 'Yalnızca masa sahibi yapay zekâyı çıkarabilir' });
+                if (room.game && room.game.status !== GameStatus.FINISHED) return callback({ success: false, error: 'Oyun sürerken çıkarılamaz' });
+                gameManager.removePlayerFromRoom(bot.id, room.id);
+                gameManager.removePlayer(bot.id);
+                io.to(room.id).emit('player:left', { success: true, playerId: bot.id, room: room.toJSON() });
+                io.emit('rooms:list', { success: true, rooms: gameManager.getAllRooms().map(r => r.toJSON()) });
+                callback({ success: true, room: room.toJSON() });
+            } catch (error) {
+                console.error('Yapay zekâ çıkarma hatası:', error);
+                callback({ success: false, error: 'Yapay zekâ çıkarılamadı' });
+            }
+        });
 
         // Oyuncu Olayları
         socket.on('player:register', (data: { name: string }, callback) => {
@@ -379,6 +504,7 @@ export const setupSocketHandlers = (io: Server) => {
         // Oyun Olayları
         socket.on('player:ready', (data: { roomId: string, playerId: string, ready: boolean }, callback) => {
             try {
+                if (!owns(data?.playerId)) return callback(notYours);
                 const { roomId, playerId, ready } = data;
 
                 const player = gameManager.getPlayerById(playerId);
@@ -509,6 +635,7 @@ export const setupSocketHandlers = (io: Server) => {
         // Oyuncu taşlarını talep eder (game:tiles event'ini kaçıran istemciler için)
         socket.on('game:requestTiles', (data: { playerId: string }, callback) => {
             try {
+                if (!owns(data?.playerId)) return callback(notYours);
                 const { playerId } = data;
 
                 const player = gameManager.getPlayerById(playerId);
@@ -533,6 +660,7 @@ export const setupSocketHandlers = (io: Server) => {
 
         socket.on('game:drawTile', (data: { playerId: string, fromDiscard: boolean }, callback) => {
             try {
+                if (!owns(data?.playerId)) return callback(notYours);
                 const { playerId, fromDiscard } = data;
 
                 const player = gameManager.getPlayerById(playerId);
@@ -596,6 +724,7 @@ export const setupSocketHandlers = (io: Server) => {
 
         socket.on('game:discardTile', (data: { playerId: string, tileId: string }, callback) => {
             try {
+                if (!owns(data?.playerId)) return callback(notYours);
                 const { playerId, tileId } = data;
 
                 const player = gameManager.getPlayerById(playerId);
@@ -668,6 +797,7 @@ export const setupSocketHandlers = (io: Server) => {
         // El Açma / Taş Oynama
         socket.on('game:openHand', (data: { playerId: string, sets: string[][], kind?: SetKind }, callback) => {
             try {
+                if (!owns(data?.playerId)) return callback(notYours);
                 const { playerId, sets } = data;
                 const kind: SetKind = data.kind === 'cift' ? 'cift' : 'seri';
 
@@ -733,6 +863,7 @@ export const setupSocketHandlers = (io: Server) => {
         // İşleme (Taş Ekleme)
         socket.on('game:addTileToSet', (data: { playerId: string, tileId: string, targetSetId: string, position: 'start' | 'end' }, callback) => {
             try {
+                if (!owns(data?.playerId)) return callback(notYours);
                 const { playerId, tileId, targetSetId, position } = data;
 
                 const player = gameManager.getPlayerById(playerId);
@@ -793,6 +924,7 @@ export const setupSocketHandlers = (io: Server) => {
         // Çiftlere çift işleme: yeni çift sahibinin alanına konur, sahibine ceza yazılır
         socket.on('game:addPairToSet', (data: { playerId: string, tileIds: string[], targetSetId: string }, callback) => {
             try {
+                if (!owns(data?.playerId)) return callback(notYours);
                 const player = gameManager.getPlayerById(data?.playerId);
                 const room = player?.roomId ? gameManager.getRoomById(player.roomId) : undefined;
                 if (!player || !room?.game) return callback({ success: false, error: 'Oyun bulunamadı' });
@@ -829,6 +961,7 @@ export const setupSocketHandlers = (io: Server) => {
 
         socket.on('game:dropPer', (data: { playerId: string, sets: string[][] }, callback) => {
             try {
+                if (!owns(data?.playerId)) return callback(notYours);
                 const { playerId, sets } = data;
 
                 const player = gameManager.getPlayerById(playerId);

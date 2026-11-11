@@ -126,6 +126,38 @@
 .seat-name { font-weight: 700; overflow-wrap: anywhere; }
 .seat-meta { font-size: 0.8rem; color: var(--screen-muted); display: flex; gap: 8px; flex-wrap: wrap; }
 .seat-ready { color: #2f7d32; font-weight: 700; }
+.seat:not(.empty) { flex-direction: row; align-items: center; gap: 10px; position: relative; }
+.seat-avatar { width: 36px; height: 36px; border-radius: 50%; flex: none; }
+.seat-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.seat-add {
+    align-self: flex-start;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--screen-accent);
+    background: transparent;
+    border: 1px solid var(--screen-line);
+    border-radius: 6px;
+    padding: 5px 8px;
+    cursor: pointer;
+}
+.seat-add:hover { background: rgba(11, 110, 127, 0.08); }
+.seat-remove {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 24px;
+    height: 24px;
+    font-size: 16px;
+    line-height: 1;
+    color: var(--screen-muted);
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    cursor: pointer;
+}
+.seat-remove:hover { background: rgba(0, 0, 0, 0.06); color: var(--screen-ink); }
+.seat-add:focus-visible, .seat-remove:focus-visible { outline: 3px solid rgba(11, 110, 127, 0.35); outline-offset: 2px; }
 
 /* Oyun içi bildirim */
 .game-toast {

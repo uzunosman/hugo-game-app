@@ -22,6 +22,7 @@ export const config = {
         inactivityTimeout: 5 * 60 * 1000, // 5 dakika
         turnTimeout: Number(process.env.TURN_TIMEOUT_MS) || 60 * 1000, // 1 dakika (testte kısaltılabilir)
         disconnectedTurnTimeout: Number(process.env.DISCONNECTED_TURN_MS) || 3000, // kopuk oyuncunun sırası
+        botThinkMs: Number(process.env.BOT_THINK_MS) || 900, // yapay zekânın düşünme payı (bu ile 2 katı arası)
         maxRounds: 9,
         hugoRounds: [1, 5, 9], // Hugo turları
     }

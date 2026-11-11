@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import socketService from '../services/socketService';
 import Game from '../components/Game/Game';
+import { avatarFor } from '../utils/avatar';
 
 function Room({ player, room, onLeaveRoom }) {
     const [currentRoom, setCurrentRoom] = useState(room);
@@ -86,6 +87,22 @@ function Room({ player, room, onLeaveRoom }) {
         });
     };
 
+    // Yapay zekâ ekle / çıkar: yalnızca masa sahibi; sunucu odayı player:joined / left ile günceller
+    const handleAddBot = () => {
+        setError('');
+        socketService.addBot(currentRoom.id, (response) => {
+            if (response?.success) setCurrentRoom(response.room);
+            else setError(response?.error || 'Yapay zekâ eklenemedi');
+        });
+    };
+    const handleRemoveBot = (botId) => {
+        setError('');
+        socketService.removeBot(currentRoom.id, botId, (response) => {
+            if (response?.success) setCurrentRoom(response.room);
+            else setError(response?.error || 'Yapay zekâ çıkarılamadı');
+        });
+    };
+
     const isOwner = currentRoom.owner.id === player.id;
     const isReady = !!currentRoom.players.find(p => p.id === player.id)?.isReady;
     const allPlayersReady = currentRoom.players.length === currentRoom.maxPlayers &&
@@ -115,15 +132,25 @@ function Room({ player, room, onLeaveRoom }) {
                 <div className="seat-grid">
                     {seats.map((p, i) => p ? (
                         <div key={p.id} className={`seat ${p.id === player.id ? 'me' : ''}`}>
-                            <span className="seat-name">{p.name}{p.id === player.id ? ' (sen)' : ''}</span>
-                            <span className="seat-meta">
-                                {p.id === currentRoom.owner.id && <span>masa sahibi</span>}
-                                {p.isReady ? <span className="seat-ready">hazır</span> : <span>bekliyor</span>}
+                            <img className="seat-avatar" src={avatarFor(p.id, p.isBot)} alt="" />
+                            <span className="seat-text">
+                                <span className="seat-name">{p.name}{p.id === player.id ? ' (sen)' : ''}</span>
+                                <span className="seat-meta">
+                                    {p.isBot && <span>yapay zekâ</span>}
+                                    {p.id === currentRoom.owner.id && <span>masa sahibi</span>}
+                                    {p.isReady ? <span className="seat-ready">hazır</span> : <span>bekliyor</span>}
+                                </span>
                             </span>
+                            {p.isBot && isOwner && (
+                                <button type="button" className="seat-remove" onClick={() => handleRemoveBot(p.id)} aria-label={`${p.name} masadan çıkar`}>×</button>
+                            )}
                         </div>
                     ) : (
                         <div key={`empty-${i}`} className="seat empty">
                             <span className="seat-name">Boş koltuk</span>
+                            {isOwner && (
+                                <button type="button" className="seat-add" onClick={handleAddBot}>Yapay zekâ ekle</button>
+                            )}
                         </div>
                     ))}
                 </div>

@@ -296,6 +296,14 @@ class SocketService {
         this.socket.off('player:connection');
     }
 
+    addBot(roomId, callback) {
+        this.socket.emit('room:addBot', { roomId, playerId: this.playerId }, callback);
+    }
+
+    removeBot(roomId, botId, callback) {
+        this.socket.emit('room:removeBot', { roomId, playerId: this.playerId, botId }, callback);
+    }
+
     undoTurn(callback) {
         this.socket.emit('game:undoTurn', { playerId: this.playerId }, callback);
     }

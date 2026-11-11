@@ -6,18 +6,18 @@
    └──────────────────────────────── ıstaka ───────────────────────────────────────┘ */
 :root {
     --rack-h: calc(var(--tile-h, 60px) * 2 + 46px);
-    --top-band: 68px;
-    --side-band: 100px;
-    --self-band: 66px;
+    --top-band: 56px;
+    --side-band: 84px;
+    --self-band: 54px;
     --set-tile-w: 28px;
     --set-tile-h: 40px;
     --set-tile-font: 16px;
 }
 @media (max-width: 640px) {
     :root {
-        --top-band: 46px;
-        --side-band: 58px;
-        --self-band: 92px; /* dar ekranda butonlar kartın üstüne ikinci satıra iner */
+        --top-band: 40px;
+        --side-band: 54px;
+        --self-band: 80px; /* dar ekranda butonlar kartın üstüne ikinci satıra iner */
         --set-tile-w: 20px;
         --set-tile-h: 29px;
         --set-tile-font: 12px;
@@ -44,8 +44,8 @@
 .tile-holder-container { padding: 0 0 6px; }
 .tile-holder-container .rack-tools {
     position: fixed;
-    bottom: calc(var(--rack-h) + 14px);
-    left: calc(50% + 140px);
+    bottom: calc(var(--rack-h) + 12px);
+    left: calc(50% + 120px);
     width: auto;
     margin: 0;
 }
@@ -53,19 +53,22 @@
 /* ── Kendi bandı: [aksiyonlar] [kendi kartın] [dizme] ── */
 .player-panel.current-player {
     bottom: calc(var(--rack-h) + 8px);
-    max-width: 260px;
+    max-width: 240px;
 }
 .action-buttons {
-    bottom: calc(var(--rack-h) + 14px);
+    bottom: calc(var(--rack-h) + 12px);
     left: auto;
-    right: calc(50% + 140px);
+    right: calc(50% + 120px);
     transform: none;
 }
 
 /* ── Üst bant ── */
-.player-panel.top { top: 8px; }
-.player-panel.left { left: 12px; }
-.player-panel.right { right: 12px; }
+/* Yan oyuncular ekranın değil masanın dikey ortasında */
+.player-panel.top { top: 6px; }
+.player-panel.left,
+.player-panel.right { top: calc(var(--top-band) + (100vh - var(--top-band) - var(--rack-h) - var(--self-band)) / 2); }
+.player-panel.left { left: 10px; }
+.player-panel.right { right: 10px; }
 
 .top-right-tools {
     position: fixed;
@@ -152,7 +155,7 @@
         right: auto;
         left: 50%;
         transform: translateX(-50%);
-        bottom: calc(var(--rack-h) + 52px);
+        bottom: calc(var(--rack-h) + 44px);
     }
     .player-panel.current-player { max-width: 52vw; }
     .tile-holder-container .rack-tools {
@@ -167,5 +170,25 @@
     .top-right-tools .scoreboard-toggle { width: 32px; height: 32px; }
     .player-panel.left { left: 4px; }
     .player-panel.right { right: 4px; }
-    .player-panel.top { top: 4px; }
+    .player-panel.top { top: 3px; }
+}
+
+/* ── Köşe taş atma alanları: ince ve sakin; yalnızca hamle sırasında belirginleşir ── */
+.tile-drop-zone {
+    border: 1px dashed rgba(255, 255, 255, 0.12);
+    background-color: transparent;
+    border-radius: 8px;
+}
+.tile-drop-zone.active {
+    width: 64px;
+    height: 88px;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    background-color: rgba(255, 255, 255, 0.06);
+    box-shadow: none;
+}
+.tile-drop-zone.active.drag-over {
+    border-color: rgba(255, 255, 255, 0.75);
+    background-color: rgba(255, 255, 255, 0.14);
+    box-shadow: none;
+    transform: none;
 }
