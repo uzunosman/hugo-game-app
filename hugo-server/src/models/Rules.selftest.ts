@@ -324,6 +324,23 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     const { game, p0 } = setup(); // Hugo: joker okeydir
     give(p0, [new Tile(TileColor.PURPLE, 'H', true), t(RED, 1), t(RED, 2), t(RED, 3), t(BLUE, 5), t(BLACK, 9)]);
     assert.strictEqual(game.pickAutoDiscard(p0.id)?.value, 5, 'kırmızı 1-2-3 per; okey atılmaz; mavi 5 atılır');
+    // Okey per adayını tamamlar: kırmızı 1-2 + okey per sayılır, mavi 5 atılır
+    give(p0, [new Tile(TileColor.PURPLE, 'H', true), t(RED, 1), t(RED, 2), t(BLUE, 5), t(BLACK, 9)]);
+    assert.strictEqual(game.pickAutoDiscard(p0.id)?.value, 5, 'okeyle tamamlanan per bozulmaz');
+}
+
+// Masaya oynadıktan sonra yandan alınan taş kusulamaz
+{
+    const { game, p0, p1 } = setup();
+    give(p0, [t(BLUE, 2), t(BLUE, 1)]);
+    give(p1, [t(RED, 11), t(RED, 12), t(RED, 13), t(BLACK, 9), t(YELLOW, 9), t(BLUE, 9), t(BLACK, 4)]);
+    assert.ok(game.discardTile(p0.id, p0.tiles[0].id).tile);
+    assert.ok(game.drawTile(p1.id, true));
+    const h = p1.tiles;
+    assert.ok(game.openHand(p1.id, [ids(h.slice(0, 3)), ids(h.slice(3, 6))]).success);
+    const k = game.returnTakenTile(p1.id);
+    assert.strictEqual(k.tile, null, 'el açtıktan sonra kusmak yasak');
+    assert.ok(k.error);
 }
 
 console.log('Rules.selftest: el açma, set doğrulama, sıra, işleme, yandan alma, işlek taş, otomatik atış, Hugo, sahte okey, çift açma, çift işleme ve el sonu puanlama kuralları ✓');

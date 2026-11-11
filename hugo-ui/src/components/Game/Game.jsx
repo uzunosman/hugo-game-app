@@ -269,6 +269,7 @@ function Game({ player, room, onLeaveRoom }) {
             if (!partnerId) return setError('Bu taşın elinde eşi yok: çiftlere çift işlenir');
             socketService.addPairToSet([tileId, partnerId], targetSetId, (response) => {
                 if (response.success) {
+                    setTakenInfo(null); // masaya oynandı: yandan alınan taş artık kusulamaz
                     setTiles(response.remainingTiles || []);
                     setTilePositions(prev => prev.map(id => (id === tileId || id === partnerId ? null : id)));
                     setSelectedTile(null);
@@ -282,6 +283,7 @@ function Game({ player, room, onLeaveRoom }) {
 
         socketService.addTileToSet(tileId, targetSetId, position, (response) => {
             if (response.success) {
+                setTakenInfo(null);
                 const remaining = response.remainingTiles || [];
                 setTiles(remaining);
                 setTilePositions(prev => prev.map(id => id === tileId ? null : id));
@@ -326,6 +328,7 @@ function Game({ player, room, onLeaveRoom }) {
 
         socketService.dropPer(validSets, (response) => {
             if (response.success) {
+                setTakenInfo(null);
                 const remaining = response.remainingTiles || [];
                 setTiles(remaining);
                 setTilePositions(prev => prev.map(id =>
@@ -355,6 +358,7 @@ function Game({ player, room, onLeaveRoom }) {
 
         socketService.openHand(validSets, (response) => {
             if (response.success) {
+                setTakenInfo(null);
                 // Kalan taşları güncelle
                 const remaining = response.remainingTiles || [];
                 setTiles(remaining);

@@ -89,6 +89,7 @@ export class Game {
     takenPenalty: Penalty | null;      // yandan alınınca atana yazılan ceza (kusulursa geri alınır)
     returnedTileId: string | null;     // bu sırada kusulan taş: aynı sırada tekrar alınamaz
     lockedDiscardTileId: string | null; // işlek atılan taş: sıradaki oyuncu alamaz
+    playedToTableThisTurn: boolean;    // bu sırada el açıldı / per indirildi / işlendi: kusmak yasak
     turnCounter: number;               // eldeki sıra sayacı (elden bitme için)
     finishedElden: boolean;            // son taşı atan, aynı sırada açmıştı
     createdAt: Date;
@@ -115,6 +116,7 @@ export class Game {
         this.takenPenalty = null;
         this.returnedTileId = null;
         this.lockedDiscardTileId = null;
+        this.playedToTableThisTurn = false;
         this.turnCounter = 0;
         this.finishedElden = false;
         this.tableSets = [];
@@ -357,6 +359,8 @@ export class Game {
         const id = this.pendingTakenTileId(player);
         const tile = id ? player.tiles.find(t => t.id === id) : undefined;
         if (!tile) return { tile: null, toPlayerId: null, revert: null, error: 'Geri konacak yandan alınmış taş yok' };
+        // Başka taşlarla masaya oynadıktan sonra alınan taş geri konamaz
+        if (this.playedToTableThisTurn) return { tile: null, toPlayerId: null, revert: null, error: 'Bu sırada masaya oynadın: yandan aldığın taş geri konamaz' };
 
         player.removeTile(tile.id);
         tile.setStatus(TileStatus.DISCARDED);
@@ -399,6 +403,7 @@ export class Game {
         this.turnAction = TurnAction.DRAW;
         this.okeyPlayedThisTurn = false;
         this.returnedTileId = null;
+        this.playedToTableThisTurn = false;
     }
 
     isPlayerTurn(playerId: string): boolean {
@@ -415,20 +420,21 @@ export class Game {
         // Okey asla atılmaz; önce bir per adayına girmeyen taşlar
         const plain = player.tiles.filter(t => !this.isOkeyTile(t) && typeof this.asPlayed(t).value === 'number');
         if (plain.length === 0) return player.tiles[0];
-        const loose = plain.filter(t => !this.inPotentialPer(t, plain));
+        const loose = plain.filter(t => !this.inPotentialPer(t, player.tiles));
         const pool = loose.length ? loose : plain;
         const val = (t: Tile) => this.asPlayed(t).value as number;
         return pool.reduce((min, t) => val(t) < val(min) ? t : min);
     }
 
-    // Taş, eldeki iki taşla geçerli bir 3'lü per (seri ya da aynı sayı) kurabiliyor mu
+    // Taş, eldeki iki taşla (okey dahil) geçerli bir 3'lü per (seri ya da aynı sayı) kurabiliyor mu
     private inPotentialPer(tile: Tile, hand: Tile[]): boolean {
         const others = hand.filter(t => t.id !== tile.id);
-        const val = (t: Tile) => this.asPlayed(t).value as number;
         for (let i = 0; i < others.length; i++) {
             for (let j = i + 1; j < others.length; j++) {
-                const trio = [tile, others[i], others[j]].sort((a, b) => val(a) - val(b));
-                if (this.validateSetTiles(trio) > 0) return true;
+                const [a, b] = [others[i], others[j]];
+                // Okey her konumda olabilir: üç taşın tüm dizilişleri denenir
+                const orders = [[tile, a, b], [tile, b, a], [a, tile, b], [b, tile, a], [a, b, tile], [b, a, tile]];
+                if (orders.some(o => this.validateSetTiles(o) > 0)) return true;
             }
         }
         return false;
@@ -531,6 +537,7 @@ export class Game {
         if (player.openingScore === 0) {
             player.openingScore = totalValue;
         }
+        this.playedToTableThisTurn = true;
         this.lastActionTime = new Date();
 
         // İlk turda direkt açan oyuncu tekrar taş çekemesin
@@ -627,6 +634,7 @@ export class Game {
                         penalty = { targetPlayerId: setOwner.id, amount: 100, tag: 'okey', tile: tileLabel(tile) };
                     }
 
+                    this.playedToTableThisTurn = true;
                     this.lastActionTime = new Date();
 
                     return {
@@ -682,6 +690,7 @@ export class Game {
             penalty = { targetPlayerId: setOwner.id, amount: penaltyAmount, tag: 'işleme', tile: tileLabel(tile) };
         }
 
+        this.playedToTableThisTurn = true;
         this.lastActionTime = new Date();
 
         return {
@@ -735,6 +744,7 @@ export class Game {
             penalty = { targetPlayerId: owner.id, amount, tag: 'çift işleme', tile: (tiles as Tile[]).map(tileLabel).join(' + ') };
         }
 
+        this.playedToTableThisTurn = true;
         this.lastActionTime = new Date();
         return { success: true, newSet, penalty, remainingTiles: player.tiles.map(t => t.toJSON()) };
     }
@@ -836,6 +846,7 @@ export class Game {
             newSets.push(tableSet);
         }
 
+        this.playedToTableThisTurn = true;
         this.lastActionTime = new Date();
 
         return {
@@ -1121,6 +1132,7 @@ export class Game {
         this.discardPile = [];
         this.tableSets = [];
         this.okeyPlayedThisTurn = false;
+        this.playedToTableThisTurn = false;
         this.roundEndResults = null;
         this.finisherPlayerId = null;
         this.lastDiscardPlayerId = null;
