@@ -204,19 +204,13 @@
 .center-area .center-tile.indicator.green { font-size: calc(var(--set-tile-font) * 1.25); }
 .center-area .center-tiles { padding: 0; gap: 8px; }
 
-/* Atılan taşlar da aynı ölçüde; köşe alanı taşı saracak kadar */
+/* Köşelere atılan taşlar ıstakadaki taşla aynı boyda; köşe alanı taşı saracak kadar */
 .tile-drop-zone {
-    --tile-w: var(--set-tile-w);
-    --tile-h: var(--set-tile-h);
-    --tile-font: var(--set-tile-font);
-    --tile-pb: calc(var(--set-tile-h) * 0.2);
-    --tile-dot: 5px;
-    --tile-dot-b: 5px;
-    width: calc(var(--set-tile-w) + 12px);
-    height: calc(var(--set-tile-h) + 12px);
+    width: calc(var(--tile-w, 40px) + 12px);
+    height: calc(var(--tile-h, 60px) + 12px);
 }
 .tile-drop-zone .tile { border-radius: 4px; }
 .tile-drop-zone.active {
-    width: calc(var(--set-tile-w) + 24px);
-    height: calc(var(--set-tile-h) + 24px);
+    width: calc(var(--tile-w, 40px) + 24px);
+    height: calc(var(--tile-h, 60px) + 24px);
 }
