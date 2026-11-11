@@ -1,0 +1,189 @@
+/* Tasarım taslakları: <html data-ui="..."> ile seçilir. Seçim yoksa mevcut görünüm kalır.
+   Her taslak yalnızca yüzeyleri ezer (zemin, masa, ıstaka, taş, panel, buton); yerleşim aynı kalır. */
+
+/* ── Ortak: taslakta taş rakamı tema fontuyla, panel metni okunur ── */
+html[data-ui] .tile { font-family: var(--ui-tile-font); }
+html[data-ui] body { font-family: var(--ui-font); background: var(--ui-bg); }
+html[data-ui] .tile.red { color: var(--ui-red); }
+html[data-ui] .tile.red::after { background-color: var(--ui-red); }
+html[data-ui] .tile.blue { color: var(--ui-blue); }
+html[data-ui] .tile.blue::after { background-color: var(--ui-blue); }
+html[data-ui] .tile.yellow { color: var(--ui-yellow); }
+html[data-ui] .tile.yellow::after { background-color: var(--ui-yellow); }
+html[data-ui] .tile.black { color: var(--ui-black); }
+html[data-ui] .tile.black::after { background-color: var(--ui-black); }
+html[data-ui] .open-set-tile { background-color: var(--ui-tile); font-family: var(--ui-tile-font); }
+html[data-ui] .open-set-tile.red { color: var(--ui-red); }
+html[data-ui] .open-set-tile.blue { color: var(--ui-blue); }
+html[data-ui] .open-set-tile.yellow { color: var(--ui-yellow); }
+html[data-ui] .open-set-tile.black { color: var(--ui-black); }
+html[data-ui] .player-panel { background: var(--ui-panel); color: var(--ui-panel-ink); }
+html[data-ui] .player-panel .player-name,
+html[data-ui] .player-panel * { color: inherit; }
+html[data-ui] .player-panel .penalty-badge { color: var(--ui-red); }
+html[data-ui] .player-panel.current-player { background: var(--ui-panel-active); color: var(--ui-panel-active-ink); }
+html[data-ui] .player-panel .timer-bar { background-color: var(--ui-accent); }
+html[data-ui] .open-hand-btn.active { background: var(--ui-accent); color: var(--ui-accent-ink); }
+html[data-ui] .round-indicator { background: var(--ui-panel); color: var(--ui-panel-ink); }
+html[data-ui] .tile-holder { background: var(--ui-rack); }
+html[data-ui] .tile-row-divider { background: var(--ui-rack-line); }
+html[data-ui] .rack-tool-btn { background: var(--ui-panel); color: var(--ui-panel-ink); border-color: transparent; }
+html[data-ui] { --tile-bg: var(--ui-tile); }
+
+/* ── 1. Kıraathane: yeşil çuha, ceviz çerçeve, fildişi taş, pirinç ── */
+html[data-ui="kiraathane"] {
+    --ui-font: 'Bitter', Georgia, serif;
+    --ui-tile-font: 'Bitter', Georgia, serif;
+    --ui-bg: radial-gradient(120% 90% at 50% 40%, #1b4a33 0%, #0f2d1f 100%);
+    --ui-tile: #f7f0dc;
+    --ui-red: #b3261e; --ui-blue: #1d5fa8; --ui-yellow: #c47f00; --ui-black: #1f1a17;
+    --ui-panel: #3b2416; --ui-panel-ink: #ecd9a8;
+    --ui-panel-active: #c8a24a; --ui-panel-active-ink: #2a180c;
+    --ui-accent: #c8a24a; --ui-accent-ink: #2a180c;
+    --ui-rack: repeating-linear-gradient(90deg, rgba(255,255,255,0.04) 0 2px, transparent 2px 9px), linear-gradient(180deg, #8b5a33, #5f3a1f);
+    --ui-rack-line: #4a2d18;
+}
+html[data-ui="kiraathane"] .game-board {
+    background:
+        radial-gradient(70% 60% at 50% 50%, rgba(255,255,255,0.06), transparent 70%),
+        #1f5e3b;
+    border: 10px solid #5a3420;
+    border-radius: 22px;
+    box-shadow: inset 0 0 40px rgba(0,0,0,0.45), 0 10px 30px rgba(0,0,0,0.4);
+}
+html[data-ui="kiraathane"] .tile {
+    border-radius: 5px;
+    box-shadow: inset 0 -3px 0 #dccfae, 0 2px 3px rgba(0,0,0,0.35);
+}
+html[data-ui="kiraathane"] .player-panel { border-radius: 8px; border: 1px solid #c8a24a; }
+
+/* ── 2. Gece Masası: lacivert keçe, tek lamba ışığı, kehribar ── */
+html[data-ui="gece"] {
+    --ui-font: 'Outfit', system-ui, sans-serif;
+    --ui-tile-font: 'Outfit', system-ui, sans-serif;
+    --ui-bg: #0c1329;
+    --ui-tile: #eef0f6;
+    --ui-red: #e5484d; --ui-blue: #2f7fe0; --ui-yellow: #e09a00; --ui-black: #232a3d;
+    --ui-panel: rgba(255,255,255,0.07); --ui-panel-ink: #c9d2ea;
+    --ui-panel-active: #f2b134; --ui-panel-active-ink: #1b1405;
+    --ui-accent: #f2b134; --ui-accent-ink: #1b1405;
+    --ui-rack: linear-gradient(180deg, #2b3246, #1d2232);
+    --ui-rack-line: #f2b13455;
+}
+html[data-ui="gece"] .game-board {
+    background: radial-gradient(55% 55% at 50% 45%, rgba(242,177,52,0.16), transparent 70%), #17224a;
+    border-radius: 56px;
+    box-shadow: inset 0 0 0 2px rgba(242,177,52,0.25), 0 20px 60px rgba(0,0,0,0.5);
+}
+html[data-ui="gece"] .tile { border-radius: 7px; font-weight: 700; box-shadow: 0 3px 8px rgba(0,0,0,0.45); }
+html[data-ui="gece"] .tile-holder { border-top: 2px solid #f2b134; border-radius: 14px 14px 0 0; }
+html[data-ui="gece"] .player-panel { border-radius: 999px; backdrop-filter: blur(6px); }
+
+/* ── 3. Çini: İznik kobaltı, turkuaz, mercan kırmızısı, beyaz sır ── */
+html[data-ui="cini"] {
+    --ui-font: 'Alegreya Sans', system-ui, sans-serif;
+    --ui-tile-font: 'Alegreya Sans', system-ui, sans-serif;
+    --ui-bg:
+        radial-gradient(circle at 25% 25%, #1d3f8f22 0 6px, transparent 7px) 0 0 / 48px 48px,
+        radial-gradient(circle at 75% 75%, #1aa6a022 0 6px, transparent 7px) 0 0 / 48px 48px,
+        #eef2f8;
+    --ui-tile: #ffffff;
+    --ui-red: #c8372d; --ui-blue: #12908b; --ui-yellow: #d08a10; --ui-black: #1a2340;
+    --ui-panel: #1d3f8f; --ui-panel-ink: #ffffff;
+    --ui-panel-active: #12908b; --ui-panel-active-ink: #ffffff;
+    --ui-accent: #c8372d; --ui-accent-ink: #ffffff;
+    --ui-rack: #1d3f8f;
+    --ui-rack-line: #12908b;
+}
+html[data-ui="cini"] .game-board {
+    background:
+        radial-gradient(circle at 0 0, #1d3f8f14 0 60px, transparent 61px),
+        radial-gradient(circle at 100% 100%, #12908b14 0 60px, transparent 61px),
+        #f7f9fc;
+    border: 6px double #1d3f8f;
+    border-radius: 6px;
+    box-shadow: 0 0 0 6px #fbfbf7, 0 0 0 8px #12908b;
+}
+html[data-ui="cini"] .tile {
+    font-weight: 800;
+    border-radius: 3px;
+    box-shadow: inset 0 0 0 2px #fff, inset 0 0 0 3px #1d3f8f33, 0 1px 2px rgba(29,63,143,0.35);
+}
+/* Açık zeminde yarı saydam beyaz çizgiler görünmez: kobalt tonuna çevrilir */
+html[data-ui="cini"] .tile-drop-zone { border-color: #1d3f8f40; }
+html[data-ui="cini"] .tile-drop-zone.active { border-color: #1d3f8f; background-color: #1d3f8f0d; }
+html[data-ui="cini"] .insertion-slot, html[data-ui="cini"] .pair-slot span { background: #1d3f8f22; }
+html[data-ui="cini"] .pair-slot { outline-color: #1d3f8f88; }
+html[data-ui="cini"] .player-panel { border-radius: 4px; }
+html[data-ui="cini"] .open-set-tile { box-shadow: inset 0 0 0 1px #1d3f8f55; }
+
+/* ── 4. Kara Tahta: tebeşir yazısı, çam çerçeve, el yazısı tabela ── */
+html[data-ui="karatahta"] {
+    --ui-font: 'Caveat', 'Comic Sans MS', cursive;
+    --ui-tile-font: 'Patrick Hand', 'Comic Sans MS', cursive;
+    --ui-bg: #22302a;
+    --ui-tile: #f4f1e8;
+    --ui-red: #c0392b; --ui-blue: #2471a3; --ui-yellow: #b7860b; --ui-black: #2c2c2c;
+    --ui-panel: transparent; --ui-panel-ink: #f1efe6;
+    --ui-panel-active: rgba(241,239,230,0.14); --ui-panel-active-ink: #ffffff;
+    --ui-accent: #f1efe6; --ui-accent-ink: #22302a;
+    --ui-rack: linear-gradient(180deg, #d9b27c, #c39457);
+    --ui-rack-line: #a77a3f;
+}
+html[data-ui="karatahta"] .game-board {
+    background:
+        radial-gradient(40% 30% at 30% 30%, rgba(255,255,255,0.05), transparent 70%),
+        radial-gradient(30% 25% at 70% 70%, rgba(255,255,255,0.04), transparent 70%),
+        #2f4038;
+    border: 12px solid #a77a3f;
+    border-radius: 4px;
+    box-shadow: inset 0 0 30px rgba(0,0,0,0.5);
+}
+html[data-ui="karatahta"] .tile { font-size: calc(var(--tile-font, 28px) * 1.15); border-radius: 4px; box-shadow: 0 2px 0 #cfc8b3; }
+html[data-ui="karatahta"] .player-panel { border: 2px dashed rgba(241,239,230,0.6); border-radius: 10px; font-size: 1.25rem; }
+html[data-ui="karatahta"] .player-panel.current-player { border-style: solid; }
+html[data-ui="karatahta"] .open-hand-btn { font-family: var(--ui-font); font-size: 1.2rem; }
+html[data-ui="karatahta"] .rack-tool-btn { border: 1px dashed rgba(241,239,230,0.6); font-family: var(--ui-font); font-size: 1rem; }
+html[data-ui="karatahta"] .round-indicator { border: 2px dashed rgba(241,239,230,0.6); font-size: 1.2rem; }
+
+/* ── Giriş / lobi / oda panelleri de taslağa uyar ── */
+html[data-ui="kiraathane"] { --screen-panel: #f7f0dc; --screen-ink: #2a180c; --screen-accent: #5a3420; --screen-line: #dccfae; }
+html[data-ui="gece"] { --screen-panel: #1c2747; --screen-ink: #e6eaf5; --screen-muted: #9aa6c6; --screen-accent: #f2b134; --screen-accent-ink: #1b1405; --screen-line: #2f3d66; }
+html[data-ui="gece"] .panel input[type="text"] { background: #10182f; color: #e6eaf5; }
+html[data-ui="cini"] { --screen-panel: #ffffff; --screen-ink: #1a2340; --screen-accent: #1d3f8f; --screen-line: #d4dcef; }
+html[data-ui="karatahta"] { --screen-panel: #2f4038; --screen-ink: #f1efe6; --screen-muted: #c9d1c4; --screen-accent: #f1efe6; --screen-accent-ink: #22302a; --screen-line: rgba(241,239,230,0.35); }
+html[data-ui="karatahta"] .panel { border: 8px solid #a77a3f; }
+html[data-ui="karatahta"] .panel input[type="text"] { background: #22302a; color: #f1efe6; }
+html[data-ui="karatahta"] .panel-title { font-size: 2.2rem; }
+
+/* ── Taslak seçici ── */
+.ui-switcher {
+    position: fixed;
+    left: 12px;
+    top: 12px;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+    background: rgba(15, 20, 30, 0.82);
+    border-radius: 10px;
+    font: 600 12px/1 system-ui, sans-serif;
+    color: #fff;
+}
+.ui-switcher span { padding: 0 6px; opacity: 0.75; }
+.ui-switcher button {
+    font: inherit;
+    color: #fff;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 7px;
+    padding: 6px 9px;
+    cursor: pointer;
+}
+.ui-switcher button[aria-pressed="true"] { background: #fff; color: #111827; }
+.ui-switcher button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+@media (max-width: 640px) {
+    .ui-switcher { top: auto; bottom: 6px; left: 6px; flex-wrap: wrap; max-width: 60vw; }
+    .ui-switcher span { display: none; }
+}
