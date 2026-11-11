@@ -11,7 +11,7 @@
     color: #fff;
     font-size: 0.78rem;
     line-height: 1.4;
-    z-index: 60;
+    z-index: 120; /* ıstaka katmanının (100) üstünde: düğme her zaman tıklanır */
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75);
 }
 .penalty-log ul {
@@ -25,6 +25,7 @@
     scrollbar-width: none;
 }
 .penalty-log li { overflow-wrap: anywhere; }
+.penalty-log li.pl-empty { opacity: 0.75; }
 .pl-tag { color: #ffd66b; }
 .pl-amount { color: #ffb0a8; font-weight: 700; font-variant-numeric: tabular-nums; }
 .penalty-log li.cancel .pl-amount { color: #a7f0aa; }

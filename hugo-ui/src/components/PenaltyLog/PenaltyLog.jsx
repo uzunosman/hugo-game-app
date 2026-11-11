@@ -4,7 +4,8 @@ import '../../assets/css/components/PenaltyLog.css';
 const KEY = 'hugo.penaltyLogHidden';
 const readHidden = () => { try { return localStorage.getItem(KEY) === '1'; } catch { return false; } };
 
-// Masadaki herkesin gördüğü ceza kaydı: "[işlek] Ali kırmızı 7 +70". Gizlenip açılabilir.
+// Masadaki herkesin gördüğü bu elin ceza kaydı: "[işlek] Ali kırmızı 7 +70". Her zaman sağ altta; gizlenip açılabilir.
+// Önceki ellerin cezaları sağ üstteki tabelada, ele tıklanınca görünür.
 const PenaltyLog = ({ entries }) => {
     const [hidden, setHidden] = useState(readHidden);
     const listRef = useRef(null);
@@ -17,7 +18,6 @@ const PenaltyLog = ({ entries }) => {
         return !h;
     });
 
-    if (!entries.length) return null;
     return (
         <aside className={`penalty-log ${hidden ? 'is-hidden' : ''}`} aria-label="Ceza kaydı">
             <button type="button" className="pl-toggle" onClick={toggle} aria-expanded={!hidden}>
@@ -26,6 +26,7 @@ const PenaltyLog = ({ entries }) => {
             </button>
             {!hidden && (
                 <ul ref={listRef} aria-live="polite">
+                    {entries.length === 0 && <li className="pl-empty">Bu elde henüz ceza yok</li>}
                     {entries.map(e => (
                         <li key={e.id} className={e.amount < 0 ? 'cancel' : undefined}>
                             <span className="pl-tag">[{e.tag}]</span> <b>{e.playerName}</b>
