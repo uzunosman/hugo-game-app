@@ -1,202 +1,158 @@
+/* Oyuncu kartı: avatar (süre halkalı), ad, durum etiketleri, saniye sayacı.
+   Renkler değişkenlerden gelir; tasarım taslakları yalnızca değişkenleri ezer. */
 .player-panel {
-    width: 200px;
-    height: 30px;
-    background-color: var(--panel-bg);
-    border-radius: 0;
-    padding: var(--spacing-md);
+    --pp-bg: rgba(20, 28, 36, 0.78);
+    --pp-ink: #f4f6f8;
+    --pp-muted: rgba(244, 246, 248, 0.62);
+    --pp-turn: #34d399;
+    --pp-warn: #f87171;
+    --pp-open: #6ee7a8;
+    --pp-penalty: #fca5a5;
+    --pp-set: #fcd34d;
+    --pp-radius: 14px;
+
+    position: fixed;
     display: flex;
-    flex-direction: row;
-    justify-content: flex-start;
     align-items: center;
-    position: fixed;
-    gap: var(--spacing-md);
+    gap: 10px;
+    padding: 6px 12px 6px 6px;
+    min-width: 0;
+    background: var(--pp-bg);
+    color: var(--pp-ink);
+    border-radius: var(--pp-radius);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+    font-variant-numeric: tabular-nums;
+    z-index: 10;
+    transition: box-shadow 0.25s ease;
 }
+.player-panel.is-turn { box-shadow: 0 0 0 2px var(--pp-turn), 0 8px 24px rgba(0, 0, 0, 0.3); }
+.player-panel.is-turn.is-warning { box-shadow: 0 0 0 2px var(--pp-warn), 0 8px 24px rgba(0, 0, 0, 0.3); }
 
-/* Temel timer-bar stili */
-.player-panel .timer-bar {
+/* Avatar: baş harfler; sıradaysa etrafında kalan süre halkası */
+.pp-avatar {
+    --size: 38px;
+    position: relative;
+    flex: none;
+    width: var(--size);
+    height: var(--size);
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: hsl(var(--avatar-hue, 200) 55% 46%);
+    color: #fff;
+    font-weight: 700;
+    font-size: calc(var(--size) * 0.38);
+    letter-spacing: 0.02em;
+}
+.pp-avatar::before {
+    content: '';
     position: absolute;
-    background-color: #4CAF50;
-    transition: all 1s linear;
+    inset: -4px;
+    border-radius: 50%;
+    background: conic-gradient(var(--pp-turn) calc(var(--ring, 0) * 360deg), rgba(255, 255, 255, 0.14) 0);
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px));
+    mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px));
+    opacity: 0;
+    transition: opacity 0.2s ease;
 }
-
-/* 1. oyuncu (current-player) için timer-bar */
-.player-panel.current-player .timer-bar {
-    top: 0;
-    left: 0;
-    width: var(--timer-progress, 100%);
-    height: 3px;
+.player-panel.is-turn .pp-avatar::before { opacity: 1; }
+.player-panel.is-warning .pp-avatar::before {
+    background: conic-gradient(var(--pp-warn) calc(var(--ring, 0) * 360deg), rgba(255, 255, 255, 0.14) 0);
 }
+.pp-initials { position: relative; }
 
-/* 3. oyuncu (top) için timer-bar */
-.player-panel.top .timer-bar {
-    bottom: 0;
-    left: 0;
-    width: var(--timer-progress, 100%);
-    height: 3px;
+.pp-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.pp-name {
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.15;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
-
-/* 2. oyuncu (right) için timer-bar */
-.player-panel.right .timer-bar {
-    top: 0;
-    left: 0;
-    width: 3px;
-    height: var(--timer-progress, 100%);
+.pp-meta { display: flex; flex-wrap: wrap; gap: 4px; }
+.pp-meta:empty { display: none; }
+.pp-chip {
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    padding: 3px 6px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--pp-muted);
+    white-space: nowrap;
 }
+.pp-open { color: var(--pp-open); }
+.pp-penalty { color: var(--pp-penalty); }
+.pp-set { color: var(--pp-set); }
+.pp-set.valid { color: var(--pp-open); }
+.pp-offline { color: var(--pp-set); }
 
-/* 4. oyuncu (left) için timer-bar */
-.player-panel.left .timer-bar {
-    top: 0;
-    right: 0;
-    left: auto;
-    width: 3px;
-    height: var(--timer-progress, 100%);
+.pp-timer {
+    margin-left: auto;
+    min-width: 2.2em;
+    text-align: center;
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--pp-turn);
 }
+.player-panel.is-warning .pp-timer { color: var(--pp-warn); }
 
-.player-panel .timer-bar.warning {
-    background-color: #FF5252;
-}
+.player-panel.offline { opacity: 0.6; }
+.player-panel.offline .pp-avatar { filter: grayscale(1); }
 
+/* Konumlar */
 .player-panel.current-player {
-    position: fixed;
-    bottom: calc(var(--tileholder-h, 160px) + 1px);
+    bottom: calc(var(--tileholder-h, 160px) + 6px);
     left: 50%;
     transform: translateX(-50%);
-    background-color: rgba(128, 128, 128, 0.9);
-    z-index: 10;
+}
+.player-panel.top {
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+/* Yan oyuncular: dikey kart, masanın kenarına yaslanır */
+.player-panel.left,
+.player-panel.right {
+    top: 50%;
+    transform: translateY(-50%);
+    flex-direction: column;
+    width: 76px;
+    padding: 10px 6px;
+    gap: 6px;
+    text-align: center;
+}
+.player-panel.left { left: 6px; }
+.player-panel.right { right: 6px; }
+.player-panel.left .pp-body,
+.player-panel.right .pp-body { align-items: center; width: 100%; }
+.player-panel.left .pp-name,
+.player-panel.right .pp-name { max-width: 100%; font-size: 13px; }
+.player-panel.left .pp-meta,
+.player-panel.right .pp-meta { flex-direction: column; align-items: center; }
+.player-panel.left .pp-timer,
+.player-panel.right .pp-timer { margin-left: 0; font-size: 15px; }
+
+@media (prefers-reduced-motion: reduce) {
+    .player-panel, .pp-avatar::before { transition: none; }
 }
 
 @media (max-width: 640px) {
-    .player-panel {
-        font-size: 10px;
-        padding: 4px 6px;
-    }
-
-    .player-panel.current-player {
-        height: 24px;
-        width: auto;
-        min-width: 120px;
-    }
-
-    .player-panel.right,
-    .player-panel.left {
-        width: 22px;
-    }
-
-    .player-panel.top {
-        height: 24px;
-        padding: 4px 8px;
-    }
-}
-
-.player-panel.top {
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-}
-
-.player-panel.right {
-    position: fixed;
-    right: 0;
-    top: 200px;
-    height: 200px;
-    width: 30px;
-    flex-direction: column;
-    padding: var(--spacing-md) 5px;
-}
-
-.player-panel.right .player-info {
-    writing-mode: vertical-rl;
-    transform: rotate(180deg);
-    text-align: center;
-    height: 100%;
-    margin-top: var(--spacing-sm);
-}
-
-.player-panel.left {
-    left: 0;
-    top: 40%;
-    transform: translateY(-50%);
-    height: 200px;
-    width: 30px;
-    flex-direction: column;
-    padding: var(--spacing-md) 5px;
-}
-
-.player-panel.left .player-info {
-    writing-mode: vertical-lr;
-    text-align: center;
-    height: 100%;
-    margin-top: var(--spacing-sm);
-}
-
-.player-avatar {
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background-color: var(--tile-bg);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.player-panel.right .player-avatar,
-.player-panel.left .player-avatar {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    margin: var(--spacing-sm) 0;
-    background-color: var(--tile-bg);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-.player-info {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    gap: 2px;
-}
-
-.opened-badge {
-    margin-left: auto;
-    font-size: 11px;
-    font-weight: bold;
-    color: #4CAF50;
-    background: rgba(76, 175, 80, 0.15);
-    border: 1px solid rgba(76, 175, 80, 0.3);
-    border-radius: 3px;
-    padding: 1px 5px;
-    min-width: 18px;
-    text-align: center;
-}
-
-.penalty-badge {
-    font-size: 11px;
-    font-weight: bold;
-    color: #F44336;
-    background: rgba(244, 67, 54, 0.15);
-    border: 1px solid rgba(244, 67, 54, 0.3);
-    border-radius: 3px;
-    padding: 1px 5px;
-    min-width: 18px;
-    text-align: center;
-}
-
-.set-score {
-    font-size: 13px;
-    font-weight: bold;
-    color: #FF9800;
-    min-width: 20px;
-    text-align: center;
-}
-
-.set-score.valid {
-    color: #4CAF50;
+    .player-panel { gap: 6px; padding: 4px 8px 4px 4px; border-radius: 10px; }
+    .pp-avatar { --size: 26px; }
+    .pp-name { font-size: 12px; max-width: 90px; }
+    .pp-chip { font-size: 9px; padding: 2px 4px; }
+    .pp-timer { font-size: 14px; }
+    .player-panel.left, .player-panel.right { width: 48px; padding: 6px 3px; }
+    .player-panel.left .pp-name, .player-panel.right .pp-name { font-size: 10px; }
 }
 
 /* Aksiyon butonları konteyneri */
 .action-buttons {
     position: fixed;
-    bottom: calc(var(--tileholder-h, 160px) + 38px);
+    bottom: calc(var(--tileholder-h, 160px) + 58px);
     left: 50%;
     transform: translateX(-50%);
     z-index: 200;
@@ -254,17 +210,8 @@
 }
 
 @media (max-width: 640px) {
-    .set-score {
-        font-size: 11px;
-    }
-
-    .opened-badge {
-        font-size: 9px;
-        padding: 0 3px;
-    }
-
     .action-buttons {
-        bottom: calc(var(--tileholder-h, 100px) + 32px);
+        bottom: calc(var(--tileholder-h, 100px) + 44px);
     }
 
     .open-hand-btn {
@@ -272,9 +219,6 @@
         padding: 5px 12px;
     }
 }
-/* Bağlantısı kopan oyuncu: sunucu sırası gelince onun yerine oynar */
-.player-panel.offline { opacity: 0.55; }
-.player-offline { font-size: 0.7rem; color: #ffd27a; }
 
 /* Açılış değeri eşiğin altında: denemek 100 ceza yazar */
 .open-hand-btn.active.short { background: #b45309; }

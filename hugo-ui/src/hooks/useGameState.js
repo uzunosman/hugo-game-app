@@ -351,7 +351,8 @@ const useGameState = (player, room) => {
     // Süreyi başlat
     useEffect(() => {
         let timer;
-        if (gameState.currentPlayerId === player.id) {
+        // Sırası gelen her oyuncu için geri sayım (sunucu süresiyle aynı 60 sn): kart halkası herkeste akar
+        if (gameState.currentPlayerId) {
             setTimeLeft(60);
             timer = setInterval(() => {
                 setTimeLeft(prevTime => {

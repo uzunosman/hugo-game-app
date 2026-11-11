@@ -22,7 +22,7 @@
 /* Oyuncu alanları — game board içinde konumlandırılır */
 .open-sets-bottom {
     /* El Aç / Taş Oyna / Per İndir butonlarının bandı boş kalsın */
-    bottom: 44px;
+    bottom: 64px;
     left: 50%;
     transform: translateX(-50%);
     align-items: center;
