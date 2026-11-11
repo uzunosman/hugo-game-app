@@ -43,6 +43,17 @@ export interface Penalty {
     tile?: string;    // kısa taş bilgisi, örn. "kırmızı 7"
 }
 
+// Sıra içi geri alma: masaya ilk oynamadan önceki durum (yalnızca id'ler, kalıcılığa uygun)
+export interface TurnSnapshot {
+    playerId: string;
+    hand: string[];
+    sets: { id: string; playerId: string; kind?: SetKind; value: number; tileIds: string[] }[];
+    open: { isOpen: boolean; openedWithPairs: boolean; openedAtTurn: number; lastOpenedValue: number; openedTotal: number; openingScore: number };
+    turnAction: TurnAction;
+    okeyPlayedThisTurn: boolean;
+    penalties: Penalty[]; // bu sırada başkalarına yazılan işleme cezaları
+}
+
 const COLOR_TR: Record<string, string> = { red: 'kırmızı', blue: 'mavi', black: 'siyah', yellow: 'sarı', purple: 'sahte okey' };
 export const tileLabel = (t: Tile): string => t.isJoker ? 'sahte okey' : `${COLOR_TR[t.color] ?? t.color} ${t.value}`;
 
@@ -90,6 +101,7 @@ export class Game {
     returnedTileId: string | null;     // bu sırada kusulan taş: aynı sırada tekrar alınamaz
     lockedDiscardTileId: string | null; // işlek atılan taş: sıradaki oyuncu alamaz
     playedToTableThisTurn: boolean;    // bu sırada el açıldı / per indirildi / işlendi: kusmak yasak
+    turnSnapshot: TurnSnapshot | null; // bu sıradaki ilk masaya oynamadan önceki durum (geri alma için)
     turnCounter: number;               // eldeki sıra sayacı (elden bitme için)
     finishedElden: boolean;            // son taşı atan, aynı sırada açmıştı
     createdAt: Date;
@@ -117,6 +129,7 @@ export class Game {
         this.returnedTileId = null;
         this.lockedDiscardTileId = null;
         this.playedToTableThisTurn = false;
+        this.turnSnapshot = null;
         this.turnCounter = 0;
         this.finishedElden = false;
         this.tableSets = [];
@@ -378,6 +391,61 @@ export class Game {
         return { tile, toPlayerId: this.lastDiscardPlayerId, revert };
     }
 
+    // Masaya oynayınca elde en az bir taş kalmalı: el, son taş atılarak biter
+    private leavesTile(player: Player, sets: { tiles: Tile[] }[]): boolean {
+        const used = new Set(sets.flatMap(st => st.tiles.map(t => t.id)));
+        return player.tiles.length - used.size >= 1;
+    }
+
+    // Bu sıradaki ilk masaya oynamadan önce durumu sakla
+    private beginTablePlay(player: Player): void {
+        if (this.turnSnapshot) return;
+        this.turnSnapshot = {
+            playerId: player.id,
+            hand: player.tiles.map(t => t.id),
+            sets: this.tableSets.map(st => ({ id: st.id, playerId: st.playerId, kind: st.kind, value: st.value, tileIds: st.tiles.map(t => t.id) })),
+            open: {
+                isOpen: player.isOpen, openedWithPairs: player.openedWithPairs, openedAtTurn: player.openedAtTurn,
+                lastOpenedValue: player.lastOpenedValue, openedTotal: player.openedTotal, openingScore: player.openingScore,
+            },
+            turnAction: this.turnAction,
+            okeyPlayedThisTurn: this.okeyPlayedThisTurn,
+            penalties: [],
+        };
+    }
+
+    // Geri al: bu sırada masaya oynananlar ele döner, başkalarına yazılan işleme cezaları silinir, oyuncuya 100 ceza.
+    // Yalnızca taş atılmadan önce (sıra geçince anlık görüntü silinir).
+    undoTurnPlays(playerId: string): { success: boolean; error?: string; penalty?: Penalty; reverts?: Penalty[]; tableSets?: Record<string, any>[] } {
+        const player = this.getPlayerById(playerId);
+        const snap = this.turnSnapshot;
+        if (!player || !this.isPlayerTurn(playerId) || !snap || snap.playerId !== playerId) {
+            return { success: false, error: 'Bu sırada geri alınacak hamle yok' };
+        }
+        const reg = new Map<string, Tile>();
+        [...player.tiles, ...this.tableSets.flatMap(st => st.tiles)].forEach(t => reg.set(t.id, t));
+
+        this.tableSets = snap.sets.map(st => ({ id: st.id, playerId: st.playerId, kind: st.kind, value: st.value, tiles: st.tileIds.map(id => reg.get(id)!) }));
+        this.tableSets.forEach(st => st.tiles.forEach(t => t.setStatus(TileStatus.ON_TABLE)));
+        player.tiles = snap.hand.map(id => reg.get(id)!);
+        player.tiles.forEach(t => t.setStatus(TileStatus.IN_HAND));
+        Object.assign(player, snap.open);
+        this.turnAction = snap.turnAction;
+        this.okeyPlayedThisTurn = snap.okeyPlayedThisTurn;
+
+        const reverts = snap.penalties.map(p => {
+            this.getPlayerById(p.playerId)?.removePenalty(p.amount);
+            return { ...p, amount: -p.amount, reason: 'Hamle geri alındı, ceza iptal', tag: 'iptal' };
+        });
+        player.addPenalty(100);
+        const penalty: Penalty = { playerId, amount: 100, reason: 'Masaya oynananlar geri alındı', tag: 'geri alma' };
+
+        this.turnSnapshot = null;
+        this.playedToTableThisTurn = false;
+        this.lastActionTime = new Date();
+        return { success: true, penalty, reverts, tableSets: this.tableSets.map(st => this.tableSetToJSON(st)) };
+    }
+
     // Taş masadaki bir perin başına ya da sonuna eklenebiliyorsa ceza = değer × 10
     islekPenalty(tile: Tile): number {
         const played = this.asPlayed(tile); // sahte okey, okeyin değeriyle işlenebilir
@@ -404,6 +472,7 @@ export class Game {
         this.okeyPlayedThisTurn = false;
         this.returnedTileId = null;
         this.playedToTableThisTurn = false;
+        this.turnSnapshot = null;
     }
 
     isPlayerTurn(playerId: string): boolean {
@@ -513,6 +582,11 @@ export class Game {
             return { success: false, error: `Masadaki en yüksek açılışı (${maxOpenedValue}) geçmeli (${totalValue})` };
         }
 
+        if (!this.leavesTile(player, validatedSets)) {
+            return { success: false, error: 'Elde en az bir taş kalmalı: son taşı atarak bitirirsin' };
+        }
+
+        this.beginTablePlay(player);
         // Taşları elden masaya taşı
         const newSets: TableSet[] = [];
         for (const { tiles, value } of validatedSets) {
@@ -617,6 +691,7 @@ export class Game {
                 if (newValue > 0) {
                     const okeyTile = targetSet.tiles[okeyIndex];
 
+                    this.beginTablePlay(player);
                     player.removeTile(tileId);
                     tile.setStatus(TileStatus.ON_TABLE);
                     tile.setVisible(true);
@@ -632,6 +707,7 @@ export class Game {
                     if (setOwner) {
                         setOwner.addPenalty(100);
                         penalty = { targetPlayerId: setOwner.id, amount: 100, tag: 'okey', tile: tileLabel(tile) };
+                        this.turnSnapshot?.penalties.push({ playerId: penalty.targetPlayerId, amount: penalty.amount, reason: '', tag: penalty.tag, tile: penalty.tile });
                     }
 
                     this.playedToTableThisTurn = true;
@@ -658,6 +734,11 @@ export class Game {
             return { success: false, error: 'Bu taş bu pozisyona eklenemez' };
         }
 
+        if (player.tiles.length <= 1) {
+            return { success: false, error: 'Elde en az bir taş kalmalı: son taşı atarak bitirirsin' };
+        }
+
+        this.beginTablePlay(player);
         player.removeTile(tileId);
         tile.setStatus(TileStatus.ON_TABLE);
         tile.setVisible(true);
@@ -688,6 +769,7 @@ export class Game {
             const penaltyAmount = effectiveValue * 10;
             setOwner.addPenalty(penaltyAmount);
             penalty = { targetPlayerId: setOwner.id, amount: penaltyAmount, tag: 'işleme', tile: tileLabel(tile) };
+            this.turnSnapshot?.penalties.push({ playerId: penalty.targetPlayerId, amount: penalty.amount, reason: '', tag: penalty.tag, tile: penalty.tile });
         }
 
         this.playedToTableThisTurn = true;
@@ -727,6 +809,11 @@ export class Game {
         const value = this.validatePairTiles(tiles as Tile[]); // taşların toplamı (okey eşinin değerini alır)
         if (value === 0) return { success: false, error: 'Geçersiz çift' };
 
+        if (player.tiles.length <= 2) {
+            return { success: false, error: 'Elde en az bir taş kalmalı: son taşı atarak bitirirsin' };
+        }
+
+        this.beginTablePlay(player);
         for (const tile of tiles as Tile[]) {
             player.removeTile(tile.id);
             tile.setStatus(TileStatus.ON_TABLE);
@@ -742,6 +829,7 @@ export class Game {
             const amount = value * 10 * 2;
             owner.addPenalty(amount);
             penalty = { targetPlayerId: owner.id, amount, tag: 'çift işleme', tile: (tiles as Tile[]).map(tileLabel).join(' + ') };
+            this.turnSnapshot?.penalties.push({ playerId: penalty.targetPlayerId, amount: penalty.amount, reason: '', tag: penalty.tag, tile: penalty.tile });
         }
 
         this.playedToTableThisTurn = true;
@@ -832,6 +920,11 @@ export class Game {
             validatedSets.push({ tiles, value: setValue });
         }
 
+        if (!this.leavesTile(player, validatedSets)) {
+            return { success: false, error: 'Elde en az bir taş kalmalı: son taşı atarak bitirirsin' };
+        }
+
+        this.beginTablePlay(player);
         // Taşları elden masaya taşı — skor güncellenmez
         const newSets: TableSet[] = [];
         for (const { tiles, value } of validatedSets) {
@@ -1062,10 +1155,9 @@ export class Game {
                 const hugoStarMult = this.isHugoRound() ? 2 : 1;
                 const closedStarMult = noOtherPlayersOpened ? 2 : 1;
                 stars = 1 * jokerStarMult * hugoStarMult * closedStarMult;
-            } else {
-                // Diğer oyuncular: 100+ puanla el açtılarsa 1 yıldız
-                stars = player.openingScore >= 100 ? 1 : 0;
             }
+            // Yere açılan taşların değeri 100 ve üzeriyse (bitiren dahil) 1 yıldız
+            if (player.openingScore >= 100) stars += 1;
 
             // roundTotal: hugoMult uygulandıktan sonra yıldız düşümü yapılır, minimum 0
             const roundTotal = Math.max(0, preMult - (stars * 100));
@@ -1133,6 +1225,7 @@ export class Game {
         this.tableSets = [];
         this.okeyPlayedThisTurn = false;
         this.playedToTableThisTurn = false;
+        this.turnSnapshot = null;
         this.roundEndResults = null;
         this.finisherPlayerId = null;
         this.lastDiscardPlayerId = null;

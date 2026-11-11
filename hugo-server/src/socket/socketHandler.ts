@@ -637,6 +637,34 @@ export const setupSocketHandlers = (io: Server) => {
             }
         });
 
+        // Geri al: bu sırada masaya oynananlar 100 cezayla ele döner
+        socket.on('game:undoTurn', (data: { playerId: string }, callback) => {
+            try {
+                const player = gameManager.getPlayerById(data?.playerId);
+                const room = player?.roomId ? gameManager.getRoomById(player.roomId) : undefined;
+                if (!player || player.socketId !== socket.id || !room?.game) return callback({ success: false, error: 'Oyun bulunamadı' });
+                const game = room.game;
+                const r = game.undoTurnPlays(player.id);
+                if (!r.success) return callback({ success: false, error: r.error });
+                io.to(room.id).emit('game:turnUndone', {
+                    playerId: player.id,
+                    tableSets: r.tableSets,
+                    turnAction: game.turnAction,
+                    openState: {
+                        isOpen: player.isOpen, openedWithPairs: player.openedWithPairs,
+                        openedTotal: player.openedTotal, lastOpenedValue: player.lastOpenedValue
+                    }
+                });
+                r.reverts?.forEach(p => emitPenalty(room.id, game, p));
+                if (r.penalty) emitPenalty(room.id, game, r.penalty);
+                persist();
+                callback({ success: true, remainingTiles: player.tiles.map(t => t.toJSON()) });
+            } catch (error) {
+                console.error('Geri alma hatası:', error);
+                callback({ success: false, error: 'Geri alınamadı' });
+            }
+        });
+
         // El Açma / Taş Oynama
         socket.on('game:openHand', (data: { playerId: string, sets: string[][], kind?: SetKind }, callback) => {
             try {

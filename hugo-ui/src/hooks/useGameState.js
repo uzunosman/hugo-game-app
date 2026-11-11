@@ -220,6 +220,13 @@ const useGameState = (player, room) => {
             if (playerId === player.id) setError(`${reason}: ${amount > 0 ? '+' : ''}${amount} ceza`);
         });
 
+        // Geri al: masadaki setler ve oyuncunun açık durumu bu sıranın başına döner
+        socketService.onTurnUndone(({ playerId, tableSets: sets, openState, turnAction }) => {
+            setTableSets(sets || []);
+            setPlayerOpenStates(prev => ({ ...prev, [playerId]: { ...prev[playerId], ...openState } }));
+            if (playerId === player.id && turnAction) setGameState(prev => ({ ...prev, turnAction }));
+        });
+
         // Kustu: yandan alınan taş, atanın köşesine geri döner
         socketService.onTileReturned(({ playerId, toPlayerId, tile }) => {
             const corner = getCornerByPlayerId(toPlayerId);
@@ -314,6 +321,7 @@ const useGameState = (player, room) => {
             socketService.offPenalty();
             socketService.offAutoPlayed();
             socketService.offTileReturned();
+            socketService.offTurnUndone();
         };
         // Dinleyiciler oyuncu başına bir kez kurulur; room.players oyun boyunca değişmez
         // eslint-disable-next-line react-hooks/exhaustive-deps

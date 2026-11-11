@@ -131,24 +131,24 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
         return g;
     };
     const joker = () => new Tile(TileColor.PURPLE, 'H', true);
-    const thirteens = () => [t(BLUE, 13), t(BLACK, 13), t(YELLOW, 13)];
+    const thirteens = () => [t(BLUE, 13), t(BLACK, 13), t(YELLOW, 13), t(BLACK, 2)]; // son taş elde kalır
 
     // kırmızı 4-5 + sahte okey (= kırmızı 6) geçerli seri: 15 + 39 = 54
     const a = normal();
     const h1 = give(a.p0, [t(RED, 4), t(RED, 5), joker(), ...thirteens()]);
-    const r1 = a.game.openHand(a.p0.id, [ids(h1.slice(0, 3)), ids(h1.slice(3))]);
+    const r1 = a.game.openHand(a.p0.id, [ids(h1.slice(0, 3)), ids(h1.slice(3, 6))]);
     assert.strictEqual(r1.success, true, r1.error);
     assert.strictEqual(r1.openedTotal, 54);
 
     // mavi 3-4 + sahte okey geçersiz: sahte okey mavi 5 olamaz
     const b = normal();
     const h2 = give(b.p0, [t(BLUE, 3), t(BLUE, 4), joker(), ...thirteens()]);
-    assert.strictEqual(b.game.openHand(b.p0.id, [ids(h2.slice(0, 3)), ids(h2.slice(3))]).success, false);
+    assert.strictEqual(b.game.openHand(b.p0.id, [ids(h2.slice(0, 3)), ids(h2.slice(3, 6))]).success, false);
 
     // mavi 3-4 + gerçek okey (kırmızı 6) geçerli: okey mavi 5 yerine geçer → 12 + 39 = 51
     const c = normal();
     const h3 = give(c.p0, [t(BLUE, 3), t(BLUE, 4), t(RED, 6), ...thirteens()]);
-    const r3 = c.game.openHand(c.p0.id, [ids(h3.slice(0, 3)), ids(h3.slice(3))]);
+    const r3 = c.game.openHand(c.p0.id, [ids(h3.slice(0, 3)), ids(h3.slice(3, 6))]);
     assert.strictEqual(r3.success, true, r3.error);
     assert.strictEqual(r3.openedTotal, 51);
 }
@@ -180,7 +180,7 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
 
     // Hugo elinde joker okeydir: joker + kırmızı 13 = 26, + mavi 12'ler 24 + siyah 1'ler 2 = 52
     const c = setup();
-    const hc = give(c.p0, [new Tile(TileColor.PURPLE, 'H', true), t(RED, 13), t(BLUE, 12), t(BLUE, 12), t(BLACK, 1), t(BLACK, 1)]);
+    const hc = give(c.p0, [new Tile(TileColor.PURPLE, 'H', true), t(RED, 13), t(BLUE, 12), t(BLUE, 12), t(BLACK, 1), t(BLACK, 1), t(YELLOW, 4)]);
     const rc = c.game.openHand(c.p0.id, [ids(hc.slice(0, 2)), ids(hc.slice(2, 4)), ids(hc.slice(4, 6))], 'cift');
     assert.strictEqual(rc.success, true, rc.error);
     assert.strictEqual(rc.openedTotal, 52);
@@ -239,6 +239,20 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     assert.strictEqual(res.P2.roundTotal, 1600);
     assert.strictEqual(res.P3.unusedOkeyPenalty, 100);
     assert.strictEqual(res.P3.roundTotal, 180);
+    assert.strictEqual(res.P1.stars, 0, '100 altı açılış yıldız almaz');
+}
+
+// 100 ve üzeri açılış 1 yıldız (bitiren dahil, bitiş yıldızına eklenir)
+{
+    const { game, p0, p1 } = setup(); // Hugo eli: bitiş yıldızı 1 × 2 = 2
+    const h = give(p0, [t(RED, 11), t(RED, 12), t(RED, 13), t(BLACK, 13), t(YELLOW, 13), t(BLUE, 13), t(BLACK, 12), t(YELLOW, 12), t(BLUE, 12), t(BLUE, 1)]);
+    const r = game.openHand(p0.id, [ids(h.slice(0, 3)), ids(h.slice(3, 6)), ids(h.slice(6, 9))]);
+    assert.ok(r.success && r.openedTotal! >= 100, r.error);
+    p1.isOpen = true; p1.openingScore = 120; give(p1, [t(RED, 5)]);
+    assert.ok(game.discardTile(p0.id, h[9].id).tile);
+    const res = Object.fromEntries(game.endRound(p0.id).map(x => [x.playerName, x]));
+    assert.strictEqual(res.P0.stars, 3, 'Hugo bitişi 2 + 100+ açılış 1');
+    assert.strictEqual(res.P1.stars, 1, 'bitirmeyen 100+ açan 1 yıldız');
 }
 
 // Daha önceki bir sırada açıp bitiren "elden" bitirmiş sayılmaz
@@ -327,6 +341,40 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     // Okey per adayını tamamlar: kırmızı 1-2 + okey per sayılır, mavi 5 atılır
     give(p0, [new Tile(TileColor.PURPLE, 'H', true), t(RED, 1), t(RED, 2), t(BLUE, 5), t(BLACK, 9)]);
     assert.strictEqual(game.pickAutoDiscard(p0.id)?.value, 5, 'okeyle tamamlanan per bozulmaz');
+}
+
+// Elde taş kalmadan masaya oynanmaz: en az bir taş atılarak bitirilir
+{
+    const { game, p0 } = setup();
+    const hand = give(p0, [t(RED, 11), t(RED, 12), t(RED, 13), t(BLACK, 9), t(YELLOW, 9), t(BLUE, 9)]);
+    const r = game.openHand(p0.id, [ids(hand.slice(0, 3)), ids(hand.slice(3, 6))]);
+    assert.strictEqual(r.success, false, 'tüm taşlar per iken açılmaz');
+    assert.strictEqual(p0.tiles.length, 6);
+}
+
+// Geri al: el açma ve işleme bu sırada 100 cezayla geri alınır; işleme cezası silinir; taş atınca geri alınamaz
+{
+    const { game, p0, p1 } = setup();
+    game.tableSets.push({ id: 's1', playerId: p1.id, kind: 'seri', value: 15, tiles: [t(BLUE, 4), t(BLUE, 5), t(BLUE, 6)] });
+    const hand = give(p0, [t(RED, 11), t(RED, 12), t(RED, 13), t(BLACK, 9), t(YELLOW, 9), t(BLUE, 9), t(BLUE, 7), t(BLACK, 1)]);
+    assert.ok(game.openHand(p0.id, [ids(hand.slice(0, 3)), ids(hand.slice(3, 6))]).success);
+    assert.ok(game.addTileToSet(p0.id, hand[6].id, 's1', 'end').success);
+    assert.strictEqual(p1.penaltyScore, 70);
+    const u = game.undoTurnPlays(p0.id);
+    assert.ok(u.success, u.error);
+    assert.strictEqual(p0.tiles.length, 8, 'tüm taşlar ele döner');
+    assert.strictEqual(p0.isOpen, false, 'açılış geri alınır');
+    assert.strictEqual(p0.lastOpenedValue, 0);
+    assert.strictEqual(game.tableSets.length, 1);
+    assert.strictEqual(game.tableSets[0].tiles.length, 3, 'işlenen taş setten çıkar');
+    assert.strictEqual(p1.penaltyScore, 0, 'işleme cezası silinir');
+    assert.strictEqual(p0.penaltyScore, 100, 'geri alma 100 ceza');
+    assert.strictEqual(game.undoTurnPlays(p0.id).success, false, 'ikinci kez geri alınacak hamle yok');
+    // Tekrar açıp taş atınca geri alma biter
+    assert.ok(game.openHand(p0.id, [ids(hand.slice(0, 3)), ids(hand.slice(3, 6))]).success);
+    assert.ok(game.discardTile(p0.id, hand[7].id).tile);
+    game.currentPlayerIndex = 0; game.players.forEach((p, i) => p.setTurn(i === 0)); game.turnAction = TurnAction.DISCARD;
+    assert.strictEqual(game.undoTurnPlays(p0.id).success, false, 'taş atıldıktan sonra geri alınamaz');
 }
 
 // Masaya oynadıktan sonra yandan alınan taş kusulamaz

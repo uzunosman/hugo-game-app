@@ -278,3 +278,7 @@
 
 /* Açılış değeri eşiğin altında: denemek 100 ceza yazar */
 .open-hand-btn.active.short { background: #b45309; }
+
+/* Geri al: ceza yazan işlem, diğer butonlardan ayrışsın */
+.open-hand-btn.undo-turn.active { background: #8a3b12; border-color: #8a3b12; color: #fff; }
+.open-hand-btn.undo-turn.active:hover { background: #6f2f0e; }

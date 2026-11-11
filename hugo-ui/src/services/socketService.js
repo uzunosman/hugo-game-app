@@ -296,6 +296,18 @@ class SocketService {
         this.socket.off('player:connection');
     }
 
+    undoTurn(callback) {
+        this.socket.emit('game:undoTurn', { playerId: this.playerId }, callback);
+    }
+
+    onTurnUndone(callback) {
+        this.socket.on('game:turnUndone', callback);
+    }
+
+    offTurnUndone() {
+        this.socket.off('game:turnUndone');
+    }
+
     returnTaken(callback) {
         this.socket.emit('game:returnTaken', { playerId: this.playerId }, callback);
     }

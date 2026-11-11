@@ -100,5 +100,10 @@
 - Süre dolunca: yandan alınmış taş kusulur, desteden taş çekilir, per adayına (okeyle tamamlananlar dahil)
   girmeyen en küçük taş atılır;
   okey asla atılmaz
+- Masaya oynarken (el açma, per indirme, işleme) elde en az bir taş kalmalı; el, son taş atılarak biter
+  (son taş işlek olsa da ceza yazılmaz)
+- Geri al: o sırada masaya oynananlar (açılış, indirilen perler, işlenen taşlar) 100 cezayla ele döner;
+  işlenen taşların sahiplerine yazılan cezalar silinir. Taş atıldıktan sonra geri alınamaz.
+- Yere açılan taşların değeri 100 ve üzeriyse oyuncu 1 yıldız alır (bitiren dahil; bitiş yıldızına eklenir)
 - Tüm cezalar masadaki herkese sağ altta kayıt olarak gösterilir: "[etiket] oyuncu taş +ceza"
 - Açtıktan sonra tek buton: "Perleri indir" (çiftle açanda "Çiftleri indir")
