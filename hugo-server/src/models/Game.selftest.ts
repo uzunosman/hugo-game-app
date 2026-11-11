@@ -22,12 +22,9 @@ for (let round = 1; round <= 9; round++) {
 
     // 1-5-9 her zaman Hugo; gösterge sahte okey çıkarsa diğer eller de Hugo olabilir
     if ([1, 5, 9].includes(round)) assert.strictEqual(game.isHugoRound(), true);
-    // Kimse açmadı, bitiren yok: herkese 800 + elde kalan okey başına 100, Hugo elinde ×2
+    // Kimse açmadı, bitiren yok: herkese 800, Hugo elinde ×2 (açmamış oyuncuya kullanılmayan okey cezası yazılmaz)
     const hugo = game.isHugoRound();
-    const okeyCount = (p: Player) => p.tiles.filter(t => hugo
-        ? t.isJoker
-        : !t.isJoker && t.color === game.okeyTile?.color && t.value === game.okeyTile?.value).length;
-    const expected = new Map(game.players.map(p => [p.id, (800 + okeyCount(p) * 100) * (hugo ? 2 : 1)]));
+    const expected = new Map(game.players.map(p => [p.id, 800 * (hugo ? 2 : 1)]));
     const results = game.endRound();
     results.forEach(r => {
         const e = expected.get(r.playerId)!;

@@ -56,8 +56,6 @@ export const setupSocketHandlers = (io: Server) => {
 
         const atan = game.getPlayerById(playerId);
         if (atan && atan.tiles.length === 0 && game.checkRoundEnd(playerId)) {
-            // Son atılan taş jokerse joker ×2 çarpanı uygulanır
-            game.finishedWithJoker = tile.isJoker === true;
             finishRound(roomId, game, playerId);
             return { success: true, roundEnded: true };
         }

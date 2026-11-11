@@ -225,7 +225,7 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     assert.deepStrictEqual(fin.penalties, [], 'bitiren son taş işlek cezası almaz');
 
     p1.isOpen = true; give(p1, [t(RED, 5)]);                 // 5 × 10 = 50 → × 4 = 200
-    give(p2, [t(YELLOW, 9), t(YELLOW, 10)]);                  // açmadı → 400 × 4 = 1600
+    give(p2, [t(YELLOW, 9), t(RED, 6)]);                      // açmadı → 400 × 4 = 1600; okey cezası yok
     p3.isOpen = true; give(p3, [t(RED, 6), t(BLUE, 2)]);      // okey 0 + 2 × 10 = 20 → 80, + 100 okey
     const res = Object.fromEntries(game.endRound(p0.id).map(r => [r.playerName, r]));
 
@@ -238,8 +238,40 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     assert.strictEqual(res.P1.roundTotal, 200);
     assert.strictEqual(res.P2.roundTotal, 1600);
     assert.strictEqual(res.P3.unusedOkeyPenalty, 100);
+    assert.strictEqual(res.P2.unusedOkeyPenalty, 0, 'eli açmamış oyuncuya kullanılmayan okey cezası yazılmaz');
     assert.strictEqual(res.P3.roundTotal, 180);
     assert.strictEqual(res.P1.stars, 0, '100 altı açılış yıldız almaz');
+}
+
+// Okeyle bitme: normal elde gerçek okey (göstergenin bir üstü) sayılır, sahte okey sayılmaz
+{
+    const finish = (last: Tile) => {
+        const { game, p0, p1 } = setup();
+        game.round = 2; game.indicatorTile = t(RED, 5); game.okeyTile = t(RED, 6);
+        p0.isOpen = true; p0.openedAtTurn = -5;
+        give(p0, [last]);
+        p1.isOpen = true; give(p1, [t(BLUE, 3)]);
+        assert.ok(game.discardTile(p0.id, last.id).tile);
+        return Object.fromEntries(game.endRound(p0.id).map(r => [r.playerName, r]));
+    };
+    const real = finish(t(RED, 6));
+    assert.strictEqual(real.P0.finishedWithJoker, true, 'gerçek okeyle bitti');
+    assert.strictEqual(real.P0.stars, 2, 'okeyle bitiren 2 yıldız');
+    assert.strictEqual(real.P1.roundTotal, 3 * 10 * 2, 'rakibin elde kalanı ×2');
+    const fake = finish(new Tile(TileColor.PURPLE, 'H', true));
+    assert.strictEqual(fake.P0.finishedWithJoker, false, 'normal elde sahte okey okey sayılmaz');
+    assert.strictEqual(fake.P0.stars, 1);
+
+    // Hugo elinde okey sahte okeydir
+    const { game, p0, p1 } = setup();
+    p0.isOpen = true; p0.openedAtTurn = -5;
+    p1.isOpen = true; // başka biri açtı: "kimse açmadı" çarpanı yok
+    const h = new Tile(TileColor.PURPLE, 'H', true);
+    give(p0, [h]);
+    assert.ok(game.discardTile(p0.id, h.id).tile);
+    const hr = Object.fromEntries(game.endRound(p0.id).map(r => [r.playerName, r]));
+    assert.strictEqual(hr.P0.finishedWithJoker, true);
+    assert.strictEqual(hr.P0.stars, 4, 'Hugo elinde okeyle bitiş: 1 × 2 × 2');
 }
 
 // 100 ve üzeri açılış 1 yıldız (bitiren dahil, bitiş yıldızına eklenir)

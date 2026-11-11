@@ -25,7 +25,7 @@ export interface RoundResult {
     isHugoRound: boolean;
     finishedWithJoker: boolean;
     stars: number;              // yıldız sayısı (her biri roundTotal'den 100 düşer)
-    unusedOkeyPenalty: number;  // elde kalan her okey için 100
+    unusedOkeyPenalty: number;  // eli açmış oyuncunun elinde kalan her okey için 100
     finishedWithPairs: boolean; // bitiren çiftle açmıştı (özel durum ×2)
     finishedElden: boolean;     // bitiren aynı sırada açıp bitirdi (özel durum ×2)
     penaltyEntries: number[];   // o elde yazılan cezalar (UI dökümü için)
@@ -352,7 +352,11 @@ export class Game {
 
         player.removeTile(tileId);
         // Son taş: bitiren bu sırada açtıysa "elden bitme"
-        if (player.tiles.length === 0) this.finishedElden = player.openedAtTurn === this.turnCounter;
+        if (player.tiles.length === 0) {
+            this.finishedElden = player.openedAtTurn === this.turnCounter;
+            // Okeyle bitme: son taş bu elin okeyi (Hugo elinde sahte okey, normal elde göstergenin bir üstü)
+            this.finishedWithJoker = this.isOkeyTile(tile);
+        }
         tile.setStatus(TileStatus.DISCARDED);
         tile.setVisible(true);
         this.discardPile.push(tile);
@@ -1144,7 +1148,8 @@ export class Game {
                     }, 0);
                 }
                 effectiveHandScore = handScore * handMult;
-                unusedOkeyPenalty = player.tiles.filter(t => this.isOkeyTile(t)).length * 100;
+                // Kullanılmayan okey cezası yalnızca eli açmış oyuncuya yazılır
+                if (player.isOpen) unusedOkeyPenalty = player.tiles.filter(t => this.isOkeyTile(t)).length * 100;
             }
 
             const openBonus = 0;   // reserved for future use

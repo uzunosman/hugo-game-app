@@ -90,7 +90,9 @@
   (işlenen taşların toplamı × 10) × 2 ceza yazılır. Örn. iki 5: ((5 + 5) × 10) × 2 = 200.
   Çiftlere tek taş işlenmez; kendi çiftine işlemek cezasızdır.
 - Çiftten bitme özel durumdur (rakiplerin elde kalanı ×2); çiftten biten 1 yıldız alır
-- Kullanılmayan okey: el sonunda elde kalan her okey için 100 ceza
+- Kullanılmayan okey: el sonunda eli açmış oyuncunun elinde kalan her okey için 100 ceza (eli açmamışsa yazılmaz)
+- Okeyle bitme: son atılan taş o elin okeyi olmalı (normal elde göstergenin bir üstü, Hugo elinde sahte okey);
+  bitiren 2 yıldız alır, rakiplerin elde kalanı ×2
 - Normal elde sahte okey (joker) okeyin rengi ve sayısıyla oynanır, joker gibi davranmaz
 - Yerden (yandan) alınan her taş için atana taş değeri × 10 ceza (Hugo elinde × 20)
 - Kustu: yandan alınan taş, kullanılmadıysa cezasız geri konur; atanın cezası silinir, oyuncu desteden çeker
