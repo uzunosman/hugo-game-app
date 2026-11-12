@@ -1,6 +1,7 @@
 import { io } from 'socket.io-client';
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
+// Sunucu adresi: VITE_SOCKET_URL verilmezse sayfanın açıldığı makinenin 3001 portu (yerel ağda telefondan da çalışır)
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || `${window.location.protocol}//${window.location.hostname}:3001`;
 const SESSION_KEY = 'hugo.playerId'; // sekme başına oturum: yenilemede aynı koltuğa dönülür
 
 const readSession = () => { try { return sessionStorage.getItem(SESSION_KEY); } catch { return null; } };

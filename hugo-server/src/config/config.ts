@@ -5,7 +5,8 @@ dotenv.config();
 
 export const config = {
     port: process.env.PORT || 3001,
-    origin: process.env.ORIGIN || 'http://localhost:5173',
+    // İzin verilen arayüz adresleri, virgülle birden çok (örn. yerel + ağ + yayın adresi)
+    origin: (process.env.ORIGIN || 'http://localhost:5173').split(',').map(s => s.trim()).filter(Boolean),
     testMode: process.env.TEST_MODE === 'true',
     // TEST_MODE açılış eli: 'seri' (11-12-13 + üç 9) ya da 'cift' (13'ler, 12'ler, 1'ler, sarı 7'ler çifti)
     testHand: process.env.TEST_HAND === 'cift' ? 'cift' : 'seri',
