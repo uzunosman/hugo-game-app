@@ -11,6 +11,8 @@ import { getOrderedPlayers, getPlayerPosition, getPlayerCorner, getCurrentPlayer
 import { handleDrawTile, handleTileMove, handleDrawDiscardedTile } from '../../utils/tileHandlers';
 import '../../assets/css/components/GameBoard.css';
 import '../../assets/css/layout.css';
+import '../../assets/css/mobile.css';
+import RotateHint from '../RotateHint/RotateHint';
 
 /**
  * Ana Oyun bileşeni
@@ -543,6 +545,7 @@ function Game({ player, room, onGameFinished }) {
                 onOkeyFlip={handleOkeyFlip}
             />
 
+            <RotateHint />
             <PenaltyLog entries={penaltyLog} />
             <Chat playerId={player.id} />
 

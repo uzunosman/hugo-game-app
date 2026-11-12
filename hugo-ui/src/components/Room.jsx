@@ -3,6 +3,8 @@ import socketService from '../services/socketService';
 import Game from '../components/Game/Game';
 import { avatarFor } from '../utils/avatar';
 import RoundSummary from './RoundSummary/RoundSummary';
+// Dokunmatik telefonda oyun yatay oynanır: Hazırım / Oyunu başlat dokunuşu tam ekran + yatay kilidi de ister
+import { enterLandscape, isTouchPhone } from '../utils/orientation';
 
 function Room({ player, room, onLeaveRoom }) {
     const [currentRoom, setCurrentRoom] = useState(room);
@@ -71,6 +73,7 @@ function Room({ player, room, onLeaveRoom }) {
     };
 
     const handleToggleReady = () => {
+        if (!isReady && isTouchPhone()) enterLandscape();
         setLoading(true);
         setError('');
 
@@ -84,6 +87,7 @@ function Room({ player, room, onLeaveRoom }) {
     };
 
     const handleStartGame = () => {
+        if (isTouchPhone()) enterLandscape();
         setLoading(true);
         setError('');
 

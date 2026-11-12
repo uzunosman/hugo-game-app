@@ -1,0 +1,167 @@
+/* Telefon yatay (kısa ekran): oyun burada oynanır. Taş boyu ekran yüksekliğinden hesaplanır.
+   ┌ ayarlar · sohbet ───── karşı oyuncu ───── cezalar · el · tabela ┐
+   │sol│                   MASA                                 │sağ│
+   ├ kendi kartın + butonlar │      ISTAKA (15 × 2)     │  dizme  ┤ */
+@media (orientation: landscape) and (max-height: 500px) {
+    html:root{
+        --tile-h: min(11.5dvh, 46px);
+        --tile-w: calc(var(--tile-h) / 1.5);
+        --tile-font: calc(var(--tile-h) * 0.5);
+        --tile-pb: calc(var(--tile-h) * 0.22);
+        --tile-dot: 4px;
+        --tile-dot-b: 4px;
+        --rack-h: calc(var(--tile-h) * 2 + 18px);
+        --tileholder-h: var(--rack-h);
+        --top-band: 32px;
+        --side-band: 46px;
+        --self-band: 4px; /* kendi kartın ıstakanın solunda: ayrı bant yok */
+        --set-tile-w: calc(var(--tile-w) * 0.7);
+        --set-tile-h: calc(var(--tile-h) * 0.7);
+        --set-tile-font: calc(var(--tile-h) * 0.34);
+    }
+
+    /* Istaka: ince çerçeve, satırlar taşa yapışık */
+    html .tile-holder-container{ padding: 0; }
+    html .tile-holder{ padding: 3px 4px; width: calc(var(--tile-w) * 15 + 22px); border-radius: 6px 6px 0 0; }
+    html .tile-row{ min-height: calc(var(--tile-h) + 2px); padding: 0; }
+    html .tile-row-divider{ margin: 0; }
+    html .tile{ border-radius: 3px; }
+
+    /* Kendi kartın sol altta, aksiyon butonları üstünde (ıstakanın solunda) */
+    html .player-panel.current-player{
+        left: 4px;
+        bottom: 4px;
+        transform: none;
+        max-width: calc((100vw - var(--tile-w) * 15 - 30px) / 2 - 8px);
+    }
+    html .action-buttons{
+        left: 4px;
+        right: auto;
+        bottom: 48px; /* kendi kartının üstünde */
+        transform: none;
+        flex-wrap: wrap;
+        gap: 4px;
+        max-width: calc((100vw - var(--tile-w) * 15 - 30px) / 2 - 8px);
+    }
+    html .open-hand-btn{ font-size: 11px; padding: 5px 9px; border-radius: 6px; }
+    html .open-hand-score{ font-size: 10px; padding: 0 4px; }
+
+    /* Dizme butonları sağ altta, alt alta */
+    html .tile-holder-container .rack-tools{
+        left: auto;
+        right: 4px;
+        bottom: 4px;
+        flex-direction: column;
+        gap: 4px;
+    }
+    html .rack-tool-btn{ font-size: 11px; padding: 5px 8px; }
+
+    /* Oyuncu kartları: küçük avatar, tek satır */
+    html .player-panel{ gap: 5px; padding: 2px 7px 2px 2px; border-radius: 8px; }
+    html .pp-avatar{ --size: 22px; }
+    html .pp-name{ font-size: 11px; max-width: 96px; }
+    html .pp-chip{ font-size: 9px; padding: 2px 4px; }
+    html .pp-meta{ gap: 2px; }
+    html .player-panel.top{ top: 2px; }
+    html .player-panel.left, html .player-panel.right{ width: 40px; padding: 4px 2px; gap: 2px; }
+    html .player-panel.left{ left: 3px; }
+    html .player-panel.right{ right: 3px; }
+    html .player-panel.left .pp-name, html .player-panel.right .pp-name{ font-size: 9px; }
+    html .player-panel.left .pp-chip, html .player-panel.right .pp-chip{ font-size: 8px; padding: 1px 2px; }
+
+    /* Üst bant: ayarlar ve sohbet solda; cezalar, el ve tabela sağda */
+    html .settings{ left: 3px; top: 2px; }
+    html .settings-toggle, html .top-right-tools .scoreboard-toggle{ width: 28px; height: 28px; border-radius: 8px; }
+    html .top-right-tools{ top: 2px; right: 3px; gap: 4px; }
+    html .round-chip{ height: 28px; font-size: 11px; padding: 0 8px; border-radius: 8px; }
+    html .round-chip .hugo-tag{ font-size: 9px; padding: 2px 4px; }
+
+    html .chat{
+        left: 36px;
+        top: 2px;
+        bottom: auto;
+        width: min(300px, 45vw);
+        flex-direction: column-reverse; /* düğme üstte, panel aşağı açılır */
+    }
+    html .chat-toggle, html .pl-toggle{ padding: 6px 9px; font-size: 11px; }
+    html .chat-list{ height: calc(100dvh - 120px); min-height: 80px; }
+
+    html .penalty-log{
+        top: 2px;
+        bottom: auto;
+        right: 150px;
+        width: 210px;
+        flex-direction: column; /* düğme üstte, liste aşağı açılır */
+        font-size: 0.7rem;
+    }
+    html .penalty-log ul{ max-height: 6em; background: rgba(0, 0, 0, 0.35); border-radius: 8px; padding: 4px 8px; }
+
+    /* Masa */
+    html .game-container .game-board{ border-radius: 12px; }
+    html .open-sets-top{ top: 6px; }
+    html .open-sets-bottom{ bottom: 6px; }
+    html .open-sets-left{ left: 6px; }
+    html .open-sets-right{ right: 6px; }
+    html .open-sets-list, 
+    html .open-sets-bottom .open-sets-list, 
+    html .open-sets-top .open-sets-list{ gap: 4px 8px; }
+    html .open-set-group{ padding: 1px; gap: 1px; }
+    /* Yanlarda 3 satır: köşe alanlarına taşmaz, yeni sütun içeri açılır */
+    html .open-sets-left .open-sets-list, html .open-sets-right .open-sets-list,
+    html .open-sets-left .open-pairs-list, html .open-sets-right .open-pairs-list{ --set-rows: 3; }
+    /* Köşe alanı telefonda büyümez (yan perlere değmesin); hamle sırasında yalnızca kenarlığı belirginleşir */
+    html .tile-drop-zone, html .tile-drop-zone.active{
+        width: calc(var(--tile-w) + 8px);
+        height: calc(var(--tile-h) + 8px);
+        border-radius: 6px;
+    }
+    html .tile-drop-zone.top-left, html .tile-drop-zone.top-right{ top: 6px; }
+    html .tile-drop-zone.bottom-left, html .tile-drop-zone.bottom-right{ bottom: 6px; }
+    html .tile-drop-zone.top-left, html .tile-drop-zone.bottom-left{ left: 6px; }
+    html .tile-drop-zone.top-right, html .tile-drop-zone.bottom-right{ right: 6px; }
+    html .center-area .center-tiles{ gap: 6px; }
+    html .kustu-btn{ font-size: 10px; padding: 6px 2px; }
+
+    /* Tabela ve el sonu: kısa ekranda kaydırılabilir */
+    html .tabela{ max-height: calc(100dvh - 16px); padding: 12px 14px 10px 40px; }
+    html .tabela-title{ font-size: 22px; }
+    html .tabela-table{ font-size: 15px; }
+    html .tabela-table tbody th img{ width: 22px; height: 22px; }
+    html .scoreboard-modal.scoreboard-kiraathane{ max-height: calc(100dvh - 16px); padding: 10px 12px; }
+    html .scoreboard-table th, html .scoreboard-table td{ padding: 3px 8px; font-size: 12px; }
+    html .game-toast{ top: 36px; font-size: 0.85rem; padding: 6px 12px; }
+}
+
+/* Telefon dikey tutulurken oyun ekranı: yatay çevirme uyarısı */
+.rotate-hint {
+    position: fixed;
+    inset: 0;
+    z-index: 3000;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 24px;
+    text-align: center;
+    color: #fff;
+    background: #0b3d47;
+    font: 600 16px/1.4 system-ui, sans-serif;
+}
+.rotate-hint svg { animation: rotate-hint 1.6s ease-in-out infinite; }
+.rotate-hint button {
+    font: 700 15px/1 system-ui, sans-serif;
+    color: #0b3d47;
+    background: #fff;
+    border: 0;
+    border-radius: 10px;
+    padding: 12px 18px;
+    cursor: pointer;
+}
+.rotate-hint button:focus-visible { outline: 3px solid #ffd66b; outline-offset: 2px; }
+.rotate-hint small { font-weight: 400; opacity: 0.8; max-width: 280px; }
+@keyframes rotate-hint { 0%, 30% { transform: rotate(0); } 60%, 100% { transform: rotate(-90deg); } }
+@media (prefers-reduced-motion: reduce) { .rotate-hint svg { animation: none; } }
+@media (orientation: portrait) and (max-width: 820px) {
+    .rotate-hint { display: flex; }
+}

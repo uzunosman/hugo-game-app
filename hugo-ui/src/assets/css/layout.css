@@ -67,7 +67,7 @@
 /* Yan oyuncular ekranın değil masanın dikey ortasında */
 .player-panel.top { top: 3px; }
 .player-panel.left,
-.player-panel.right { top: calc(var(--top-band) + (100vh - var(--top-band) - var(--rack-h) - var(--self-band)) / 2); }
+.player-panel.right { top: calc((var(--top-band) + 100dvh - var(--rack-h) - var(--self-band)) / 2); }
 .player-panel.left { left: 4px; }
 .player-panel.right { right: 4px; }
 
