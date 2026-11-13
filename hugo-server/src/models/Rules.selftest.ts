@@ -136,6 +136,46 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     assert.deepStrictEqual(n.game.discardTile(n.p0.id, b7.id).penalties, [], 'okeyin yerini tutmayan taş işlek değil');
 }
 
+// Per per açma (sürükle-bırak): eşik dolana kadar perler yerde bekler, taş atılamaz; eşik dolunca el açılır
+{
+    const { game, p0 } = setup(); game.round = 2;
+    const [r10, r11, r12, b7, b8, b9, k1, k13] = give(p0, [t(RED, 10), t(RED, 11), t(RED, 12), t(BLUE, 7), t(BLUE, 8), t(BLUE, 9), t(BLACK, 1), t(BLACK, 13)]);
+    assert.strictEqual(game.openHand(p0.id, [ids([r10, r11, r12])]).success, false, 'Tümünü aç: 33 yetmez');
+    const a = game.openHand(p0.id, [ids([r10, r11, r12])], 'seri', true);
+    assert.ok(a.success && !p0.isOpen, 'tek per yere iner, el henüz açık değil');
+    assert.strictEqual(a.pendingTotal, 33);
+    assert.strictEqual(game.tableSets.length, 1);
+    assert.ok(/Açılış yetersiz/.test(game.discardTile(p0.id, k1.id).error || ''), 'bekleyen açılışla taş atılamaz');
+    const b = game.openHand(p0.id, [ids([b7, b8, b9])], 'seri', true);
+    assert.ok(b.success && p0.isOpen, '33 + 24 = 57: el açıldı');
+    assert.strictEqual(p0.lastOpenedValue, 57);
+    assert.strictEqual(game.pendingOpen, null);
+    assert.ok(game.discardTile(p0.id, k1.id).tile, 'açıldıktan sonra taş atılır');
+    void k13;
+}
+
+// Süre dolunca bekleyen açılış: elde per varsa tamamlanır; yoksa perler ele döner, ceza yazılır
+{
+    const { game, p0 } = setup(); game.round = 2;
+    const hand = give(p0, [t(RED, 10), t(RED, 11), t(RED, 12), t(BLUE, 7), t(BLUE, 8), t(BLUE, 9), t(BLACK, 1)]);
+    game.openHand(p0.id, [ids(hand.slice(0, 3))], 'seri', true);
+    const done = game.completePendingOpen(p0.id);
+    assert.ok(done.success && p0.isOpen, 'eldeki mavi 7-8-9 ile açılış tamamlandı');
+    assert.strictEqual(p0.tiles.length, 1);
+
+    const h = setup(); // 1. el Hugo: geri alma cezası 200
+    const hh = give(h.p0, [t(RED, 10), t(RED, 11), t(RED, 12), t(BLUE, 1), t(BLACK, 5)]);
+    h.game.openHand(h.p0.id, [ids(hh.slice(0, 3))], 'seri', true);
+    assert.strictEqual(h.game.completePendingOpen(h.p0.id).success, false, 'elde per yok');
+    const u = h.game.undoTurnPlays(h.p0.id, h.game.isHugoRound() ? 200 : 100);
+    assert.ok(u.success);
+    assert.strictEqual(h.p0.tiles.length, 5, 'perler ele döndü');
+    assert.strictEqual(h.game.tableSets.length, 0);
+    assert.strictEqual(h.p0.penaltyScore, 200);
+    assert.strictEqual(h.game.pendingOpen, null);
+    assert.ok(h.game.discardTile(h.p0.id, hh[3].id).tile, 'geri alındıktan sonra taş atılır');
+}
+
 // Süre dolunca: yandan alınan taş bekliyorsa o atılır, yoksa okey olmayan en küçük taş
 {
     const { game, p0 } = setup();

@@ -1,4 +1,4 @@
-// İşlenen taş animasyonu: taş, işleyen oyuncunun kartından (kendin için ıstakadan) çıkıp
+// Masaya gelen taş animasyonu (işleme, el açma, per indirme): taş, oynayan oyuncunun kartından (kendin için ıstakadan) çıkıp
 // masadaki perdeki yerine kısa bir yayla iner. Herkesin ekranında, sunucunun işleme olayıyla oynar.
 
 // Yolda olan taş id'leri: OpenSetsArea bunları iniş bitene kadar gizli çizer
@@ -21,6 +21,7 @@ export const flyTilesIn = (tileIds, playerId, myId) => {
     tileIds.forEach(id => incomingTiles.add(id));
     requestAnimationFrame(() => requestAnimationFrame(() => {
         const from = sourceRect(playerId, myId);
+        const stagger = Math.min(90, 700 / tileIds.length); // çok taşlı açılış da 1 saniyeyi geçmesin
         tileIds.forEach((id, i) => {
             const target = document.querySelector(`.open-set-tile[data-tile-id="${id}"]`);
             const land = () => { incomingTiles.delete(id); target?.classList.remove('incoming'); };
@@ -39,7 +40,7 @@ export const flyTilesIn = (tileIds, playerId, myId) => {
                 { transform: `translate(${sx}px, ${sy}px) scale(1.25) rotate(-6deg)`, opacity: 0.85 },
                 { transform: `translate(${sx * 0.45}px, ${sy * 0.45 + lift}px) scale(1.15) rotate(-2deg)`, opacity: 1, offset: 0.55 },
                 { transform: 'translate(0, 0) scale(1) rotate(0)', opacity: 1 },
-            ], { duration: DURATION, delay: i * 90, easing: 'cubic-bezier(.25,.8,.3,1)', fill: 'backwards' })
+            ], { duration: DURATION, delay: i * stagger, easing: 'cubic-bezier(.25,.8,.3,1)', fill: 'backwards' })
                 .finished.catch(() => {}).finally(() => { land(); ghost.remove(); });
         });
     }));

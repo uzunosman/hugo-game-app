@@ -197,3 +197,12 @@
     box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
     will-change: transform;
 }
+
+/* Sürüklenen taşın işleneceği uç: parlak yuva (okeyde parmağı sağa / sola kaydırarak seçilir) */
+.insertion-slot.active {
+    background: rgba(255, 255, 255, 0.85);
+    box-shadow: 0 0 0 2px #fff, 0 0 10px rgba(255, 255, 255, 0.8);
+}
+
+/* Açılış eşiği henüz dolmamış, yerde bekleyen per: kesik çerçeve, hafif soluk */
+.open-set-group.is-pending { outline: 2px dashed rgba(255, 216, 138, 0.95); outline-offset: 2px; opacity: 0.8; }

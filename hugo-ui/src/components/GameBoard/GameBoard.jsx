@@ -10,7 +10,8 @@ import '../../assets/css/components/GameBoard.css';
 /**
  * Oyun tahtası: köşeler, masadaki perler, deste ve ıstaka.
  * Sürükle-bırak useBoardDrag'da (Pointer Events; fare, dokunmatik ve kalem aynı yol):
- *  ıstaka taşı → ıstaka / köşe / per, basılı tutulan per → ıstaka, deste ya da yerdeki taş → ıstaka.
+ *  ıstaka taşı → ıstaka / köşe / per, basılı tutulan per → ıstaka ya da masa (el aç / per indir),
+ *  deste ya da yerdeki taş → ıstaka.
  */
 const GameBoard = ({
     tiles,
@@ -46,7 +47,9 @@ const GameBoard = ({
     onTileDragEnd,
     flippedTileIds,
     onOkeyFlip,
-    onGroupMove
+    onGroupMove,
+    onPlayGroup,
+    pendingSetIds
 }) => {
     const isFirstHandBlock = tiles.length === 15 && turnAction === 'draw';
     const canDrawFromDeck = isMyTurn && turnAction === 'draw' && !isFirstHandBlock;
@@ -62,6 +65,7 @@ const GameBoard = ({
         actions: {
             moveTile: handleTileMove,
             moveGroup: onGroupMove,
+            playGroup: onPlayGroup, // per masaya sürüklendi: el aç / per indir
             discard: handleTileDoubleClick, // köşeye atma ile aynı yol (sıra / aşama kontrolü orada)
             addToSet: onAddTileToSet,
             drawDeck: handleDrawFromDeck,
@@ -72,7 +76,7 @@ const GameBoard = ({
     });
 
     return (
-        <div className={`game-board ${dragView?.dragging ? 'is-dragging' : ''}`} onPointerDown={onPointerDown}>
+        <div className={`game-board ${dragView?.dragging ? 'is-dragging' : ''} ${dragView?.overTable ? 'drop-table' : ''}`} onPointerDown={onPointerDown}>
             <div className="board-content">
                 {/* Köşe Bırakma Alanları */}
                 <DiscardAreas
@@ -101,6 +105,8 @@ const GameBoard = ({
                     isHugo={isHugoRound}
                     pairPartnerId={pairPartnerId}
                     dragOverKey={dragView?.dragging ? dragView.overSet : null}
+                    dragOverSide={dragView?.dragging ? dragView.overSide : null}
+                    pendingSetIds={pendingSetIds}
                 />
 
                 {/* Merkez Alan */}

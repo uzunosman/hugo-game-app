@@ -106,9 +106,8 @@
     html .open-sets-bottom .open-sets-list, 
     html .open-sets-top .open-sets-list{ gap: 4px 8px; }
     html .open-set-group{ padding: 1px; gap: 1px; }
-    /* Yanlarda 3 satır: köşe alanlarına taşmaz, yeni sütun içeri açılır */
-    html .open-sets-left .open-sets-list, html .open-sets-right .open-sets-list,
-    html .open-sets-left .open-pairs-list, html .open-sets-right .open-pairs-list{ --set-rows: 3; }
+    /* Yanlarda tek sütun (layout.css): perler alt alta, dikeyde ortalı */
+    html .open-sets-left .open-sets-list, html .open-sets-right .open-sets-list{ gap: 4px; }
     /* Köşe alanı telefonda büyümez (yan perlere değmesin); hamle sırasında yalnızca kenarlığı belirginleşir */
     html .tile-drop-zone, html .tile-drop-zone.active{
         width: calc(var(--tile-w) + 8px);

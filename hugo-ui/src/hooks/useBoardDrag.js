@@ -3,7 +3,8 @@ import { rackGroupAt } from '../utils/tileHandlers';
 
 // Masadaki tüm sürükle-bırak: fare, dokunmatik ve kalem aynı Pointer Events yolunu kullanır.
 //  - Istaka taşı: sürükle → ıstakada yer değiştir, köşeye at, masadaki pere işle (son taş ıstaka dışında her yere: at)
-//  - Basılı tut (LONG_PRESS) → taşın satırdaki kesintisiz dizisi (per) seçilir; sürükle → per ıstakada taşınır
+//  - Basılı tut (LONG_PRESS) → taşın satırdaki kesintisiz dizisi (per) seçilir; sürükle → per ıstakada taşınır,
+//    masaya bırakılırsa el açılır / per indirilir
 //  - Deste / yerdeki son taş: ıstakaya sürükle → çek
 // Sürüklenen taş yerinden kalkar (ıstakada gölgesi kalmaz); bırakılacağı yer ıstakada canlı gösterilir.
 const LONG_PRESS = 380; // ms
@@ -51,6 +52,7 @@ export default function useBoardDrag(props) {
             inRack: !!el?.closest('.tile-holder'),
             overSet: el?.closest('[data-hover-key]')?.dataset.hoverKey ?? null,
             overCorner: el?.closest('.tile-drop-zone')?.dataset.corner ?? null,
+            overTable: !!el?.closest('.game-board') && !el.closest('.tile-holder-container, .tile-drop-zone'),
         };
     };
 
@@ -111,6 +113,7 @@ export default function useBoardDrag(props) {
         if (!group) return;
         s.kind = 'group';
         s.group = group;
+        s.groupIds = positions.slice(group.start, group.start + group.len);
         navigator.vibrate?.(15);
         publish({ kind: 'group', group, srcIdx: s.srcIdx, dragging: false });
     };
@@ -143,11 +146,17 @@ export default function useBoardDrag(props) {
         return null;
     };
 
+    // Perin hangi ucuna: parmak perin sol yarısındaysa başa, sağ yarısındaysa sona (okey iki uca da uyar,
+    // kullanıcı parmağını kaydırarak seçer; seçilen uçtaki yuva parlar). Uymayan uçta sunucu öbür ucu dener.
+    const sideOf = (s) => (s.lock && s.x < s.lock.rect.left + s.lock.rect.width / 2 ? 'start' : 'end');
+
     const drop = (s, hit) => {
         const { positions, tiles, playerCorner, actions } = latest.current;
         const { el, overCell, inRack, overCorner } = hit;
         if (s.kind === 'group') {
-            if (overCell != null) actions.moveGroup(s.group, s.srcIdx, overCell);
+            if (overCell != null) return actions.moveGroup(s.group, s.srcIdx, overCell);
+            // Masaya bırakılan per: el açılır ya da per indirilir (köşeye per atılmaz)
+            if (hit.overTable) actions.playGroup?.(s.groupIds);
             return;
         }
         if (s.kind === 'deck') {
@@ -175,11 +184,9 @@ export default function useBoardDrag(props) {
         if (okey) return actions.addToSet(tileId, okey.dataset.setId, 'end');
         const pair = el?.closest('.pair-slot');
         if (pair) return actions.addToSet(tileId, pair.dataset.setId, 'end');
-        const set = el?.closest('.open-set-group');
-        if (set) return actions.addToSet(tileId, set.dataset.setId, 'end');
-        // Parmak perden kaymış ama kilit sürüyor: o pere işle (uç sunucuda seçilir)
+        // Perin üstünde ya da parmak perden kaymış ama kilit sürüyor: parmağın olduğu uca işle
         const lock = s.kind === 'tile' && lockSet(s, hit) && s.lock;
-        if (lock) return actions.addToSet(tileId, lock.setId, 'end');
+        if (lock) return actions.addToSet(tileId, lock.setId, sideOf(s));
         if (overCorner && overCorner === playerCorner) actions.discard(s.srcIdx);
     };
 
@@ -194,7 +201,8 @@ export default function useBoardDrag(props) {
         e.preventDefault();
         moveGhost(s);
         const hit = hitTest(s.x, s.y);
-        publish({ overCell: hit.overCell, overSet: s.kind === 'tile' ? lockSet(s, hit) : null, overCorner: hit.overCorner });
+        const overSet = s.kind === 'tile' ? lockSet(s, hit) : null;
+        publish({ overCell: hit.overCell, overSet, overSide: overSet ? sideOf(s) : null, overCorner: hit.overCorner, overTable: s.kind === 'group' && hit.overTable });
     }
 
     function onUp(e) {

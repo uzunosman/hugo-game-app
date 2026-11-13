@@ -156,7 +156,7 @@ function calculateValidPositions(set, rawActiveTile, okeyTile, isHugo, pairPartn
 // ── Bileşen ──────────────────────────────────────────────
 
 // dragOverKey: sürüklenen taşın üstünde olduğu per / çift yeri (useBoardDrag); bırakma da orada yapılır
-const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTileToSet, okeyTile, isHugo, pairPartnerId, dragOverKey }) => {
+const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTileToSet, okeyTile, isHugo, pairPartnerId, dragOverKey, dragOverSide, pendingSetIds }) => {
     const [hoveredSetId, setHoveredSetId] = useState(null);
 
     const positionMap = { 0: 'bottom', 1: 'right', 2: 'top', 3: 'left' };
@@ -189,11 +189,15 @@ const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTil
             : [];
         const hasStartSlot = validPositions.some(v => v.position === 'start');
         const hasEndSlot = validPositions.some(v => v.position === 'end');
+        // Sürüklenen taşın gideceği uç: iki uç da uyuyorsa (okey) parmağın olduğu yarı, tek uç uyuyorsa o uç
+        const activeSide = dragOverKey === set.id
+            ? (hasStartSlot && hasEndSlot ? dragOverSide : hasStartSlot ? 'start' : 'end')
+            : null;
 
         return (
             <div
                 key={set.id}
-                className={`open-set-group ${isExpanded ? 'expanded' : ''} ${isInteractive && set.kind !== 'cift' ? 'droppable' : ''}`}
+                className={`open-set-group ${isExpanded ? 'expanded' : ''} ${pendingSetIds?.includes(set.id) ? 'is-pending' : ''} ${isInteractive && set.kind !== 'cift' ? 'droppable' : ''}`}
                 data-set-id={set.id}
                 data-hover-key={set.id}
                 onMouseEnter={() => handleMouseEnter(set.id)}
@@ -201,7 +205,7 @@ const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTil
             >
                 {isExpanded && hasStartSlot && (
                     <div
-                        className="insertion-slot"
+                        className={`insertion-slot ${activeSide === 'start' ? 'active' : ''}`}
                         data-set-id={set.id}
                         data-position="start"
                         onClick={() => handleSlotClick(set.id, 'start')}
@@ -224,7 +228,7 @@ const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTil
                 })}
                 {isExpanded && hasEndSlot && (
                     <div
-                        className="insertion-slot"
+                        className={`insertion-slot ${activeSide === 'end' ? 'active' : ''}`}
                         data-set-id={set.id}
                         data-position="end"
                         onClick={() => handleSlotClick(set.id, 'end')}

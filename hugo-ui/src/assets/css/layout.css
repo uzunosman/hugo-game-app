@@ -106,14 +106,15 @@
 .open-sets-area { max-width: 46%; max-height: none; gap: 8px 16px; }
 /* Seri perler ve çiftler yan yana: alan masanın ortasına doğru uzamaz */
 .open-sets-area.open-sets-top,
-.open-sets-area.open-sets-bottom,
-.open-sets-area.open-sets-left { flex-direction: row; align-items: flex-start; }
-.open-sets-area.open-sets-right { flex-direction: row-reverse; align-items: flex-start; }
+.open-sets-area.open-sets-bottom { flex-direction: row; align-items: flex-start; }
 .open-sets-area.open-sets-bottom { align-items: flex-end; }
+/* Yanlar: seri perler ve altında çiftler tek sütun; alan dikeyde ortalı ve merkeze biraz yakın */
+.open-sets-area.open-sets-left { flex-direction: column; align-items: flex-start; }
+.open-sets-area.open-sets-right { flex-direction: column; align-items: flex-end; }
 .open-sets-top { top: 12px; }
 .open-sets-bottom { bottom: 12px; }
-.open-sets-left { left: 12px; }
-.open-sets-right { right: 12px; }
+.open-sets-left { left: 9%; }
+.open-sets-right { right: 9%; }
 
 /* Seri perler sütun sütun dizilir: üst/alt 2 satır, yanlar 4 satır, sonra yeni sütun */
 .open-sets-list,
@@ -127,14 +128,15 @@
     align-items: start;
     max-width: none;
 }
+/* Yanlar: tek sütun, perler alt alta; alan dikeyde ortalı olduğundan per açıldıkça ortada kalır */
 .open-sets-left .open-sets-list,
-.open-sets-right .open-sets-list { --set-rows: 4; justify-content: start; }
+.open-sets-right .open-sets-list { display: flex; flex-direction: column; gap: 6px; }
+.open-sets-right .open-sets-list { align-items: flex-end; }
 /* Sağdaki oyuncunun yeni sütunları masanın içine doğru (sola) açılır */
 .open-sets-right .open-sets-list { direction: rtl; }
 .open-sets-right .open-set-group { direction: ltr; }
 .open-pairs-list { --set-rows: 2; gap: 6px 10px; }
-.open-sets-left .open-pairs-list,
-.open-sets-right .open-pairs-list { --set-rows: 4; }
+
 
 .open-set-group { padding: 2px; gap: 2px; justify-self: start; }
 .open-sets-right .open-set-group { justify-self: end; }

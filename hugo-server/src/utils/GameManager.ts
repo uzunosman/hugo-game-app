@@ -228,7 +228,7 @@ export class GameManager {
         return room.game.drawTile(playerId, fromDiscard);
     }
 
-    public openHand(playerId: string, setTileIds: string[][], kind: SetKind = 'seri') {
+    public openHand(playerId: string, setTileIds: string[][], kind: SetKind = 'seri', stage = false) {
         const player = this.players.get(playerId);
         if (!player || !player.roomId) {
             return { success: false, error: 'Oyuncu bulunamadı' };
@@ -239,7 +239,7 @@ export class GameManager {
             return { success: false, error: 'Aktif oyun bulunamadı' };
         }
 
-        return room.game.openHand(playerId, setTileIds, kind);
+        return room.game.openHand(playerId, setTileIds, kind, stage);
     }
 
     public addTileToSet(playerId: string, tileId: string, targetSetId: string, position: 'start' | 'end') {

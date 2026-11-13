@@ -8,7 +8,7 @@ import PenaltyLog from '../PenaltyLog/PenaltyLog';
 import Chat from '../Chat/Chat';
 import useGameState from '../../hooks/useGameState';
 import socketService from '../../services/socketService';
-import { getOrderedPlayers, getPlayerPosition, getPlayerCorner, getCurrentPlayerIndex, calculateHandScore, calculatePairScore, findPairPartner, getConsecutiveGroups, validateSet, arrangeTiles } from '../../utils/gameUtils';
+import { getOrderedPlayers, getPlayerPosition, getPlayerCorner, getCurrentPlayerIndex, calculateHandScore, calculatePairScore, findPairPartner, getConsecutiveGroups, validateSet, validatePair, arrangeTiles } from '../../utils/gameUtils';
 import { handleDrawTile, handleTileMove, handleDrawDiscardedTile } from '../../utils/tileHandlers';
 import { moveGroup } from '../../utils/rackDrag';
 import '../../assets/css/components/GameBoard.css';
@@ -42,6 +42,7 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
         setDiscardedTiles,
         lastDiscardPlayerId,
         tableSets,
+        pendingOpen,
         playerOpenStates,
         roundEndResults,
         setRoundEndResults,
@@ -271,7 +272,9 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
     const canOpenHand = isMyTurn
         && (gameState.turnAction === 'discard' || isFirstHandBlock)
         && handScore.validSetCount > 0;
-    const openHandShort = maxOpenedValue === 0 ? handScore.setTotal < 51 : handScore.setTotal <= maxOpenedValue;
+    const myPending = pendingOpen?.playerId === player.id ? pendingOpen : null;
+    const openTotal = handScore.setTotal + (myPending?.total || 0); // yerde bekleyen perler + ıstakadakiler
+    const openHandShort = maxOpenedValue === 0 ? openTotal < 51 : openTotal <= maxOpenedValue;
 
     const myOpenState = playerOpenStates[player.id] || { isOpen: false, openedTotal: 0 };
     const canAct = isMyTurn && (gameState.turnAction === 'discard' || isFirstHandBlock);
@@ -375,11 +378,12 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
     const dropCount = myOpenState.openedWithPairs ? pairScore.pairCount : handScore.validSetCount;
     const canDropPer = canAct && myOpenState.isOpen && dropCount > 0;
 
-    const onDropPer = () => {
+    // only: yalnızca bu taşlar (masaya sürüklenen per); yoksa ıstakadaki tüm geçerli perler
+    const onDropPer = (only) => {
         if (!canDropPer) return;
 
         const opts = { okeyTile: gameState.okeyTile, isHugo: gameState.isHugoRound };
-        const validSets = myOpenState.openedWithPairs
+        const validSets = only || myOpenState.openedWithPairs
             ? pairScore.pairs.map(g => g.map(t => t.id))
             : getConsecutiveGroups(tilePositions, tiles)
                 .filter(group => validateSet(group, opts) > 0)
@@ -405,6 +409,44 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
     };
 
     // El açma işleyicisi: kind 'seri' perlerle, 'cift' çiftlerle açar
+    const pairsOf = (list) => list.filter((_, i) => i % 2 === 0).map((t, i) => [t.id, list[i * 2 + 1].id]);
+
+    // Yalnızca verilen perler yere iner; eşik dolunca el açılır, dolmadıysa açılış bekler (taş atılamaz)
+    const stageOpen = (sets, kind) => {
+        const ids = new Set(sets.flat());
+        rememberRack();
+        socketService.openHand(sets, (response) => {
+            if (!response.success) return setError(response.error || 'Per yere açılamadı');
+            setTakenInfo(null);
+            setPlayedThisTurn(true);
+            setTiles(response.remainingTiles || []);
+            setTilePositions(prev => prev.map(id => (id && ids.has(id) ? null : id)));
+            if (response.pendingTotal) setError(`Açılış ${response.pendingTotal} / ${response.needed}: per eklemeye devam et`);
+        }, kind, true);
+    };
+
+    // Istakadan masaya sürüklenen per: açmadıysa yalnızca o per yere açılır (eşik dolana kadar bekler),
+    // açtıysa yalnızca o per indirilir
+    const onPlayGroup = (ids) => {
+        const groupTiles = ids.map(id => tiles.find(t => t.id === id)).filter(Boolean);
+        const opts = { okeyTile: gameState.okeyTile, isHugo: gameState.isHugoRound };
+        const isPairs = groupTiles.length % 2 === 0 &&
+            groupTiles.every((t, i) => i % 2 === 1 || validatePair([t, groupTiles[i + 1]], opts) > 0);
+        if (!myOpenState.isOpen) {
+            if (!canAct) return setError('Şu an el açamazsın');
+            const kind = isPairs ? 'cift' : 'seri';
+            if (kind === 'seri' && validateSet(groupTiles, opts) <= 0) return setError('Bu per geçerli değil');
+            return stageOpen(kind === 'cift' ? pairsOf(groupTiles) : [ids], kind);
+        }
+        if (!canDropPer) return setError('Şu an per indiremezsin');
+        if (myOpenState.openedWithPairs) {
+            if (!isPairs) return setError('Çiftle açtın: yalnızca çift indirebilirsin');
+            return onDropPer(pairsOf(groupTiles));
+        }
+        if (validateSet(groupTiles, opts) <= 0) return setError('Bu per geçerli değil');
+        onDropPer([ids]);
+    };
+
     const onOpenHand = (kind = 'seri') => {
         if (kind === 'seri' ? !canOpenHand : !canOpenPairs) return;
 
@@ -468,7 +510,7 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
                 );
             })}
 
-            {/* Açmadan önce: El Aç (per) ve Çift Aç; açtıktan sonra tek buton: Perleri indir */}
+            {/* Açmadan önce: Tümünü aç (per) ve Çift Aç; per masaya sürüklenerek tek tek de açılır. Açtıktan sonra: Perleri indir */}
             {canAct && (
                 <div className="action-buttons">
                     {!myOpenState.isOpen && (
@@ -479,9 +521,9 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
                                 disabled={!canOpenHand}
                                 title={canOpenHand && openHandShort ? `Değer yetersiz: ${maxOpenedValue === 0 ? 'en az 51' : `${maxOpenedValue}'i geçmeli`}` : undefined}
                             >
-                                El Aç
-                                {handScore.setTotal > 0 && (
-                                    <span className="open-hand-score">{handScore.setTotal}</span>
+                                Tümünü aç
+                                {openTotal > 0 && (
+                                    <span className="open-hand-score">{openTotal}</span>
                                 )}
                             </button>
                             {pairScore.pairCount > 0 && (
@@ -509,7 +551,7 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
                     {myOpenState.isOpen && (
                         <button
                             className={`open-hand-btn drop-per ${canDropPer ? 'active' : 'disabled'}`}
-                            onClick={onDropPer}
+                            onClick={() => onDropPer()}
                             disabled={!canDropPer}
                         >
                             {myOpenState.openedWithPairs ? 'Çiftleri indir' : 'Perleri indir'}
@@ -541,6 +583,8 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
                 pairPartnerId={myOpenState.isOpen && activeTile
                     ? findPairPartner(activeTile, tiles, gameState.okeyTile, gameState.isHugoRound)
                     : null}
+                onPlayGroup={onPlayGroup}
+                pendingSetIds={pendingOpen?.setIds}
                 onGroupMove={(group, grabIdx, targetIdx) => {
                     // Sürükleme sırasında ıstaka değiştiyse (sunucu olayı) eski seçimle taşınmaz
                     setTilePositions(prev => (prev === tilePositions && moveGroup(prev, group, grabIdx, targetIdx)) || prev);

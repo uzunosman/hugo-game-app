@@ -113,6 +113,8 @@ export class Game {
     lockedDiscardTileId: string | null; // işlek atılan taş: sıradaki oyuncu alamaz
     playedToTableThisTurn: boolean;    // bu sırada el açıldı / per indirildi / işlendi: kusmak yasak
     turnSnapshot: TurnSnapshot | null; // bu sıradaki ilk masaya oynamadan önceki durum (geri alma için)
+    // Tek tek yere indirilen, henüz açılış eşiğine ulaşmamış perler (yalnızca sırası gelen oyuncu)
+    pendingOpen: { playerId: string; kind: SetKind; total: number; setIds: string[] } | null;
     turnCounter: number;               // eldeki sıra sayacı (elden bitme için)
     finishedElden: boolean;            // son taşı atan, aynı sırada açmıştı
     createdAt: Date;
@@ -143,6 +145,7 @@ export class Game {
         this.lockedDiscardTileId = null;
         this.playedToTableThisTurn = false;
         this.turnSnapshot = null;
+        this.pendingOpen = null;
         this.turnCounter = 0;
         this.finishedElden = false;
         this.tableSets = [];
@@ -336,6 +339,10 @@ export class Game {
 
         const tile = player.tiles.find(t => t.id === tileId);
         if (!tile) return { tile: null, penalties: [], error: 'Taş elinde değil' };
+        if (this.pendingOpen?.playerId === playerId) {
+            const need = this.openingNeeded();
+            return { tile: null, penalties: [], error: `Açılış yetersiz: yerde ${this.pendingOpen.total}, en az ${need} gerekli. Per ekle ya da geri al` };
+        }
 
         const penalties: Penalty[] = [];
         // Yandan alınan taş kullanılmalı; kullanılmadıysa yalnızca o taş 100 cezayla geri atılabilir
@@ -433,7 +440,7 @@ export class Game {
 
     // Geri al: bu sırada masaya oynananlar ele döner, başkalarına yazılan işleme cezaları silinir, oyuncuya 100 ceza.
     // Yalnızca taş atılmadan önce (sıra geçince anlık görüntü silinir).
-    undoTurnPlays(playerId: string): { success: boolean; error?: string; penalty?: Penalty; reverts?: Penalty[]; tableSets?: Record<string, any>[] } {
+    undoTurnPlays(playerId: string, penaltyAmount = 100): { success: boolean; error?: string; penalty?: Penalty; reverts?: Penalty[]; tableSets?: Record<string, any>[] } {
         const player = this.getPlayerById(playerId);
         const snap = this.turnSnapshot;
         if (!player || !this.isPlayerTurn(playerId) || !snap || snap.playerId !== playerId) {
@@ -454,8 +461,9 @@ export class Game {
             this.getPlayerById(p.playerId)?.removePenalty(p.amount);
             return { ...p, amount: -p.amount, reason: 'Hamle geri alındı, ceza iptal', tag: 'iptal' };
         });
-        player.addPenalty(100);
-        const penalty: Penalty = { playerId, amount: 100, reason: 'Masaya oynananlar geri alındı', tag: 'geri alma' };
+        player.addPenalty(penaltyAmount);
+        const penalty: Penalty = { playerId, amount: penaltyAmount, reason: 'Masaya oynananlar geri alındı', tag: 'geri alma' };
+        if (this.pendingOpen?.playerId === playerId) this.pendingOpen = null;
 
         this.turnSnapshot = null;
         this.playedToTableThisTurn = false;
@@ -498,6 +506,7 @@ export class Game {
         this.returnedTileId = null;
         this.playedToTableThisTurn = false;
         this.turnSnapshot = null;
+        this.pendingOpen = null;
     }
 
     isPlayerTurn(playerId: string): boolean {
@@ -542,13 +551,26 @@ export class Game {
 
     // ── El Açma / Taş Oynama ───────────────────────────────
 
-    openHand(playerId: string, setTileIds: string[][], kind: SetKind = 'seri'): {
+    // Açılış eşiği: ilk açılış en az 51; sonrakiler (seri ya da çift) masadaki en yüksek açılışı geçmeli
+    openingNeeded(): number {
+        const max = this.players.reduce((m, p) => Math.max(m, p.lastOpenedValue), 0);
+        return max === 0 ? 51 : max + 1;
+    }
+
+    /**
+     * El açma. stage=false (Tümünü aç): verilen perler (varsa bekleyenlerle) eşiği geçmeli, geçmezse hiçbir şey olmaz.
+     * stage=true (per masaya sürüklendi): per eşik dolmasa da yere iner ve "bekleyen açılış" olur; eşik
+     * dolunca el açılır. Bekleyen açılış varken taş atılamaz; süre dolunca completePendingOpen / geri alma.
+     */
+    openHand(playerId: string, setTileIds: string[][], kind: SetKind = 'seri', stage = false): {
         success: boolean;
         error?: string;
         newSets?: TableSet[];
         openedTotal?: number;
         remainingTiles?: Record<string, any>[];
         turnAction?: TurnAction;
+        pendingTotal?: number;
+        needed?: number;
     } {
         const player = this.getPlayerById(playerId);
         if (!player || !this.isPlayerTurn(playerId)) {
@@ -567,6 +589,10 @@ export class Game {
 
         // İlk turda direkt açan oyuncu tekrar taş çekemesin, sadece atabilsin
         const wasFirstTurnOpen = isFirstTurn;
+        const pending = this.pendingOpen?.playerId === playerId ? this.pendingOpen : null;
+        if (pending && pending.kind !== kind) {
+            return { success: false, error: pending.kind === 'cift' ? 'Çiftle açmaya başladın: çift indir' : 'Seriyle açmaya başladın: per indir' };
+        }
 
         if (!setTileIds || setTileIds.length === 0) {
             return { success: false, error: 'En az bir set gerekli' };
@@ -595,18 +621,12 @@ export class Game {
             totalValue += setValue;
         }
 
-        // Masadaki en yüksek açılış değerini bul (tüm oyuncular)
-        const maxOpenedValue = this.players.reduce((max, p) =>
-            p.lastOpenedValue > max ? p.lastOpenedValue : max, 0
-        );
-
-        // Minimum değer: ilk açılış en az 51, sonrakiler (seri ya da çift) masadaki en yüksek açılışı geçmeli.
-        // Yetersizse açılmaz, ceza yazılmaz.
-        if (maxOpenedValue === 0 && totalValue < 51) {
-            return { success: false, error: `İlk açılış için en az 51 gerekli (${totalValue})` };
-        }
-        if (maxOpenedValue > 0 && totalValue <= maxOpenedValue) {
-            return { success: false, error: `Masadaki en yüksek açılışı (${maxOpenedValue}) geçmeli (${totalValue})` };
+        // Bekleyen perlerle birlikte toplam. Yetersizse (Tümünü aç) açılmaz, ceza yazılmaz.
+        const needed = this.openingNeeded();
+        const combined = (pending?.total || 0) + totalValue;
+        const reaches = combined >= needed;
+        if (!reaches && !stage) {
+            return { success: false, error: needed === 51 ? `İlk açılış için en az 51 gerekli (${combined})` : `Masadaki en yüksek açılışı (${needed - 1}) geçmeli (${combined})` };
         }
 
         if (!this.leavesTile(player, validatedSets)) {
@@ -628,15 +648,20 @@ export class Game {
             newSets.push(tableSet);
         }
 
-        player.isOpen = true;
-        player.openedWithPairs = kind === 'cift';
-        player.openedAtTurn = this.turnCounter;
-        // Seri ve çift ortak eşik: sonraki açılış bu değeri geçmeli
-        player.lastOpenedValue = totalValue;
-        player.openedTotal += totalValue;
-        // openingScore sadece ilk açılışta set edilir (player.openingScore === 0 kontrolü)
-        if (player.openingScore === 0) {
-            player.openingScore = totalValue;
+        if (reaches) {
+            this.pendingOpen = null;
+            player.isOpen = true;
+            player.openedWithPairs = kind === 'cift';
+            player.openedAtTurn = this.turnCounter;
+            // Seri ve çift ortak eşik: sonraki açılış bu değeri geçmeli
+            player.lastOpenedValue = combined;
+            player.openedTotal += combined;
+            // openingScore sadece ilk açılışta set edilir (player.openingScore === 0 kontrolü)
+            if (player.openingScore === 0) {
+                player.openingScore = combined;
+            }
+        } else {
+            this.pendingOpen = { playerId, kind, total: combined, setIds: [...(pending?.setIds || []), ...newSets.map(st => st.id)] };
         }
         this.playedToTableThisTurn = true;
         this.lastActionTime = new Date();
@@ -651,8 +676,38 @@ export class Game {
             newSets,
             openedTotal: player.openedTotal,
             remainingTiles: player.tiles.map(t => t.toJSON()),
-            turnAction: this.turnAction
+            turnAction: this.turnAction,
+            pendingTotal: reaches ? 0 : combined,
+            needed,
         };
+    }
+
+    // Süre doldu, açılış bekliyor: eldeki perlerle (okey dahil) eşik tamamlanabiliyorsa onlar da açılır
+    completePendingOpen(playerId: string): ReturnType<Game['openHand']> {
+        const pending = this.pendingOpen;
+        const player = this.getPlayerById(playerId);
+        if (!pending || pending.playerId !== playerId || !player) return { success: false, error: 'Bekleyen açılış yok' };
+        const sets = pending.kind === 'cift' ? this.planPairs(player.tiles) : planSets(this, player.tiles);
+        while (sets.length && sets.flat().length >= player.tiles.length) sets.pop(); // elde bir taş kalmalı
+        const sum = sets.reduce((acc, st) => acc + this.validateGroup(st, pending.kind), 0);
+        if (!sets.length || pending.total + sum < this.openingNeeded()) return { success: false, error: 'Açılış tamamlanamadı' };
+        return this.openHand(playerId, sets.map(st => st.map(t => t.id)), pending.kind, false);
+    }
+
+    // Eldeki çiftler (aynı taş; tek kalan en değerli taş okeyle eşleşir), değeri büyükten küçüğe
+    private planPairs(hand: Tile[]): Tile[][] {
+        const okeys = hand.filter(t => this.isOkeyTile(t));
+        const byKey = new Map<string, Tile[]>();
+        hand.filter(t => !this.isOkeyTile(t)).forEach(t => {
+            const p = this.asPlayed(t); const k = `${p.color}-${p.value}`;
+            byKey.set(k, [...(byKey.get(k) || []), t]);
+        });
+        const pairs: Tile[][] = [];
+        const singles: Tile[] = [];
+        byKey.forEach(list => { for (let i = 0; i + 1 < list.length; i += 2) pairs.push([list[i], list[i + 1]]); if (list.length % 2) singles.push(list[list.length - 1]); });
+        const val = (t: Tile) => (typeof this.asPlayed(t).value === 'number' ? this.asPlayed(t).value as number : 0);
+        singles.sort((a, b) => val(b) - val(a)).slice(0, okeys.length).forEach((t, i) => pairs.push([t, okeys[i]]));
+        return pairs.filter(pr => this.validateGroup(pr, 'cift') > 0).sort((a, b) => this.validateGroup(b, 'cift') - this.validateGroup(a, 'cift'));
     }
 
     // ── İşleme (Taş Ekleme) ─────────────────────────────────
@@ -1265,6 +1320,7 @@ export class Game {
         this.okeyPlayedThisTurn = false;
         this.playedToTableThisTurn = false;
         this.turnSnapshot = null;
+        this.pendingOpen = null;
         this.roundEndResults = null;
         this.finisherPlayerId = null;
         this.lastDiscardPlayerId = null;

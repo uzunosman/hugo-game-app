@@ -44,6 +44,8 @@ const useGameState = (player, room) => {
     const [lastDiscardPlayerId, setLastDiscardPlayerId] = useState(room.game?.lastDiscardPlayerId || null);
     // Masadaki açık setler
     const [tableSets, setTableSets] = useState(room.game?.tableSets || []);
+    // Bekleyen açılış: tek tek yere inen, açılış eşiğine henüz ulaşmamış perler (sırası gelen oyuncunun)
+    const [pendingOpen, setPendingOpen] = useState(null); // { playerId, setIds, total, needed }
     // Biten ellerin sonuçları ve cezaları (tabelada ele tıklayınca gösterilir)
     const [roundHistory, setRoundHistory] = useState(room.game?.roundHistory || []);
     // Ceza kaydı: masadaki herkesin gördüğü son cezalar
@@ -107,6 +109,7 @@ const useGameState = (player, room) => {
 
         // Oyun durumunu dinle — sadece ilgili alanları güncelle
         socketService.onNextTurn((data) => {
+            setPendingOpen(null);
             console.log('Sıra değişti:', data);
             setGameState(prevState => ({
                 ...prevState,
@@ -115,6 +118,9 @@ const useGameState = (player, room) => {
             }));
         });
 
+        // Deste sayısı sunucudan: süre dolup otomatik çekilen taş da sayılır (eskiden kendi ekranında düşmüyordu)
+        const syncDeck = (n) => { if (typeof n === 'number') setGameState(prev => (prev.deckCount === n ? prev : { ...prev, deckCount: n })); };
+
         // Taş çekme işlemini dinle
         socketService.onTileDraw((response) => {
             if (response.success) {
@@ -122,8 +128,9 @@ const useGameState = (player, room) => {
                 if (response.playerId !== player.id) {
                     console.log('Başka bir oyuncu taş çekti:', response.playerId, response.fromDiscard);
 
-                    // Desteden çekildiyse deckCount'u düşür
-                    if (!response.fromDiscard) {
+                    // Desteden çekildiyse deckCount'u düşür (sunucu sayıyı gönderiyorsa o esas)
+                    if (typeof response.deckCount === 'number') syncDeck(response.deckCount);
+                    else if (!response.fromDiscard) {
                         setGameState(prevState => ({
                             ...prevState,
                             deckCount: Math.max(0, (prevState.deckCount ?? 0) - 1)
@@ -150,6 +157,7 @@ const useGameState = (player, room) => {
         // Taş atma işlemini dinle
         socketService.onTileDiscard((response) => {
             if (response.success) {
+                syncDeck(response.deckCount);
                 // En son atan oyuncuyu güncelle (kendimiz dahil)
                 setLastDiscardPlayerId(response.playerId);
 
@@ -177,8 +185,12 @@ const useGameState = (player, room) => {
         // El açma işlemini dinle
         socketService.onHandOpened((response) => {
             if (response.success) {
-                // Masadaki setlere yeni setleri ekle
+                setPendingOpen(response.pendingSetIds?.length
+                    ? { playerId: response.playerId, setIds: response.pendingSetIds, total: response.pendingTotal, needed: response.needed }
+                    : null);
+                // Masadaki setlere yeni setleri ekle: taşlar açanın yerinden uçarak gelir (herkesin ekranında)
                 if (response.newSets) {
+                    flyTilesIn(response.newSets.flatMap(st => st.tiles.map(t => t.id)), response.playerId, player.id);
                     setTableSets(prev => [...prev, ...response.newSets]);
                 }
                 // Oyuncu açık durumunu güncelle
@@ -216,9 +228,8 @@ const useGameState = (player, room) => {
         // Per indirme işlemini dinle — sadece masaya set eklenir, skor değişmez
         socketService.onPerDropped((response) => {
             if (response.success && response.newSets) {
-                // Başkasının çiftlerine işlenen çift de uçarak gelir; kendi açtığı per doğrudan görünür
-                const worked = response.newSets.filter(st => st.playerId !== response.playerId);
-                flyTilesIn(notOnTable(worked.flatMap(st => st.tiles)), response.playerId, player.id);
+                // İndirilen per de, başkasının çiftlerine işlenen çift de indirenin yerinden uçarak gelir
+                flyTilesIn(notOnTable(response.newSets.flatMap(st => st.tiles)), response.playerId, player.id);
                 setTableSets(prev => [...prev, ...response.newSets]);
             }
         });
@@ -260,6 +271,7 @@ const useGameState = (player, room) => {
 
         // Geri al: masadaki setler ve oyuncunun açık durumu bu sıranın başına döner
         socketService.onTurnUndone(({ playerId, tableSets: sets, openState, turnAction }) => {
+            setPendingOpen(null);
             setTableSets(sets || []);
             setPlayerOpenStates(prev => ({ ...prev, [playerId]: { ...prev[playerId], ...openState } }));
             if (playerId === player.id && turnAction) setGameState(prev => ({ ...prev, turnAction }));
@@ -289,7 +301,8 @@ const useGameState = (player, room) => {
 
         // Süre doldu: sunucu bizim yerimize çekti ve en küçük taşı attı
         // Önce çekilen eklenir, sonra atılan çıkarılır: atılan, çekilen taşın kendisi olabilir
-        socketService.onAutoPlayed(({ drawnTile, discardedTile }) => {
+        socketService.onAutoPlayed(({ drawnTile, discardedTile, deckCount }) => {
+            syncDeck(deckCount);
             setTiles(prev => [...prev, ...(drawnTile ? [drawnTile] : [])].filter(t => t.id !== discardedTile.id));
             setTilePositions(prev => {
                 const next = prev.map(id => (id === discardedTile.id ? null : id));
@@ -308,6 +321,7 @@ const useGameState = (player, room) => {
 
         // Yeni tur başladı — tüm state'leri sıfırla ve yeniden yükle
         socketService.onRoundStarted((data) => {
+            setPendingOpen(null);
             console.log('Yeni tur başladı:', data);
 
             const g = data.game;
@@ -429,6 +443,7 @@ const useGameState = (player, room) => {
         setLastDiscardPlayerId,
         tableSets,
         setTableSets,
+        pendingOpen,
         playerOpenStates,
         setPlayerOpenStates,
         roundEndResults,
