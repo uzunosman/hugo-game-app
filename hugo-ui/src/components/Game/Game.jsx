@@ -383,11 +383,12 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
         if (!canDropPer) return;
 
         const opts = { okeyTile: gameState.okeyTile, isHugo: gameState.isHugoRound };
-        const validSets = only || myOpenState.openedWithPairs
+        // Parantez şart: "only || a ? b : c" sürüklenen per yerine çiftleri gönderiyordu
+        const validSets = only || (myOpenState.openedWithPairs
             ? pairScore.pairs.map(g => g.map(t => t.id))
             : getConsecutiveGroups(tilePositions, tiles)
                 .filter(group => validateSet(group, opts) > 0)
-                .map(group => group.map(t => t.id));
+                .map(group => group.map(t => t.id)));
         if (validSets.length === 0) return;
 
         const droppedTileIds = new Set(validSets.flat());
