@@ -2,7 +2,14 @@ import React, { useEffect, useRef, useState } from 'react';
 import '../../assets/css/components/PenaltyLog.css';
 
 const KEY = 'hugo.penaltyLogHidden';
-const readHidden = () => { try { return localStorage.getItem(KEY) === '1'; } catch { return false; } };
+// Kayıtlı tercih yoksa: yatay telefonda kapalı başlar (liste masanın üstüne açılır)
+const readHidden = () => {
+    try {
+        const v = localStorage.getItem(KEY);
+        if (v !== null) return v === '1';
+    } catch { /* depolama yok */ }
+    return !!window.matchMedia?.('(orientation: landscape) and (max-height: 500px)').matches;
+};
 
 // Masadaki herkesin gördüğü bu elin ceza kaydı: "[işlek] Ali kırmızı 7 +70". Her zaman sağ altta; gizlenip açılabilir.
 // Önceki ellerin cezaları sağ üstteki tabelada, ele tıklanınca görünür.

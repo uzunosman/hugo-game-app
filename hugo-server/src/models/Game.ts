@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Player } from './Player';
+import { planSets } from '../ai/AiPlanner';
 import { Tile, TileColor, TileStatus } from './Tile';
 import { config } from '../config/config';
 
@@ -29,6 +30,7 @@ export interface RoundResult {
     finishedWithPairs: boolean; // bitiren çiftle açmıştı (özel durum ×2)
     finishedElden: boolean;     // bitiren aynı sırada açıp bitirdi (özel durum ×2)
     penaltyEntries: number[];   // o elde yazılan cezalar (UI dökümü için)
+    isOpen: boolean;            // el sonunda yere açmış mıydı (açmadıysa elde kalan yerine sabit ceza)
     totalScore: number;         // bu el dahil toplam puan
 }
 
@@ -344,7 +346,7 @@ export class Game {
         if (pendingTaken) {
             penalties.push({ playerId, amount: 100, reason: 'Yandan alınan taş kullanılmadı', tag: 'kullanılmadı', tile: tileLabel(tile) });
         } else if (player.tiles.length > 1) {
-            // Eli bitiren son taş hariç: masadaki bir pere eklenebilecek taşı atmak taş × 10 ceza
+            // Eli bitiren son taş hariç: masadaki bir pere eklenebilecek taşı atmak 100 ceza (Hugo elinde 200)
             const islek = this.islekPenalty(tile);
             if (islek > 0) penalties.push({ playerId, amount: islek, reason: 'İşlenebilir taş atıldı', tag: 'işlek', tile: tileLabel(tile) });
         }
@@ -461,14 +463,22 @@ export class Game {
         return { success: true, penalty, reverts, tableSets: this.tableSets.map(st => this.tableSetToJSON(st)) };
     }
 
-    // Taş masadaki bir perin başına ya da sonuna eklenebiliyorsa ceza = değer × 10
+    // Taş masadaki bir perin başına ya da sonuna eklenebiliyorsa sabit ceza: 100, Hugo elinde 200
     islekPenalty(tile: Tile): number {
         const played = this.asPlayed(tile); // sahte okey, okeyin değeriyle işlenebilir
         if (this.isOkeyTile(played) || typeof played.value !== 'number') return 0;
         const fits = this.tableSets.some(set => set.kind !== 'cift' &&
-            (this.validateSetTiles([tile, ...set.tiles]) > 0 || this.validateSetTiles([...set.tiles, tile]) > 0)
+            (this.validateSetTiles([tile, ...set.tiles]) > 0 || this.validateSetTiles([...set.tiles, tile]) > 0 ||
+                this.replacesOkey(set, tile))
         );
-        return fits ? played.value * 10 : 0;
+        return fits ? (this.isHugoRound() ? 200 : 100) : 0;
+    }
+
+    // Taş perdeki bir okeyin yerini tutuyor mu (okey alma kuralıyla aynı: aynı sayı perinde yalnızca 4 taşken)
+    private replacesOkey(set: TableSet, tile: Tile): boolean {
+        if (this.isSameNumberSet(set.tiles) && set.tiles.length !== 4) return false;
+        return set.tiles.some((x, i) => this.isOkeyTile(x) &&
+            this.validateSetTiles(set.tiles.map((y, j) => (j === i ? tile : y))) > 0);
     }
 
     nextTurn(): void {
@@ -495,17 +505,19 @@ export class Game {
         return this.status === GameStatus.STARTED && this.players[this.currentPlayerIndex].id === playerId;
     }
 
-    // Süre dolunca atılacak taş: okey/joker olmayan en küçük sayılı taş
+    // Süre dolunca atılacak taş: eldeki perlere girmeyen en küçük taş. Okey (Hugo elinde joker) asla atılmaz.
+    // Sıra: per dışı ve per adayı olmayan → per dışı → (hepsi perdeyse) okey olmayan en küçük taş
     pickAutoDiscard(playerId: string): Tile | null {
         const player = this.getPlayerById(playerId);
         if (!player || player.tiles.length === 0) return null;
         const pendingTaken = this.pendingTakenTileId(player);
         if (pendingTaken) return player.tiles.find(t => t.id === pendingTaken) || null;
-        // Okey asla atılmaz; önce bir per adayına girmeyen taşlar
         const plain = player.tiles.filter(t => !this.isOkeyTile(t) && typeof this.asPlayed(t).value === 'number');
-        if (plain.length === 0) return player.tiles[0];
-        const loose = plain.filter(t => !this.inPotentialPer(t, player.tiles));
-        const pool = loose.length ? loose : plain;
+        if (plain.length === 0) return player.tiles.find(t => !this.isOkeyTile(t)) || player.tiles[0]; // elde yalnızca okey varsa
+        const inSets = new Set(planSets(this, player.tiles).flat().map(t => t.id));
+        const outside = plain.filter(t => !inSets.has(t.id));
+        const loose = outside.filter(t => !this.inPotentialPer(t, outside.concat(player.tiles.filter(x => this.isOkeyTile(x)))));
+        const pool = loose.length ? loose : outside.length ? outside : plain;
         const val = (t: Tile) => this.asPlayed(t).value as number;
         return pool.reduce((min, t) => val(t) < val(min) ? t : min);
     }
@@ -739,14 +751,16 @@ export class Game {
             }
         }
 
-        // 2. Normal ekleme — client'ın belirttiği pozisyona ekle
-        const testTiles = position === 'start'
-            ? [tile, ...targetSet.tiles]
-            : [...targetSet.tiles, tile];
-
-        const newValue = this.validateSetTiles(testTiles);
+        // 2. Normal ekleme — istenen uca; uymazsa perin öbür ucuna (taş pere bırakıldıysa hangi uca
+        //    bırakıldığı önemli değil, telefonda parmak tam uca denk gelmeyebilir)
+        const valueAt = (pos: 'start' | 'end') =>
+            this.validateSetTiles(pos === 'start' ? [tile, ...targetSet.tiles] : [...targetSet.tiles, tile]);
+        let newValue = valueAt(position);
         if (newValue <= 0) {
-            return { success: false, error: 'Bu taş bu pozisyona eklenemez' };
+            const other = position === 'start' ? 'end' : 'start';
+            newValue = valueAt(other);
+            if (newValue <= 0) return { success: false, error: 'Bu taş bu pere işlenemez' };
+            position = other;
         }
 
         if (player.tiles.length <= 1) {
@@ -1199,6 +1213,7 @@ export class Game {
                 finishedWithPairs,
                 finishedElden,
                 penaltyEntries: [...player.penaltyEntries],
+                isOpen: player.isOpen,
                 totalScore: player.getTotalScore(),
             };
         });

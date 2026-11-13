@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import socketService from '../services/socketService';
 import Game from '../components/Game/Game';
-import { avatarFor } from '../utils/avatar';
+import { avatarFor, rememberAvatars } from '../utils/avatar';
 import RoundSummary from './RoundSummary/RoundSummary';
+// Dokunmatik telefonda oyun yatay oynanır: Hazırım / Oyunu başlat dokunuşu tam ekran + yatay kilidi de ister
+import { enterLandscape, isTouchPhone } from '../utils/orientation';
 
 function Room({ player, room, onLeaveRoom }) {
     const [currentRoom, setCurrentRoom] = useState(room);
@@ -45,8 +47,12 @@ function Room({ player, room, onLeaveRoom }) {
             }
         });
 
+        // Masa kapatıldı (arşivlendi): lobiye dön, nedenini göster
+        socketService.onRoomClosed((data) => onLeaveRoom(null, `“${room.name}” masası kapatıldı: ${data?.reason || ''}`.trim()));
+
         return () => {
             // Component unmount olduğunda event listener'ları temizle
+            socketService.offRoomClosed();
             socketService.socket.off('player:joined');
             socketService.socket.off('player:left');
             socketService.socket.off('player:ready');
@@ -70,7 +76,16 @@ function Room({ player, room, onLeaveRoom }) {
         });
     };
 
+    // Oyun sürerken masadan kalk: koltuğa yapay zekâ geçer, oyuncu yeni kimlikle lobiye döner
+    const handleLeaveTable = (done) => {
+        socketService.leaveTable(currentRoom.id, (response) => {
+            if (response?.success) onLeaveRoom(response.player);
+            else done(response?.error || 'Masadan kalkılamadı');
+        });
+    };
+
     const handleToggleReady = () => {
+        if (!isReady && isTouchPhone()) enterLandscape();
         setLoading(true);
         setError('');
 
@@ -84,6 +99,7 @@ function Room({ player, room, onLeaveRoom }) {
     };
 
     const handleStartGame = () => {
+        if (isTouchPhone()) enterLandscape();
         setLoading(true);
         setError('');
 
@@ -104,6 +120,14 @@ function Room({ player, room, onLeaveRoom }) {
             else setError(response?.error || 'Yapay zekâ eklenemedi');
         });
     };
+    // Masa sahipliğini masadaki başka bir oyuncuya ver (yapay zekâya verilemez)
+    const handleTransferOwner = (targetId) => {
+        setError('');
+        socketService.transferOwner(currentRoom.id, targetId, (response) => {
+            if (response?.success) setCurrentRoom(response.room);
+            else setError(response?.error || 'Sahiplik devredilemedi');
+        });
+    };
     const handleRemoveBot = (botId) => {
         setError('');
         socketService.removeBot(currentRoom.id, botId, (response) => {
@@ -112,6 +136,7 @@ function Room({ player, room, onLeaveRoom }) {
         });
     };
 
+    rememberAvatars(currentRoom.players);
     const isOwner = currentRoom.owner.id === player.id;
     const isReady = !!currentRoom.players.find(p => p.id === player.id)?.isReady;
     const allPlayersReady = currentRoom.players.length === currentRoom.maxPlayers &&
@@ -132,7 +157,7 @@ function Room({ player, room, onLeaveRoom }) {
         // Aynı masada yeni oyun başlayınca (oyun id'si değişir) oyun ekranı baştan kurulur
         return (
             <>
-                <Game key={currentRoom.game.id} player={player} room={currentRoom} onGameFinished={setFinalResults} />
+                <Game key={currentRoom.game.id} player={player} room={currentRoom} onGameFinished={setFinalResults} onLeaveTable={handleLeaveTable} />
                 {finalSummary}
             </>
         );
@@ -167,6 +192,9 @@ function Room({ player, room, onLeaveRoom }) {
                                     {p.isReady ? <span className="seat-ready">hazır</span> : <span>bekliyor</span>}
                                 </span>
                             </span>
+                            {isOwner && !p.isBot && p.id !== player.id && (
+                                <button type="button" className="seat-add seat-owner" onClick={() => handleTransferOwner(p.id)}>Sahipliği ver</button>
+                            )}
                             {p.isBot && isOwner && (
                                 <button type="button" className="seat-remove" onClick={() => handleRemoveBot(p.id)} aria-label={`${p.name} masadan çıkar`}>×</button>
                             )}

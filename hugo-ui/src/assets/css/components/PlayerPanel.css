@@ -219,3 +219,69 @@
 /* Geri al: ceza yazan işlem, diğer butonlardan ayrışsın */
 .open-hand-btn.undo-turn.active { background: #8a3b12; border-color: #8a3b12; color: #fff; }
 .open-hand-btn.undo-turn.active:hover { background: #6f2f0e; }
+
+/* Sohbet balonu: kartın masaya bakan yanında; 3,5 sn içinde belirip kaybolur */
+.player-panel.has-bubble { z-index: 150; }
+.pp-bubble {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    width: max-content;
+    max-width: min(220px, 40vw);
+    padding: 6px 10px;
+    border-radius: 12px;
+    background: #fff;
+    color: #1b2a2f;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.35;
+    text-align: left;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+    pointer-events: none;
+    --bx: -50%;
+    --by: 0;
+    transform: translate(var(--bx), var(--by));
+    animation: pp-bubble 3.5s ease forwards;
+}
+.pp-bubble::after {
+    content: '';
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: #fff;
+    top: 100%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(45deg);
+}
+/* Karşıdaki oyuncu: balon kartın altında */
+.player-panel.top .pp-bubble { bottom: auto; top: calc(100% + 8px); }
+.player-panel.top .pp-bubble::after { top: 0; }
+/* Yandaki oyuncular: balon masaya doğru */
+.player-panel.left .pp-bubble,
+.player-panel.right .pp-bubble { bottom: auto; top: 50%; --by: -50%; --bx: 0; }
+.player-panel.left .pp-bubble { left: calc(100% + 8px); }
+.player-panel.right .pp-bubble { left: auto; right: calc(100% + 8px); }
+.player-panel.left .pp-bubble::after { top: 50%; left: 0; }
+.player-panel.right .pp-bubble::after { top: 50%; left: 100%; }
+@keyframes pp-bubble {
+    0% { opacity: 0; transform: translate(var(--bx), var(--by)) scale(0.85); }
+    6%, 88% { opacity: 1; transform: translate(var(--bx), var(--by)) scale(1); }
+    100% { opacity: 0; transform: translate(var(--bx), var(--by)) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .pp-bubble { animation: pp-bubble-fade 3.5s linear forwards; }
+    @keyframes pp-bubble-fade { 0%, 90% { opacity: 1; } 100% { opacity: 0; } }
+}
+@media (orientation: landscape) and (max-height: 500px) {
+    .pp-bubble { font-size: 11px; padding: 4px 8px; max-width: min(180px, 34vw); }
+}
+/* Telefonda kendi kartın sol altta: balon ekrandan taşmasın diye sola yaslı */
+@media (orientation: landscape) and (max-height: 500px) {
+    .player-panel.current-player .pp-bubble { left: 0; --bx: 0; }
+    .player-panel.current-player .pp-bubble::after { left: 18px; }
+}

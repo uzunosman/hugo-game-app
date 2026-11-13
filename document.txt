@@ -98,7 +98,7 @@
 - Kustu: yandan alınan taş, kullanılmadıysa cezasız geri konur; atanın cezası silinir, oyuncu desteden çeker
   (kusulan taş aynı sırada tekrar alınamaz). O sırada el açtıysa, per indirdiyse ya da işlediyse kusamaz.
   Kusmadan aynı taşı atmak 100 ceza.
-- İşlek (masadaki bir pere işlenebilir) atılan taş için atana ceza yazılır; sıradaki oyuncu o taşı alamaz
+- İşlek (masadaki bir pere işlenebilir) atılan taş için atana 100 ceza yazılır (Hugo elinde 200); sıradaki oyuncu o taşı alamaz
 - Süre dolunca: yandan alınmış taş kusulur, desteden taş çekilir, per adayına (okeyle tamamlananlar dahil)
   girmeyen en küçük taş atılır;
   okey asla atılmaz

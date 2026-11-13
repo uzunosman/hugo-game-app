@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import PlayerPanel from '../PlayerPanel/PlayerPanel';
 import GameBoard from '../GameBoard/GameBoard';
 import Scoreboard from '../Scoreboard/Scoreboard';
+import LeaveTable from '../LeaveTable/LeaveTable';
 import RoundSummary from '../RoundSummary/RoundSummary';
 import PenaltyLog from '../PenaltyLog/PenaltyLog';
 import Chat from '../Chat/Chat';
@@ -9,8 +10,11 @@ import useGameState from '../../hooks/useGameState';
 import socketService from '../../services/socketService';
 import { getOrderedPlayers, getPlayerPosition, getPlayerCorner, getCurrentPlayerIndex, calculateHandScore, calculatePairScore, findPairPartner, getConsecutiveGroups, validateSet, arrangeTiles } from '../../utils/gameUtils';
 import { handleDrawTile, handleTileMove, handleDrawDiscardedTile } from '../../utils/tileHandlers';
+import { moveGroup } from '../../utils/rackDrag';
 import '../../assets/css/components/GameBoard.css';
 import '../../assets/css/layout.css';
+import '../../assets/css/mobile.css';
+import RotateHint from '../RotateHint/RotateHint';
 
 /**
  * Ana Oyun bileşeni
@@ -19,7 +23,7 @@ import '../../assets/css/layout.css';
  * @param {Object} props.room - Oda bilgisi
  * @returns {JSX.Element} - Oyun bileşeni
  */
-function Game({ player, room, onGameFinished }) {
+function Game({ player, room, onGameFinished, onLeaveTable }) {
     // Oyun durumu ve taşlarla ilgili state'leri al
     const {
         tiles,
@@ -79,6 +83,21 @@ function Game({ player, room, onGameFinished }) {
     }, [gameState.round]);
 
     // Oyuncuları sırala
+    // Sohbet balonları: { playerId: { id, text } }, her mesaj 3,5 sn görünür
+    const [chatBubbles, setChatBubbles] = useState({});
+    useEffect(() => {
+        const timers = new Map();
+        const onMessage = (m) => {
+            setChatBubbles(prev => ({ ...prev, [m.playerId]: { id: m.id, text: m.text } }));
+            clearTimeout(timers.get(m.playerId));
+            timers.set(m.playerId, setTimeout(() => {
+                setChatBubbles(prev => (prev[m.playerId]?.id === m.id ? { ...prev, [m.playerId]: null } : prev));
+            }, 3500));
+        };
+        socketService.onChatMessage(onMessage);
+        return () => { socketService.offChatMessage(onMessage); timers.forEach(clearTimeout); };
+    }, []);
+
     const players = getOrderedPlayers(room.players, player.id);
     const currentPlayerIndex = getCurrentPlayerIndex(players, gameState.currentPlayerId);
     const isMyTurn = gameState.currentPlayerId === player.id;
@@ -441,6 +460,7 @@ function Game({ player, room, onGameFinished }) {
                         openedTotal={openState?.openedTotal}
                         penaltyScore={openState?.penaltyScore || 0}
                         connected={openState?.connected !== false}
+                        bubble={chatBubbles[p.id]}
                         turnHint={index === 0 && p.id === gameState.currentPlayerId
                             ? (gameState.turnAction === 'draw' && !isFirstHandBlock ? 'Taş çek' : 'Taş at')
                             : null}
@@ -521,6 +541,11 @@ function Game({ player, room, onGameFinished }) {
                 pairPartnerId={myOpenState.isOpen && activeTile
                     ? findPairPartner(activeTile, tiles, gameState.okeyTile, gameState.isHugoRound)
                     : null}
+                onGroupMove={(group, grabIdx, targetIdx) => {
+                    // Sürükleme sırasında ıstaka değiştiyse (sunucu olayı) eski seçimle taşınmaz
+                    setTilePositions(prev => (prev === tilePositions && moveGroup(prev, group, grabIdx, targetIdx)) || prev);
+                    setSelectedTile(null);
+                }}
                 onArrange={(mode) => {
                     setTilePositions(arrangeTiles(tiles, mode, gameState.okeyTile, gameState.isHugoRound));
                     setSelectedTile(null);
@@ -543,6 +568,7 @@ function Game({ player, room, onGameFinished }) {
                 onOkeyFlip={handleOkeyFlip}
             />
 
+            <RotateHint />
             <PenaltyLog entries={penaltyLog} />
             <Chat playerId={player.id} />
 
@@ -557,6 +583,7 @@ function Game({ player, room, onGameFinished }) {
                     playerOpenStates={playerOpenStates}
                     roundHistory={roundHistory}
                 />
+                {!isGameOver && <LeaveTable onLeave={onLeaveTable} />}
             </div>
 
             {/* Tur Sonu Ekranı */}

@@ -4,7 +4,7 @@ import '../../assets/css/components/PlayerPanel.css';
 
 const TURN_SECONDS = 60;
 
-const PlayerPanel = ({ playerId, name, isBot = false, position, isCurrentPlayer, timeLeft, setScore, isOpen, openedTotal, penaltyScore, connected = true, turnHint = null }) => {
+const PlayerPanel = ({ playerId, name, isBot = false, position, isCurrentPlayer, timeLeft, setScore, isOpen, openedTotal, penaltyScore, connected = true, turnHint = null, bubble = null }) => {
     const seconds = isCurrentPlayer && typeof timeLeft === 'number' ? timeLeft : null;
     const progress = seconds === null ? 0 : Math.max(0, Math.min(1, seconds / TURN_SECONDS));
     const isWarning = seconds !== null && seconds <= 10;
@@ -12,7 +12,8 @@ const PlayerPanel = ({ playerId, name, isBot = false, position, isCurrentPlayer,
 
     return (
         <div
-            className={`player-panel ${position} ${isCurrentPlayer ? 'is-turn' : ''} ${isWarning ? 'is-warning' : ''} ${connected ? '' : 'offline'}`}
+            className={`player-panel ${position} ${isCurrentPlayer ? 'is-turn' : ''} ${isWarning ? 'is-warning' : ''} ${connected ? '' : 'offline'} ${bubble ? 'has-bubble' : ''}`}
+            data-player-id={playerId}
             style={{ '--ring': progress }}
             aria-label={`${name}${isBot ? ', yapay zekâ' : ''}${isCurrentPlayer ? ', sırada' : ''}${connected ? '' : ', bağlantı koptu'}`}
         >
@@ -32,6 +33,8 @@ const PlayerPanel = ({ playerId, name, isBot = false, position, isCurrentPlayer,
                     )}
                 </div>
             </div>
+            {/* Sohbet balonu: yazanın kartının yanında birkaç saniye görünür (Game yönetir) */}
+            {bubble && <div key={bubble.id} className="pp-bubble" role="status">{bubble.text}</div>}
         </div>
     );
 };

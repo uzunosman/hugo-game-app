@@ -1,5 +1,19 @@
 import { useState, useEffect } from 'react';
 import socketService from '../services/socketService';
+import { flyTilesIn } from '../utils/flyTiles';
+import { reconcilePositions } from '../utils/tileHandlers';
+
+const rackKey = (playerId) => `hugo.rack.${playerId}`;
+const readRack = (playerId) => {
+    try {
+        const v = JSON.parse(sessionStorage.getItem(rackKey(playerId)));
+        return Array.isArray(v) && v.length === 30 ? v : null;
+    } catch { return null; }
+};
+const writeRack = (playerId, positions) => {
+    if (positions.every(id => id === null)) return; // ilk boş ıstaka kayıtlı düzeni ezmesin
+    try { sessionStorage.setItem(rackKey(playerId), JSON.stringify(positions)); } catch { /* depolama kapalı */ }
+};
 
 /**
  * Oyun durumu ve taşlarla ilgili state yönetimi için hook
@@ -45,9 +59,23 @@ const useGameState = (player, room) => {
         return states;
     });
 
+    // Istaka dizilişi sekmede saklanır: sayfa yenilenince oyuncunun düzeni kaybolmaz
+    useEffect(() => { writeRack(player.id, tilePositions); }, [player.id, tilePositions]);
+
+    // El değişince ıstaka elle uyumlanır (bkz. reconcilePositions)
+    useEffect(() => {
+        setTilePositions(prev => reconcilePositions(prev, tiles));
+    }, [tiles]);
+
     // Gelen taş listesini state'e ve pozisyonlara uygula
     const applyTiles = (tileList) => {
         setTiles(tileList);
+        // Sayfa yenilendiyse aynı elin dizilişi geri gelir (yeni elde taş id'leri farklı olduğundan eşleşmez)
+        const saved = readRack(player.id);
+        if (saved && tileList.some(t => saved.includes(t.id))) {
+            setTilePositions(reconcilePositions(saved, tileList));
+            return;
+        }
         const newTilePositions = Array(30).fill(null);
         tileList.forEach((tile, index) => {
             if (index < 30) {
@@ -172,8 +200,12 @@ const useGameState = (player, room) => {
         });
 
         // İşleme işlemini dinle — masadaki set güncellenir, ceza yazılır
+        // Masada henüz çizilmemiş taşlar yeni işlenendir (animasyonla gelir)
+        const notOnTable = (tiles) => tiles.map(t => t.id).filter(id => !document.querySelector(`.open-set-tile[data-tile-id="${id}"]`));
+
         socketService.onTileAddedToSet((response) => {
             if (response.success && response.updatedSet) {
+                flyTilesIn(notOnTable(response.updatedSet.tiles), response.playerId, player.id);
                 setTableSets(prev => prev.map(s =>
                     s.id === response.updatedSet.id ? response.updatedSet : s
                 ));
@@ -184,6 +216,9 @@ const useGameState = (player, room) => {
         // Per indirme işlemini dinle — sadece masaya set eklenir, skor değişmez
         socketService.onPerDropped((response) => {
             if (response.success && response.newSets) {
+                // Başkasının çiftlerine işlenen çift de uçarak gelir; kendi açtığı per doğrudan görünür
+                const worked = response.newSets.filter(st => st.playerId !== response.playerId);
+                flyTilesIn(notOnTable(worked.flatMap(st => st.tiles)), response.playerId, player.id);
                 setTableSets(prev => [...prev, ...response.newSets]);
             }
         });

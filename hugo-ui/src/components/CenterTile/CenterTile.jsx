@@ -7,9 +7,7 @@ const CenterTile = ({
     isClosed,
     remainingCount,
     isIndicator = false,
-    isDisabled = false,
-    draggable = false,
-    onDragStart
+    isDisabled = false
 }) => {
     const className = `center-tile ${color || ''} ${isClosed ? 'closed' : ''} ${isIndicator ? 'indicator' : ''} ${isDisabled ? 'disabled' : ''}`;
 
@@ -17,8 +15,7 @@ const CenterTile = ({
         <div className="tile-container">
             <div
                 className={className}
-                draggable={draggable}
-                onDragStart={onDragStart}
+                draggable="false"
             >
                 {!isClosed && value}
             </div>

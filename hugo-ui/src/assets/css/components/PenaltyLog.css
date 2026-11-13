@@ -3,7 +3,9 @@
     position: fixed;
     right: 12px;
     bottom: 12px;
-    width: min(250px, calc(100% - 24px));
+    /* Istakanın yanındaki boşluğa sığar: dar ekranda ıstakanın sağ alt hücrelerinin üstüne binmez */
+    width: min(250px, calc(100% - 24px), max(140px, calc((100vw - var(--tile-w, 40px) * 15 - 24px) / 2 - 20px)));
+    pointer-events: none; /* boş çerçeve tıklama yutmaz; yalnızca düğme ve liste */
     display: flex;
     flex-direction: column-reverse; /* başlık altta, liste üstünde açılır */
     align-items: flex-end;
@@ -24,6 +26,7 @@
     text-align: right;
     scrollbar-width: none;
 }
+.penalty-log > * { pointer-events: auto; }
 .penalty-log li { overflow-wrap: anywhere; }
 .penalty-log li.pl-empty { opacity: 0.75; }
 .pl-tag { color: #ffd66b; }

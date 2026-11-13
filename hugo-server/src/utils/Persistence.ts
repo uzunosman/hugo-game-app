@@ -58,7 +58,7 @@ export const deserialize = (json: string): { players: Player[]; rooms: Room[] } 
             tableSets: (g.tableSets || []).map((s: TableSet) => ({ ...s, tiles: tiles(s.tiles) })),
         }) : null;
         if (game) delete (game as Plain).playerIds;
-        return Object.assign(Object.create(Room.prototype), rest, {
+        return Object.assign(Object.create(Room.prototype), { lastActivityAt: Date.now(), finishedAt: null }, rest, {
             owner: pick(ownerId),
             players: playerIds.map(pick),
             game,
@@ -83,6 +83,13 @@ export const loadState = (gm: GameManager): boolean => {
         console.error(`Kayıtlı durum okunamadı, ${broken} olarak ayrıldı:`, error);
         return false;
     }
+};
+
+// Kapatılan masalar ana ekrandan kalkar, özetleri durum dosyasının yanındaki archive.jsonl'a satır satır eklenir
+export const archiveFile = () => path.join(path.dirname(stateFile()), 'archive.jsonl');
+export const appendArchive = (entry: Plain): void => {
+    fs.mkdirSync(path.dirname(archiveFile()), { recursive: true });
+    fs.appendFileSync(archiveFile(), JSON.stringify(entry) + '\n');
 };
 
 // Yazma: önce geçici dosyaya, sonra yerine taşı (yarım dosya kalmaz)

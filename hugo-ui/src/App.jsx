@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-import Login from './components/Login'
-import Lobby from './components/Lobby'
+import Lobby from './components/Lobby/Lobby'
 import Room from './components/Room'
 import socketService from './services/socketService'
 import './assets/css/global.css';
@@ -10,15 +9,18 @@ function App() {
   const [player, setPlayer] = useState(null)
   const [currentRoom, setCurrentRoom] = useState(null)
 
-  const handleLogin = (playerData) => {
-    setPlayer(playerData)
-  }
+  // Lobiye dönüş notu (örn. masa kapatıldı)
+  const [notice, setNotice] = useState('')
 
   const handleJoinRoom = (roomData) => {
+    setNotice('')
     setCurrentRoom(roomData)
   }
 
-  const handleLeaveRoom = () => {
+  // Masadan kalkınca sunucu yeni bir oyuncu kimliği verir (eski koltuk yapay zekâya geçer)
+  const handleLeaveRoom = (newPlayer, message = '') => {
+    if (newPlayer) setPlayer(newPlayer)
+    setNotice(message)
     setCurrentRoom(null)
   }
 
@@ -54,14 +56,9 @@ function App() {
     return <div className="screen"><p className="screen-note">Oturum geri yükleniyor…</p></div>
   }
 
-  // Kullanıcı giriş yapmadıysa Login bileşenini göster
-  if (!player) {
-    return <Login onLogin={handleLogin} />
-  }
-
-  // Kullanıcı bir odada değilse Lobby bileşenini göster
+  // İlk ekran lobi: masalar kayıt olmadan görünür, ad ve avatar masaya otururken sorulur
   if (!currentRoom) {
-    return <Lobby key={syncKey} player={player} onJoinRoom={handleJoinRoom} />
+    return <Lobby key={syncKey} player={player} notice={notice} onRegister={setPlayer} onJoinRoom={handleJoinRoom} />
   }
 
   // Kullanıcı bir odadaysa Room bileşenini göster

@@ -113,6 +113,36 @@ export class GameManager {
         this.socketToPlayer = new Map();
     }
 
+    // Masayı kapatır: listeden çıkar, yapay zekâ koltukları silinir, insanlar lobiye döner (kimlikleri kalır)
+    public archiveRoom(roomId: string, reason: string): Record<string, any> | null {
+        const room = this.rooms.get(roomId);
+        if (!room) return null;
+        const entry = {
+            id: room.id,
+            name: room.name,
+            reason,
+            archivedAt: new Date().toISOString(),
+            createdAt: room.createdAt,
+            players: room.players.map(p => ({ id: p.id, name: p.name, isBot: !!p.isBot, totalScore: p.getTotalScore() })),
+            round: room.game?.round ?? null,
+            gameStatus: room.game?.status ?? null,
+            roundHistory: room.game?.roundHistory ?? [],
+        };
+        this.rooms.delete(roomId);
+        room.players.forEach(p => {
+            if (p.isBot) {
+                this.socketToPlayer.delete(p.socketId);
+                this.players.delete(p.id);
+            } else {
+                p.setRoomId(null);
+                p.resetForNewGame();
+                p.setReady(false);
+                p.setTurn(false);
+            }
+        });
+        return entry;
+    }
+
     public addPlayerToRoom(playerId: string, roomId: string): boolean {
         const player = this.players.get(playerId);
         const room = this.rooms.get(roomId);

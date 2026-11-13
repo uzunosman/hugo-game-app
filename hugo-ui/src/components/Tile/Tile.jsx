@@ -1,89 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import '../../assets/css/components/Tile.css';
 
-const Tile = ({ value, color, onClick, onDoubleClick, index, tile, isDiscarded, canDrag, discardedFrom, isSelected, tileId, isFlipped, onContextMenu, onDragStartCallback, onDragEndCallback }) => {
+// Taş görünümü. Sürükleme useBoardDrag'dadır (Pointer Events); burada HTML5 sürükle-bırak yok.
+const Tile = ({ value, color, onClick, onDoubleClick, index, tile, isDiscarded, canDrag, discardedFrom, isSelected, isFlipped, onContextMenu }) => {
     const tileRef = useRef(null);
     const [prevIndex, setPrevIndex] = useState(index);
 
     // Eğer tile prop'u verilmişse, value ve color değerlerini tile'dan al
     const tileValue = tile ? tile.value : value;
     const tileColor = tile ? tile.color : color;
-
-    // Atılan taşlar için log
-    if (isDiscarded) {
-        console.log("Discarded tile render:", {
-            tileValue,
-            tileColor,
-            isDiscarded,
-            canDrag,
-            discardedFrom,
-            index
-        });
-    }
-
-    const handleDragStart = (e) => {
-        // Atılan taşlar sadece canDrag true ise sürüklenebilir
-        console.log("Drag start attempt:", {
-            isDiscarded,
-            canDrag,
-            tileValue,
-            tileColor,
-            discardedFrom
-        });
-
-        // Atılan taşlar sadece canDrag=true olduğunda sürüklenebilir
-        if (isDiscarded && !canDrag) {
-            e.preventDefault();
-            return;
-        }
-
-        try {
-            const rect = e.target.getBoundingClientRect();
-            // Mouse'u taşın merkezine konumlandır
-            e.dataTransfer.setDragImage(e.target, rect.width / 2, rect.height / 2);
-
-            // Sürüklenen taşın bilgilerini saklayalım
-            const tileData = {
-                value: tileValue,
-                color: tileColor,
-                sourceIndex: index,
-                isDiscarded: isDiscarded,
-                discardedFrom: discardedFrom
-            };
-
-            console.log('Sürükleme başladı:', tileData);
-
-            // Taş verisini text/plain formatında ayarla
-            const tileDataString = JSON.stringify(tileData);
-            e.dataTransfer.setData('text/plain', tileDataString);
-            e.dataTransfer.setData('tile', tileDataString);
-            if (tileId) {
-                e.dataTransfer.setData('text/tile-id', tileId);
-            }
-
-            // Sürükleme efektini ayarla
-            e.dataTransfer.effectAllowed = 'move';
-
-            if (onDragStartCallback) onDragStartCallback();
-
-            // Sürükleme sırasında taşı gizle
-            setTimeout(() => {
-                if (tileRef.current) {
-                    tileRef.current.style.visibility = 'hidden';
-                }
-            }, 0);
-        } catch (error) {
-            console.error('Sürükleme başlatılırken hata:', error);
-        }
-    };
-
-    const handleDragEnd = () => {
-        // Sürükleme bittiğinde taşı tekrar göster
-        if (tileRef.current) {
-            tileRef.current.style.visibility = 'visible';
-        }
-        if (onDragEndCallback) onDragEndCallback();
-    };
 
     const handleClick = () => {
         if (onClick) {
@@ -125,9 +50,7 @@ const Tile = ({ value, color, onClick, onDoubleClick, index, tile, isDiscarded, 
             onDoubleClick={onDoubleClick}
             onContextMenu={onContextMenu}
             title={onContextMenu ? (isFlipped ? 'Okey (kapalı) · sağ tık: aç' : 'Okey · sağ tık: kapat') : undefined}
-            draggable="true"
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
+            draggable="false"
             data-index={index}
             data-discarded-from={discardedFrom}
         >
