@@ -166,3 +166,14 @@
     font-size: 1.1em;
     opacity: 0.8;
 }
+/* Sahte okey: büyük yıldız, altında dört renk noktası (ıstaka, köşe ve masadaki perlerde aynı) */
+.joker-face { display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; gap: 0.14em; }
+.joker-star { font-size: 1.2em; color: #9C27B0; }
+.joker-dots { display: flex; gap: 0.1em; }
+.joker-dots i { width: 0.22em; height: 0.22em; border-radius: 50%; }
+.joker-dots i:nth-child(1) { background: var(--ui-red, #FF0000); }
+.joker-dots i:nth-child(2) { background: var(--ui-yellow, #FFC107); }
+.joker-dots i:nth-child(3) { background: var(--ui-blue, #00BCD4); }
+.joker-dots i:nth-child(4) { background: var(--ui-black, #000000); }
+.tile.is-joker { padding-bottom: 0; }
+.tile.is-joker::after { display: none; } /* tek renk noktası yerine dört nokta */

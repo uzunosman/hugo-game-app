@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { isOkeyTile, asPlayedTile } from '../../utils/gameUtils';
 import '../../assets/css/components/OpenSetsArea.css';
 import { incomingTiles } from '../../utils/flyTiles';
+import JokerFace from '../Tile/JokerFace';
 
 /**
  * Masadaki açık setleri 4 oyuncu alanında gösteren bileşen.
@@ -216,13 +217,13 @@ const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTil
                     return (
                         <div
                             key={tile.id}
-                            className={`open-set-tile ${tile.color} ${tileIsOkey ? 'is-okey' : ''} ${incomingTiles.has(tile.id) ? 'incoming' : ''}`}
+                            className={`open-set-tile ${tile.color} ${tile.isJoker ? 'is-joker' : ''} ${tileIsOkey ? 'is-okey' : ''} ${incomingTiles.has(tile.id) ? 'incoming' : ''}`}
                             data-set-id={set.id}
                             data-tile-id={tile.id}
                             data-is-okey={tileIsOkey ? 'true' : undefined}
                             onClick={tileIsOkey && isExpanded && selectedTileId ? () => handleSlotClick(set.id, 'end') : undefined}
                         >
-                            {tile.value}
+                            {tile.isJoker ? <JokerFace /> : tile.value}
                         </div>
                     );
                 })}

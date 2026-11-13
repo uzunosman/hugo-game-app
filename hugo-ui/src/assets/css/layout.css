@@ -10,18 +10,18 @@
     --side-band: 72px;
     --self-band: 46px;
     /* Masadaki her taş (açılan perler, atılan taşlar, deste, gösterge) aynı ölçüde */
-    --set-tile-w: 34px;
-    --set-tile-h: 48px;
-    --set-tile-font: 20px;
+    --set-tile-w: 36px;
+    --set-tile-h: 50px;
+    --set-tile-font: 21px;
 }
 @media (max-width: 640px) {
     :root {
         --top-band: 34px;
         --side-band: 50px;
         --self-band: 66px; /* dar ekranda butonlar kartın üstüne ikinci satıra iner */
-        --set-tile-w: 22px;
-        --set-tile-h: 31px;
-        --set-tile-font: 13px;
+        --set-tile-w: 24px;
+        --set-tile-h: 33px;
+        --set-tile-font: 14px;
     }
 }
 
@@ -149,7 +149,8 @@
     border-radius: 4px;
 }
 .open-set-tile { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25); }
-.open-set-group.expanded { transform: scale(1.3); }
+/* İşlerken üstüne gelinen per büyür (bu kural OpenSetsArea.css'tekini ezer: tek yer burası) */
+.open-set-group.expanded { transform: scale(1.5); }
 
 /* ── Mobil: aksiyonlar kartın üstünde ortalanır, dizme butonları sağ kenarda ── */
 @media (max-width: 640px) {
@@ -204,6 +205,23 @@
     border-radius: 4px;
 }
 .center-area .center-tile.indicator.green { font-size: calc(var(--set-tile-font) * 1.25); }
+/* Hugo eli göstergesi: yatay taş, HUGO harfleri ve her harfin altında bir renk noktası (lobi logosu gibi) */
+.center-area .center-tile.hugo-indicator {
+    width: calc(var(--set-tile-w) * 2.4);
+    flex-direction: row;
+    justify-content: center;
+    gap: calc(var(--set-tile-w) * 0.12);
+    padding: 0 4px;
+    font-size: calc(var(--set-tile-font) * 0.9);
+    color: #1b1b1b;
+    border-color: #4CAF50;
+}
+.hugo-letter { display: flex; flex-direction: column; align-items: center; gap: 3px; font-weight: 800; line-height: 1; }
+.hugo-letter i { width: 5px; height: 5px; border-radius: 50%; }
+.hugo-c0 i { background: var(--ui-red, #FF0000); }
+.hugo-c1 i { background: var(--ui-yellow, #FFC107); }
+.hugo-c2 i { background: var(--ui-blue, #00BCD4); }
+.hugo-c3 i { background: var(--ui-black, #000000); }
 .center-area .center-tiles { padding: 0; gap: 8px; }
 
 /* Köşelere atılan taşlar ıstakadaki taşla aynı boyda; köşe alanı taşı saracak kadar */

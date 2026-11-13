@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import '../../assets/css/components/Tile.css';
+import JokerFace from './JokerFace';
 
 // Taş görünümü. Sürükleme useBoardDrag'dadır (Pointer Events); burada HTML5 sürükle-bırak yok.
 const Tile = ({ value, color, onClick, onDoubleClick, index, tile, isDiscarded, canDrag, discardedFrom, isSelected, isFlipped, onContextMenu }) => {
@@ -45,7 +46,7 @@ const Tile = ({ value, color, onClick, onDoubleClick, index, tile, isDiscarded, 
     return (
         <div
             ref={tileRef}
-            className={`tile ${tileColor} ${isDiscarded ? 'discarded' : ''} ${canDrag && isDiscarded ? 'can-drag' : ''} ${isSelected ? 'selected' : ''} ${isFlipped ? 'tile-flipped' : ''}`}
+            className={`tile ${tileColor} ${tile?.isJoker ? 'is-joker' : ''} ${isDiscarded ? 'discarded' : ''} ${canDrag && isDiscarded ? 'can-drag' : ''} ${isSelected ? 'selected' : ''} ${isFlipped ? 'tile-flipped' : ''}`}
             onClick={handleClick}
             onDoubleClick={onDoubleClick}
             onContextMenu={onContextMenu}
@@ -54,7 +55,7 @@ const Tile = ({ value, color, onClick, onDoubleClick, index, tile, isDiscarded, 
             data-index={index}
             data-discarded-from={discardedFrom}
         >
-            {!isFlipped && tileValue}
+            {!isFlipped && (tile?.isJoker ? <JokerFace /> : tileValue)}
         </div>
     );
 };

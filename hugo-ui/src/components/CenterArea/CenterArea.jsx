@@ -31,12 +31,12 @@ const CenterArea = ({ remainingTiles = [], openTile = null, onDrawTile, gameRoun
                 {/* Gösterge taşı - Sürüklenemez ve tıklanamaz */}
                 <div className="indicator-tile">
                     {isHugoRound ? (
-                        <CenterTile
-                            value="J"
-                            color="green"
-                            isClosed={false}
-                            isIndicator={true}
-                        />
+                        // Hugo eli: gösterge yerine yatay HUGO taşı, her harfin altında bir renk noktası
+                        <div className="center-tile indicator hugo-indicator" role="img" aria-label="Hugo eli">
+                            {['H', 'U', 'G', 'O'].map((ch, i) => (
+                                <span key={ch} className={`hugo-letter hugo-c${i}`}>{ch}<i aria-hidden="true" /></span>
+                            ))}
+                        </div>
                     ) : (
                         openTile && (
                             <CenterTile
