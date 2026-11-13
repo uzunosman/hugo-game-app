@@ -1,20 +1,16 @@
-import React, { useRef, useEffect } from 'react';
+import React from 'react';
 import TileHolder from '../TileHolder/TileHolder';
 import CenterArea from '../CenterArea/CenterArea';
 import DiscardAreas from '../DiscardAreas/DiscardAreas';
 import OpenSetsArea from '../OpenSetsArea/OpenSetsArea';
+import useBoardDrag from '../../hooks/useBoardDrag';
+import { validatePair } from '../../utils/gameUtils';
 import '../../assets/css/components/GameBoard.css';
 
 /**
- * Oyun tahtası bileşeni.
- * Masaüstü: HTML5 Drag & Drop ile çalışır.
- * Mobil   : Touch event (touchstart/touchmove/touchend) tabanlı sürükle-bırak.
- *
- * Desteklenen touch sürükleme senaryoları:
- *  1. TileHolder taşı → TileHolder hücresi  (sıralama)
- *  2. TileHolder taşı → köşe drop-zone      (taş atma)
- *  3. Deste taşı     → TileHolder hücresi  (desteden çek)
- *  4. Köşe taşı      → TileHolder hücresi  (atılan taşı al)
+ * Oyun tahtası: köşeler, masadaki perler, deste ve ıstaka.
+ * Sürükle-bırak useBoardDrag'da (Pointer Events; fare, dokunmatik ve kalem aynı yol):
+ *  ıstaka taşı → ıstaka / köşe / per, basılı tutulan per → ıstaka, deste ya da yerdeki taş → ıstaka.
  */
 const GameBoard = ({
     tiles,
@@ -49,303 +45,39 @@ const GameBoard = ({
     onTileDragStart,
     onTileDragEnd,
     flippedTileIds,
-    onOkeyFlip
+    onOkeyFlip,
+    onGroupMove
 }) => {
     const isFirstHandBlock = tiles.length === 15 && turnAction === 'draw';
     const canDrawFromDeck = isMyTurn && turnAction === 'draw' && !isFirstHandBlock;
 
-    // ─────────────────────────────────────────────────
-    // Refs — stale closure'ları önlemek için her render
-    // sonrası güncellenir, ancak effect yalnızca bir kez eklenir.
-    // ─────────────────────────────────────────────────
-    const tilesRef            = useRef(tiles);
-    const tilePositionsRef    = useRef(tilePositions);
-    const discardedTilesRef   = useRef(discardedTiles);
-    const handleTileMoveRef   = useRef(handleTileMove);
-    const handleTileDoubleClickRef = useRef(handleTileDoubleClick);
-    const handleDrawFromDeckRef    = useRef(handleDrawFromDeck);
-    const handleDrawDiscardedTileRef = useRef(handleDrawDiscardedTile);
-    const canDrawFromDeckRef  = useRef(canDrawFromDeck);
-    const onAddTileToSetRef   = useRef(onAddTileToSet);
-    const onTileDragStartRef  = useRef(onTileDragStart);
-    const onTileDragEndRef    = useRef(onTileDragEnd);
-
-    useEffect(() => { tilesRef.current            = tiles;            }, [tiles]);
-    useEffect(() => { tilePositionsRef.current    = tilePositions;    }, [tilePositions]);
-    useEffect(() => { discardedTilesRef.current   = discardedTiles;   }, [discardedTiles]);
-    useEffect(() => { handleTileMoveRef.current   = handleTileMove;   }, [handleTileMove]);
-    useEffect(() => { handleTileDoubleClickRef.current = handleTileDoubleClick; }, [handleTileDoubleClick]);
-    useEffect(() => { handleDrawFromDeckRef.current    = handleDrawFromDeck;    }, [handleDrawFromDeck]);
-    useEffect(() => { handleDrawDiscardedTileRef.current = handleDrawDiscardedTile; }, [handleDrawDiscardedTile]);
-    useEffect(() => { canDrawFromDeckRef.current  = canDrawFromDeck;  }, [canDrawFromDeck]);
-    useEffect(() => { onAddTileToSetRef.current   = onAddTileToSet;   }, [onAddTileToSet]);
-    useEffect(() => { onTileDragStartRef.current  = onTileDragStart;  }, [onTileDragStart]);
-    useEffect(() => { onTileDragEndRef.current    = onTileDragEnd;    }, [onTileDragEnd]);
-
-    // ─────────────────────────────────────────────────
-    // Touch DnD — bir kez mount edilir
-    // ─────────────────────────────────────────────────
-    useEffect(() => {
-        const DRAG_THRESHOLD = 8; // px — kaydırma = gerçek sürükleme
-        const CELLS_PER_ROW  = 15;
-
-        let drag = null;   // aktif sürükleme durumu
-        let ghost = null;  // takip eden görsel klon
-        let expandedSetEl = null; // touch hover ile genişletilmiş set grubu
-
-        // ── Ghost yönetimi ──────────────────────────
-        const createGhost = (sourceEl, cx, cy) => {
-            if (!sourceEl || ghost) return;
-            const rect = sourceEl.getBoundingClientRect();
-            ghost = sourceEl.cloneNode(true);
-            Object.assign(ghost.style, {
-                position:     'fixed',
-                width:        rect.width  + 'px',
-                height:       rect.height + 'px',
-                left:         (cx - rect.width  / 2) + 'px',
-                top:          (cy - rect.height / 2) + 'px',
-                zIndex:       '9999',
-                pointerEvents:'none',
-                opacity:      '0.9',
-                transform:    'scale(1.15)',
-                boxShadow:    '0 6px 20px rgba(0,0,0,0.4)',
-                transition:   'none',
-                margin:       '0',
-                borderRadius: '2px',
-            });
-            document.body.appendChild(ghost);
-        };
-
-        const moveGhost = (cx, cy) => {
-            if (!ghost) return;
-            ghost.style.left = (cx - ghost.offsetWidth  / 2) + 'px';
-            ghost.style.top  = (cy - ghost.offsetHeight / 2) + 'px';
-        };
-
-        const destroyGhost = () => {
-            if (ghost?.parentNode) ghost.parentNode.removeChild(ghost);
-            ghost = null;
-        };
-
-        // ── Sürükleme kaynağını tanı ────────────────
-        const onTouchStart = (e) => {
-            const touch  = e.touches[0];
-            const target = e.target;
-
-            // 1) TileHolder taşı
-            const cell = target.closest('.tile-cell');
-            if (cell) {
-                const tileEl = cell.querySelector('.tile');
-                if (!tileEl) return; // boş hücre — tap-to-move devreye girer
-                const dataIdx  = parseInt(cell.dataset.index);
-                const isSecond = !!cell.closest('.second-row');
-                const srcIdx   = dataIdx + (isSecond ? CELLS_PER_ROW : 0);
-                drag = { type: 'tile', srcIdx, sourceEl: tileEl,
-                         startX: touch.clientX, startY: touch.clientY };
-                onTileDragStartRef.current?.(srcIdx);
-                return;
-            }
-
-            // 2) Deste taşı
-            const deckWrapper = target.closest('.deck-tile-wrapper');
-            if (deckWrapper && canDrawFromDeckRef.current) {
-                const deckEl = deckWrapper.querySelector('.center-tile.closed') || deckWrapper;
-                drag = { type: 'deck', sourceEl: deckEl,
-                         startX: touch.clientX, startY: touch.clientY };
-                return;
-            }
-
-            // 3) Köşede bekleyen atılmış taş (can-drag)
-            const discardTile = target.closest('.tile.can-drag');
-            if (discardTile) {
-                const corner = discardTile.dataset.discardedFrom;
-                if (!corner) return;
-                drag = { type: 'discarded', corner, sourceEl: discardTile,
-                         startX: touch.clientX, startY: touch.clientY };
-                return;
-            }
-        };
-
-        // ── Hareket ─────────────────────────────────
-        const onTouchMove = (e) => {
-            if (!drag) return;
-            const touch = e.touches[0];
-            const dx = touch.clientX - drag.startX;
-            const dy = touch.clientY - drag.startY;
-
-            if (!drag.isDragging && Math.sqrt(dx*dx + dy*dy) > DRAG_THRESHOLD) {
-                drag.isDragging = true;
-                createGhost(drag.sourceEl, touch.clientX, touch.clientY);
-                if (drag.sourceEl) drag.sourceEl.style.opacity = '0.2';
-            }
-
-            if (drag.isDragging) {
-                e.preventDefault(); // scroll'u engelle
-                moveGhost(touch.clientX, touch.clientY);
-
-                // Touch hover: parmak setin üzerindeyse genişlet
-                if (drag.type === 'tile') {
-                    const elUnder = document.elementFromPoint(touch.clientX, touch.clientY);
-                    const setGroup = elUnder?.closest('.open-set-group');
-                    if (setGroup && setGroup !== expandedSetEl) {
-                        if (expandedSetEl) expandedSetEl.classList.remove('expanded');
-                        setGroup.classList.add('expanded');
-                        expandedSetEl = setGroup;
-                    } else if (!setGroup && expandedSetEl) {
-                        expandedSetEl.classList.remove('expanded');
-                        expandedSetEl = null;
-                    }
-                }
-            }
-        };
-
-        // ── Bırakma ─────────────────────────────────
-        const onTouchEnd = (e) => {
-            if (!drag) return;
-
-            // Kaynak opacity'yi geri al
-            if (drag.sourceEl) drag.sourceEl.style.opacity = '1';
-
-            if (!drag.isDragging) {
-                // Mesafe eşiğini geçmediyse tap — click handler devreye girer
-                drag = null;
-                return;
-            }
-
-            const touch   = e.changedTouches[0];
-            const { type, srcIdx, corner } = drag;
-
-            // Ghost'u kaldır, SONRA elementFromPoint çağır
-            destroyGhost();
-            const target = document.elementFromPoint(touch.clientX, touch.clientY);
-
-            // Genişletilmiş seti kapat
-            if (expandedSetEl) {
-                expandedSetEl.classList.remove('expanded');
-                expandedSetEl = null;
-            }
-
-            if (type === 'tile') {
-                onTileDragEndRef.current?.();
-
-                // Hedef: TileHolder hücresi
-                const dropCell = target?.closest('.tile-cell');
-                if (dropCell) {
-                    const di       = parseInt(dropCell.dataset.index);
-                    const isSecond = !!dropCell.closest('.second-row');
-                    const tgtIdx   = di + (isSecond ? CELLS_PER_ROW : 0);
-                    if (tgtIdx !== srcIdx) handleTileMoveRef.current(srcIdx, tgtIdx);
-                    drag = null; return;
-                }
-                // Hedef: okey taşı (doğrudan swap)
-                const okeyTile = target?.closest('.open-set-tile.is-okey');
-                if (okeyTile) {
-                    const setId = okeyTile.dataset.setId;
-                    const tileId = tilePositionsRef.current[srcIdx];
-                    if (setId && tileId && onAddTileToSetRef.current) {
-                        onAddTileToSetRef.current(tileId, setId, 'end');
-                    }
-                    drag = null; return;
-                }
-                // Hedef: insertion slot (pozisyonel işleme)
-                const slot = target?.closest('.insertion-slot');
-                if (slot) {
-                    const setId = slot.dataset.setId;
-                    const position = slot.dataset.position;
-                    const tileId = tilePositionsRef.current[srcIdx];
-                    if (setId && position && tileId && onAddTileToSetRef.current) {
-                        onAddTileToSetRef.current(tileId, setId, position);
-                    }
-                    drag = null; return;
-                }
-                // Hedef: masadaki açık set (fallback — pozisyon 'end')
-                const setGroup = target?.closest('.open-set-group');
-                if (setGroup) {
-                    const setId = setGroup.dataset.setId;
-                    const tileId = tilePositionsRef.current[srcIdx];
-                    if (setId && tileId && onAddTileToSetRef.current) {
-                        onAddTileToSetRef.current(tileId, setId, 'end');
-                    }
-                    drag = null; return;
-                }
-                // Hedef: köşe drop-zone (taş at)
-                const dropZone = target?.closest('.tile-drop-zone.active');
-                if (dropZone) {
-                    handleTileDoubleClickRef.current?.(srcIdx);
-                    drag = null; return;
-                }
-            }
-
-            if (type === 'deck') {
-                // Hedef: TileHolder hücresi (desteden çek → oraya yerleştir)
-                const dropCell = target?.closest('.tile-cell');
-                if (dropCell) {
-                    const di       = parseInt(dropCell.dataset.index);
-                    const isSecond = !!dropCell.closest('.second-row');
-                    const tgtIdx   = di + (isSecond ? CELLS_PER_ROW : 0);
-                    handleDrawFromDeckRef.current?.(tgtIdx);
-                    drag = null; return;
-                }
-                // TileHolder üzerinde ama boş hücre değilse → ilk boş slota ekle
-                const holderEl = target?.closest('.tile-holder');
-                if (holderEl) {
-                    const firstEmpty = tilePositionsRef.current.findIndex(p => p === null);
-                    if (firstEmpty !== -1) handleDrawFromDeckRef.current?.(firstEmpty);
-                }
-            }
-
-            if (type === 'discarded') {
-                // Hedef: TileHolder hücresi (atılan taşı al)
-                const dropCell = target?.closest('.tile-cell');
-                if (dropCell) {
-                    const di       = parseInt(dropCell.dataset.index);
-                    const isSecond = !!dropCell.closest('.second-row');
-                    let   tgtIdx   = di + (isSecond ? CELLS_PER_ROW : 0);
-                    // Hedef dolu ise ilk boş slota ekle
-                    if (tilePositionsRef.current[tgtIdx]) {
-                        const empty = tilePositionsRef.current.findIndex(p => p === null);
-                        if (empty === -1) { drag = null; return; }
-                        tgtIdx = empty;
-                    }
-                    const cornerTiles = discardedTilesRef.current[corner] || [];
-                    const lastIdx = cornerTiles.length - 1;
-                    handleDrawDiscardedTileRef.current?.(corner, lastIdx, tgtIdx);
-                }
-            }
-
-            drag = null;
-        };
-
-        const onTouchCancel = () => {
-            if (drag?.sourceEl) drag.sourceEl.style.opacity = '1';
-            if (expandedSetEl) { expandedSetEl.classList.remove('expanded'); expandedSetEl = null; }
-            onTileDragEndRef.current?.();
-            destroyGhost();
-            drag = null;
-        };
-
-        // touchstart: passive olabilir (preventDefault gerekmez)
-        // touchmove : { passive: false } — sürükleme sırasında scroll engeli
-        document.addEventListener('touchstart',  onTouchStart,  { passive: true  });
-        document.addEventListener('touchmove',   onTouchMove,   { passive: false });
-        document.addEventListener('touchend',    onTouchEnd);
-        document.addEventListener('touchcancel', onTouchCancel);
-
-        return () => {
-            document.removeEventListener('touchstart',  onTouchStart);
-            document.removeEventListener('touchmove',   onTouchMove);
-            document.removeEventListener('touchend',    onTouchEnd);
-            document.removeEventListener('touchcancel', onTouchCancel);
-        };
-    }, []); // Sadece bir kez bağlan — dinamik değerler ref üzerinden okunur
+    // Tüm sürükle-bırak (fare + dokunmatik) tek yoldan: useBoardDrag
+    const byId = Object.fromEntries(tiles.map(t => [t.id, t]));
+    const { dragView, onPointerDown } = useBoardDrag({
+        positions: tilePositions,
+        tiles,
+        playerCorner,
+        canDrawFromDeck,
+        isPair: (a, b) => !!byId[a] && !!byId[b] && validatePair([byId[a], byId[b]], { okeyTile, isHugo: isHugoRound }) > 0,
+        actions: {
+            moveTile: handleTileMove,
+            moveGroup: onGroupMove,
+            discard: handleTileDoubleClick, // köşeye atma ile aynı yol (sıra / aşama kontrolü orada)
+            addToSet: onAddTileToSet,
+            drawDeck: handleDrawFromDeck,
+            drawDiscard: handleDrawDiscardedTile,
+            dragStart: onTileDragStart,
+            dragEnd: onTileDragEnd,
+        },
+    });
 
     return (
-        <div className="game-board">
+        <div className={`game-board ${dragView?.dragging ? 'is-dragging' : ''}`} onPointerDown={onPointerDown}>
             <div className="board-content">
                 {/* Köşe Bırakma Alanları */}
                 <DiscardAreas
                     discardedTiles={discardedTiles}
-                    handleTileMove={handleTileMove}
+                    dragOverCorner={dragView?.dragging && dragView.kind === 'tile' ? dragView.overCorner : null}
                     handleDrawDiscardedTile={handleDrawDiscardedTile}
                     isMyTurn={isMyTurn}
                     turnAction={turnAction}
@@ -368,6 +100,7 @@ const GameBoard = ({
                     okeyTile={okeyTile}
                     isHugo={isHugoRound}
                     pairPartnerId={pairPartnerId}
+                    dragOverKey={dragView?.dragging ? dragView.overSet : null}
                 />
 
                 {/* Merkez Alan */}
@@ -385,13 +118,9 @@ const GameBoard = ({
                     tiles={tiles}
                     tilePositions={tilePositions}
                     onTileClick={handleTileClick}
-                    onTileMove={handleTileMove}
                     onTileDoubleClick={handleTileDoubleClick}
-                    onDrawDiscardedTile={handleDrawDiscardedTile}
-                    onDrawFromDeck={handleDrawFromDeck}
                     selectedTileIndex={selectedTile}
-                    onTileDragStart={onTileDragStart}
-                    onTileDragEnd={onTileDragEnd}
+                    dragView={dragView}
                     okeyTile={okeyTile}
                     isHugo={isHugoRound}
                     flippedTileIds={flippedTileIds || new Set()}

@@ -1,7 +1,8 @@
 // Istaka mantığı öz-testi: `npm test` ile çalışır (saf fonksiyonlar, tarayıcı gerekmez).
 import assert from 'node:assert';
 import { getConsecutiveGroups, arrangeTiles, calculateHandScore, calculatePairScore, findPairPartner, validatePair, validateSet, CELLS_PER_ROW } from './gameUtils.js';
-import { insertShift } from './tileHandlers.js';
+import { insertShift, rackGroupAt, reconcilePositions } from './tileHandlers.js';
+import { moveGroup, rackPreview } from './rackDrag.js';
 
 let n = 0;
 const tile = (color, value, extra = {}) => ({ id: `t${n++}`, color, value, ...extra });
@@ -105,4 +106,91 @@ const row = (cells) => [...cells, ...Array(CELLS_PER_ROW * 2 - cells.length).fil
     assert.strictEqual(validateSet([tile('blue', 3), tile('blue', 4), joker()], { isHugo: true }), 12);
 }
 
-console.log('rack.selftest: satır ayrımı, kaydırma, otomatik dizme, çiftler ve sahte okey ✓');
+// Per taşıma: basılan taşın satırdaki kesintisiz dizisi bir bütün olarak taşınır
+{
+    const p = row(['A', 'B', 'C', null, 'D']);
+    assert.deepStrictEqual(rackGroupAt(p, 1), { start: 0, len: 3 });
+    assert.strictEqual(rackGroupAt(p, 4), null, 'tek taş per değildir');
+    assert.strictEqual(rackGroupAt(p, 3), null, 'boş hücre');
+    // Satır sınırı: 14 ile 15 komşu değildir
+    const edge = Array(30).fill(null); edge[13] = 'X'; edge[14] = 'Y'; edge[15] = 'Z';
+    assert.deepStrictEqual(rackGroupAt(edge, 14), { start: 13, len: 2 });
+    // B'den tutup 8'e bırak: B 8'e, A 7'ye, C 9'a gelir
+    const m = moveGroup(p, { start: 0, len: 3 }, 1, 8);
+    assert.deepStrictEqual(m.slice(0, 10), [null, null, null, null, 'D', null, null, 'A', 'B', 'C']);
+    // İkinci satıra, satır sonuna taşarsa sığdırılır
+    const d = moveGroup(p, { start: 0, len: 3 }, 0, 29);
+    assert.deepStrictEqual(d.slice(27), ['A', 'B', 'C']);
+    assert.strictEqual(d.filter(Boolean).length, 4, 'taş kaybolmaz');
+    // Kendi üstüne bir hücre kaydırma çalışır; yer değişmiyorsa null
+    assert.deepStrictEqual(moveGroup(p, { start: 0, len: 3 }, 0, 1).slice(0, 5), [null, 'A', 'B', 'C', 'D']);
+    assert.strictEqual(moveGroup(p, { start: 0, len: 3 }, 1, 1), null, 'yer değişmez');
+    // Başka taşın üstüne bırakılınca o taş en yakın boşluğa itilir: D sağa kayar
+    assert.deepStrictEqual(moveGroup(p, { start: 0, len: 3 }, 0, 2).slice(0, 6), [null, null, 'A', 'B', 'C', 'D']);
+}
+
+// Per başka perin ortasına bırakılır: sol yarıdakiler sola, sağ yarıdakiler sağa itilir, sıraları korunur
+{
+    // _ _ X Y Z W _ _  +  [P Q] (alt satırdan) → hedef 4: X Y sola, Z W sağa
+    const p = Array(30).fill(null);
+    ['X', 'Y', 'Z', 'W'].forEach((id, i) => { p[2 + i] = id; });
+    p[20] = 'P'; p[21] = 'Q';
+    const m = moveGroup(p, { start: 20, len: 2 }, 20, 3);
+    assert.deepStrictEqual(m.slice(0, 8), [null, 'X', 'Y', 'P', 'Q', 'Z', 'W', null]);
+    assert.strictEqual(m[20], null); assert.strictEqual(m[21], null);
+    assert.strictEqual(m.filter(Boolean).length, 6, 'taş kaybolmaz');
+    // Sol taraf doluysa hepsi sağa: X Y Z W ... satır başında
+    const q = Array(30).fill(null);
+    ['X', 'Y', 'Z'].forEach((id, i) => { q[i] = id; });
+    q[20] = 'P'; q[21] = 'Q';
+    const r = moveGroup(q, { start: 20, len: 2 }, 20, 0);
+    assert.deepStrictEqual(r.slice(0, 6), ['P', 'Q', 'X', 'Y', 'Z', null]);
+    // Satırda yer yoksa taşınmaz
+    const full = Array(30).fill(null).map((_, i) => (i < 15 ? `f${i}` : null));
+    full[20] = 'P'; full[21] = 'Q';
+    assert.strictEqual(moveGroup(full, { start: 20, len: 2 }, 20, 5), null, 'dolu satır');
+}
+
+// Sürükleme önizlemesi: kalkan taş yerinde gölge bırakmaz, hedefte görünür
+{
+    const p = row(['A', 'B', null, 'C']);
+    const lifted = rackPreview(p, { kind: 'tile', srcIdx: 0, overCell: null });
+    assert.deepStrictEqual(lifted.cells.slice(0, 4), [null, 'B', null, 'C'], 'ıstaka dışındayken taş yerinden kalkar');
+    const over = rackPreview(p, { kind: 'tile', srcIdx: 0, overCell: 3 });
+    assert.deepStrictEqual(over.cells.slice(0, 4), [null, 'B', 'C', 'A'], 'bırakınca olacağı gibi');
+    assert.deepStrictEqual([...over.preview], [3]);
+    assert.deepStrictEqual(insertShift(p, 0, 3), over.cells, 'önizleme = bırakma sonucu');
+    const g = rackPreview(p, { kind: 'group', group: { start: 0, len: 2 }, srcIdx: 0, overCell: null });
+    assert.deepStrictEqual(g.cells.slice(0, 4), [null, null, null, 'C'], 'per yerinden kalkar');
+    const gOver = rackPreview(p, { kind: 'group', group: { start: 0, len: 2 }, srcIdx: 0, overCell: 6 });
+    assert.deepStrictEqual([...gOver.preview], [6, 7]);
+    assert.deepStrictEqual(gOver.cells, moveGroup(p, { start: 0, len: 2 }, 0, 6), 'per önizlemesi = bırakma sonucu');
+    const same = rackPreview(p, { kind: 'group', group: { start: 0, len: 2 }, srcIdx: 0, overCell: 0 });
+    assert.strictEqual(same.blocked, false, 'kendi yerine bırakmak engelli değil');
+    const deck = rackPreview(p, { kind: 'deck', overCell: 1 });
+    assert.deepStrictEqual([...deck.preview], [2], 'dolu hücre: ilk boşa gelir');
+    assert.strictEqual(rackPreview(p, null).cells, p);
+}
+
+// Çiftler yan yana dizildiyse yalnızca basılan çift seçilir; çift olmayan blok bütün kalır
+{
+    const pairs = row(['a', 'a2', 'b', 'b2', 'c', 'c2']);
+    const isPair = (x, y) => !!x && !!y && y === `${x}2`;
+    assert.deepStrictEqual(rackGroupAt(pairs, 3, isPair), { start: 2, len: 2 });
+    assert.deepStrictEqual(rackGroupAt(pairs, 4, isPair), { start: 4, len: 2 });
+    assert.deepStrictEqual(rackGroupAt(row(['a', 'a2', 'b', 'x']), 0, isPair), { start: 0, len: 4 }, 'karışık blok bütün');
+    assert.deepStrictEqual(rackGroupAt(row(['a', 'a2', 'b']), 0, isPair), { start: 0, len: 3 }, 'tek sayılı blok bütün');
+    assert.deepStrictEqual(rackGroupAt(row(['a', 'a2']), 1, isPair), { start: 0, len: 2 });
+}
+
+// Istaka elle uyumlu tutulur: hayalet id silinir, kayıp taş boş hücreye gelir, değişiklik yoksa aynı dizi
+{
+    const tl = (...ids) => ids.map(id => ({ id }));
+    const ok = row(['a', null, 'b']);
+    assert.strictEqual(reconcilePositions(ok, tl('a', 'b')), ok, 'uyumluysa aynı dizi');
+    assert.deepStrictEqual(reconcilePositions(row(['a', 'x', 'b']), tl('a', 'b')).slice(0, 3), ['a', null, 'b'], 'elde olmayan silinir');
+    assert.deepStrictEqual(reconcilePositions(row(['a', 'a']), tl('a')).slice(0, 2), ['a', null], 'çift yazılan silinir');
+    assert.deepStrictEqual(reconcilePositions(row(['a', null, 'b']), tl('a', 'b', 'c')).slice(0, 3), ['a', 'c', 'b'], 'kayıp taş boşa');
+}
+
+console.log('rack.selftest: satır ayrımı, kaydırma, otomatik dizme, çiftler, sahte okey, per/çift taşıma, sürükleme önizlemesi ve ıstaka-el uyumu ✓');

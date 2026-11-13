@@ -17,6 +17,8 @@ export class Room {
     game: Game | null;
     maxPlayers: number;
     createdAt: Date;
+    lastActivityAt: number;   // son insan hamlesi (ms); uzun süre boşta kalan masa arşivlenir
+    finishedAt: number | null; // oyun bitip masa beklemeye döndüğü an; yeniden başlamazsa arşivlenir
 
     constructor(name: string, owner: Player, maxPlayers: number = 4) {
         this.id = uuidv4();
@@ -27,6 +29,8 @@ export class Room {
         this.game = null;
         this.maxPlayers = maxPlayers;
         this.createdAt = new Date();
+        this.lastActivityAt = Date.now();
+        this.finishedAt = null;
 
         // Oda sahibini odaya ekle
         owner.setRoomId(this.id);
@@ -52,10 +56,8 @@ export class Room {
             const [removedPlayer] = this.players.splice(playerIndex, 1);
             removedPlayer.setRoomId(null);
 
-            // Eğer oda sahibi ayrıldıysa, yeni oda sahibi belirle
-            if (this.owner.id === playerId && this.players.length > 0) {
-                this.owner = this.players[0];
-            }
+            // Oda sahibi ayrıldıysa sahiplik masadaki bir insana geçer (yapay zekâ hiç sahip olmaz)
+            if (this.owner.id === playerId) this.owner = this.firstHuman() || this.owner;
 
             return removedPlayer;
         }
@@ -72,6 +74,7 @@ export class Room {
         }
 
         this.game = new Game(this.players);
+        this.finishedAt = null;
         this.status = RoomStatus.PLAYING;
         return true;
     }
@@ -96,6 +99,10 @@ export class Room {
             player.setReady(false);
             player.setTurn(false);
         });
+    }
+
+    firstHuman(): Player | undefined {
+        return this.players.find(p => !p.isBot);
     }
 
     isPlayerInRoom(playerId: string): boolean {

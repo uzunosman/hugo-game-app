@@ -104,12 +104,18 @@ const Scoreboard = ({ players, playerOpenStates, roundHistory = [] }) => {
     );
 };
 
-// Bir elin dökümü: oyuncu başına elde kalan, cezalar, okey, çarpan, yıldız ve el puanı; altında o elin ceza kaydı
+// Bir elin dökümü: oyuncu başına elde kalan, açmama, oyun içi cezalar, okey, çarpan, yıldız ve el puanı
 const RoundDetail = ({ entry, players, onBack }) => {
     const byId = Object.fromEntries(entry.results.map(r => [r.playerId, r]));
+    // Oyun içi cezalar her oyuncunun kendi kolonunda: yalnızca tutarlar (iptaller eksi)
+    const penaltiesOf = (id) => entry.penalties
+        ? entry.penalties.filter(p => p.playerId === id).map(p => p.amount)
+        : (byId[id]?.penaltyEntries || []);
     const rows = [
-        ['Elde kalan', r => r.effectiveHandScore ?? r.handScore],
-        ['Cezalar', r => r.penaltyScore],
+        // Elde kalan taş cezası yalnızca yere açana; açmayanın sabit cezası ayrı satırda
+        ['Elde kalan', r => (r.isOpen === false || r.isFinisher ? '' : r.effectiveHandScore ?? r.handScore)],
+        ['Açmadı', r => (r.isOpen === false && !r.isFinisher ? r.effectiveHandScore ?? r.handScore : '')],
+        ['Cezalar', (r, list) => (list.length ? <span className="penalty-cell">{list.map((a, i) => <span key={i} className={a < 0 ? 'cancel' : undefined}>{a > 0 ? '+' : ''}{a}</span>)}</span> : '')],
         ['Kullanılmayan okey', r => r.unusedOkeyPenalty],
         ['Çarpan', r => (r.multiplier > 1 ? `×${r.multiplier}` : '')],
         ['Yıldız', r => (r.stars > 0 ? '★'.repeat(r.stars) : '')],
@@ -128,7 +134,7 @@ const RoundDetail = ({ entry, players, onBack }) => {
                     {rows.map(([label, fn]) => (
                         <tr key={label}>
                             <td className="total-label">{label}</td>
-                            {players.map(p => <td key={p.id}>{byId[p.id] ? (fn(byId[p.id]) || '') : ''}</td>)}
+                            {players.map(p => <td key={p.id}>{byId[p.id] ? (fn(byId[p.id], penaltiesOf(p.id)) || '') : ''}</td>)}
                         </tr>
                     ))}
                 </tbody>
@@ -143,18 +149,6 @@ const RoundDetail = ({ entry, players, onBack }) => {
                     </tr>
                 </tfoot>
             </table>
-            <div className="round-penalties">
-                <div className="round-penalties-title">Bu elin cezaları</div>
-                {entry.penalties?.length ? (
-                    <ul>
-                        {entry.penalties.map((p, i) => (
-                            <li key={i} className={p.amount < 0 ? 'cancel' : undefined}>
-                                [{p.tag}] {p.playerName}{p.tile ? ` ${p.tile}` : ''} <b>{p.amount > 0 ? '+' : ''}{p.amount}</b>
-                            </li>
-                        ))}
-                    </ul>
-                ) : <p className="round-penalties-empty">Bu elde ceza yazılmadı.</p>}
-            </div>
         </div>
     );
 };

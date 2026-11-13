@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { isOkeyTile, asPlayedTile } from '../../utils/gameUtils';
 import '../../assets/css/components/OpenSetsArea.css';
+import { incomingTiles } from '../../utils/flyTiles';
 
 /**
  * Masadaki açık setleri 4 oyuncu alanında gösteren bileşen.
@@ -154,7 +155,8 @@ function calculateValidPositions(set, rawActiveTile, okeyTile, isHugo, pairPartn
 
 // ── Bileşen ──────────────────────────────────────────────
 
-const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTileToSet, okeyTile, isHugo, pairPartnerId }) => {
+// dragOverKey: sürüklenen taşın üstünde olduğu per / çift yeri (useBoardDrag); bırakma da orada yapılır
+const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTileToSet, okeyTile, isHugo, pairPartnerId, dragOverKey }) => {
     const [hoveredSetId, setHoveredSetId] = useState(null);
 
     const positionMap = { 0: 'bottom', 1: 'right', 2: 'top', 3: 'left' };
@@ -166,33 +168,6 @@ const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTil
         if (selectedTileId && onAddTileToSet) {
             onAddTileToSet(selectedTileId, setId, position);
         }
-    };
-
-    // HTML5 DnD
-    const handleDragOver = (e) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-    };
-
-    const handleDragEnter = (setId) => {
-        setHoveredSetId(setId);
-    };
-
-    const handleDragLeave = (e, setId) => {
-        const related = e.relatedTarget;
-        const current = e.currentTarget;
-        if (related && current.contains(related)) return;
-        if (hoveredSetId === setId) setHoveredSetId(null);
-    };
-
-    const handleSlotDrop = (e, setId, position) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const tileId = e.dataTransfer.getData('text/tile-id');
-        if (tileId && onAddTileToSet) {
-            onAddTileToSet(tileId, setId, position);
-        }
-        setHoveredSetId(null);
     };
 
     // Mouse hover (select & click modu)
@@ -208,7 +183,7 @@ const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTil
 
     const renderSet = (set) => {
         // Çiftlere işleme, çiftlerin önündeki soluk çift yerinden yapılır
-        const isExpanded = hoveredSetId === set.id && set.kind !== 'cift';
+        const isExpanded = (hoveredSetId === set.id || dragOverKey === set.id) && set.kind !== 'cift';
         const validPositions = isExpanded
             ? calculateValidPositions(set, activeTile, okeyTile, isHugo, pairPartnerId)
             : [];
@@ -220,9 +195,7 @@ const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTil
                 key={set.id}
                 className={`open-set-group ${isExpanded ? 'expanded' : ''} ${isInteractive && set.kind !== 'cift' ? 'droppable' : ''}`}
                 data-set-id={set.id}
-                onDragOver={handleDragOver}
-                onDragEnter={() => handleDragEnter(set.id)}
-                onDragLeave={(e) => handleDragLeave(e, set.id)}
+                data-hover-key={set.id}
                 onMouseEnter={() => handleMouseEnter(set.id)}
                 onMouseLeave={() => handleMouseLeave(set.id)}
             >
@@ -232,8 +205,6 @@ const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTil
                         data-set-id={set.id}
                         data-position="start"
                         onClick={() => handleSlotClick(set.id, 'start')}
-                        onDragOver={handleDragOver}
-                        onDrop={(e) => handleSlotDrop(e, set.id, 'start')}
                     />
                 )}
                 {set.tiles.map((tile) => {
@@ -241,11 +212,10 @@ const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTil
                     return (
                         <div
                             key={tile.id}
-                            className={`open-set-tile ${tile.color} ${tileIsOkey ? 'is-okey' : ''}`}
+                            className={`open-set-tile ${tile.color} ${tileIsOkey ? 'is-okey' : ''} ${incomingTiles.has(tile.id) ? 'incoming' : ''}`}
                             data-set-id={set.id}
+                            data-tile-id={tile.id}
                             data-is-okey={tileIsOkey ? 'true' : undefined}
-                            onDragOver={tileIsOkey && isExpanded ? handleDragOver : undefined}
-                            onDrop={tileIsOkey && isExpanded ? (e) => handleSlotDrop(e, set.id, 'end') : undefined}
                             onClick={tileIsOkey && isExpanded && selectedTileId ? () => handleSlotClick(set.id, 'end') : undefined}
                         >
                             {tile.value}
@@ -258,8 +228,6 @@ const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTil
                         data-set-id={set.id}
                         data-position="end"
                         onClick={() => handleSlotClick(set.id, 'end')}
-                        onDragOver={handleDragOver}
-                        onDrop={(e) => handleSlotDrop(e, set.id, 'end')}
                     />
                 )}
             </div>
@@ -291,15 +259,13 @@ const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTil
                             <div className="open-sets-list open-pairs-list">
                                 {showPairSlot && (
                                     <div
-                                        className={`pair-slot ${hoveredSetId === `pair-${p.id}` ? 'hover' : ''}`}
+                                        className={`pair-slot ${dragOverKey === `pair-${p.id}` ? 'hover' : ''}`}
+                                        data-hover-key={`pair-${p.id}`}
+                                        data-set-id={pairSets[0].id}
                                         role="button"
                                         aria-label="Çifti buraya işle"
                                         title="Çifti buraya işle"
                                         onClick={() => handleSlotClick(pairSets[0].id, 'end')}
-                                        onDragOver={handleDragOver}
-                                        onDragEnter={() => setHoveredSetId(`pair-${p.id}`)}
-                                        onDragLeave={() => setHoveredSetId(null)}
-                                        onDrop={(e) => handleSlotDrop(e, pairSets[0].id, 'end')}
                                     >
                                         <span /><span />
                                     </div>

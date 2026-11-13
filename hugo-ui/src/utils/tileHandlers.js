@@ -389,3 +389,46 @@ export const handleDrawDiscardedTile = ({
         }
     });
 }; 
+// Istakadaki per: basılan taşın satırındaki kesintisiz taş dizisi (en az 2 taş). Oyuncu perleri boşlukla ayırır.
+// isPair(idA, idB) verilirse ve blok baştan sona çiftlerden oluşuyorsa (7 7 9 9) yalnızca basılan çift seçilir.
+export const rackGroupAt = (positions, idx, isPair) => {
+    if (!positions[idx]) return null;
+    const rowMin = idx < 15 ? 0 : 15;
+    const rowMax = rowMin + 14;
+    let start = idx;
+    let end = idx;
+    while (start > rowMin && positions[start - 1]) start--;
+    while (end < rowMax && positions[end + 1]) end++;
+    const len = end - start + 1;
+    if (len < 2) return null;
+    if (isPair && len >= 4 && len % 2 === 0) {
+        let allPairs = true;
+        for (let i = start; i < end && allPairs; i += 2) allPairs = isPair(positions[i], positions[i + 1]);
+        if (allPairs) return { start: start + Math.floor((idx - start) / 2) * 2, len: 2 };
+    }
+    return { start, len };
+};
+
+// Istaka ile el her zaman aynı: elde olmayan ya da iki kez yazılmış id hücreden silinir (hücre boş görünüp
+// dolu davranmasın), elde olup ıstakada olmayan taş ilk boş hücreye konur (taş görünmez kalmasın).
+// Değişiklik yoksa aynı dizi döner (gereksiz render olmaz).
+export const reconcilePositions = (positions, tiles) => {
+    const ids = new Set(tiles.map(t => t.id));
+    const seen = new Set();
+    let changed = false;
+    const next = positions.map(id => {
+        if (id === null) return null;
+        if (!ids.has(id) || seen.has(id)) { changed = true; return null; }
+        seen.add(id);
+        return id;
+    });
+    for (const t of tiles) {
+        if (seen.has(t.id)) continue;
+        const empty = next.indexOf(null);
+        if (empty === -1) break;
+        next[empty] = t.id;
+        seen.add(t.id);
+        changed = true;
+    }
+    return changed ? next : positions;
+};

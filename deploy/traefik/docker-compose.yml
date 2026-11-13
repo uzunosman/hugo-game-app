@@ -1,0 +1,18 @@
+# Sunucuda Traefik varsa (Hostinger Docker şablonu) Hugo onun arkasından yayınlanır.
+# Bu konteyner arayüzü sunar ve /socket.io isteklerini sunucudaki Node'a (3001) iletir; sertifikayı Traefik alır.
+name: hugo
+services:
+  hugo-web:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    volumes:
+      - /opt/hugo/hugo-ui:/srv:ro
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.hugo.rule=Host(`hugola.io`) || Host(`www.hugola.io`)
+      - traefik.http.routers.hugo.entrypoints=websecure
+      - traefik.http.routers.hugo.tls.certresolver=letsencrypt
+      - traefik.http.services.hugo.loadbalancer.server.port=80

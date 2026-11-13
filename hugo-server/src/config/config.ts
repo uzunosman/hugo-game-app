@@ -25,6 +25,10 @@ export const config = {
         disconnectedTurnTimeout: Number(process.env.DISCONNECTED_TURN_MS) || 3000, // kopuk oyuncunun sırası
         roundBreakMs: Number(process.env.ROUND_BREAK_MS) || 5000, // el / oyun sonu tabelası süresi
         botThinkMs: Number(process.env.BOT_THINK_MS) || 900, // yapay zekânın düşünme payı (bu ile 2 katı arası)
+        // Masa arşivleme: insan hamlesi olmadan bu süre geçerse, ya da oyun bitip yeniden başlamazsa
+        idleRoomMs: Number(process.env.IDLE_ROOM_MS) || 30 * 60 * 1000,
+        finishedRoomMs: Number(process.env.FINISHED_ROOM_MS) || 10 * 60 * 1000,
+        roomSweepMs: Number(process.env.ROOM_SWEEP_MS) || 60 * 1000,
         maxRounds: 9,
         hugoRounds: [1, 5, 9], // Hugo turları
     }

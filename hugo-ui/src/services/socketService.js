@@ -1,7 +1,9 @@
 import { io } from 'socket.io-client';
 
-// Sunucu adresi: VITE_SOCKET_URL verilmezse sayfanın açıldığı makinenin 3001 portu (yerel ağda telefondan da çalışır)
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || `${window.location.protocol}//${window.location.hostname}:3001`;
+// Sunucu adresi: geliştirmede sayfanın açıldığı makinenin 3001 portu (yerel ağda telefondan da çalışır);
+// yayında sayfanın kendi adresi (Caddy /socket.io isteklerini Node'a iletir). VITE_SOCKET_URL ikisini de ezer.
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL
+    || (import.meta.env.DEV ? `${window.location.protocol}//${window.location.hostname}:3001` : window.location.origin);
 const SESSION_KEY = 'hugo.playerId'; // sekme başına oturum: yenilemede aynı koltuğa dönülür
 
 const readSession = () => { try { return sessionStorage.getItem(SESSION_KEY); } catch { return null; } };
@@ -69,8 +71,8 @@ class SocketService {
         }
     }
 
-    registerPlayer(name, callback) {
-        this.socket.emit('player:register', { name }, (response) => {
+    registerPlayer(name, avatar, callback) {
+        this.socket.emit('player:register', { name, avatar }, (response) => {
             if (response.success) {
                 this.playerId = response.player.id;
                 writeSession(this.playerId);
@@ -103,6 +105,17 @@ class SocketService {
                 this.activeRoomId = null;
             }
             if (callback) callback(response);
+        });
+    }
+
+    leaveTable(roomId, callback) {
+        this.socket.emit('game:leaveTable', { roomId, playerId: this.playerId }, (response) => {
+            if (response?.success) {
+                this.playerId = response.player.id;
+                this.activeRoomId = null;
+                writeSession(this.playerId);
+            }
+            callback?.(response);
         });
     }
 
@@ -315,6 +328,22 @@ class SocketService {
 
     addBot(roomId, callback) {
         this.socket.emit('room:addBot', { roomId, playerId: this.playerId }, callback);
+    }
+
+    transferOwner(roomId, targetId, callback) {
+        this.socket.emit('room:transferOwner', { roomId, playerId: this.playerId, targetId }, callback);
+    }
+
+    // Masa kapatıldı (arşivlendi): masadakiler lobiye döner
+    onRoomClosed(callback) {
+        this.socket.on('room:closed', (data) => {
+            if (data?.roomId === this.activeRoomId) this.activeRoomId = null;
+            callback(data);
+        });
+    }
+
+    offRoomClosed() {
+        this.socket.off('room:closed');
     }
 
     removeBot(roomId, botId, callback) {

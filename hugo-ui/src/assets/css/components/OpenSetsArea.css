@@ -36,14 +36,14 @@
 }
 
 .open-sets-right {
-    right: 8px;
+    right: 9%; /* yan oyuncuların perleri merkeze yakın */
     top: 50%;
     transform: translateY(-50%);
     align-items: flex-end;
 }
 
 .open-sets-left {
-    left: 8px;
+    left: 9%;
     top: 50%;
     transform: translateY(-50%);
     align-items: flex-start;
@@ -99,10 +99,13 @@
 
 /* ── Genişlemiş durum: scale ile büyür, diğer setler hareket etmez ── */
 .open-set-group.expanded {
-    transform: scale(1.5);
+    transform: scale(1.8);
     z-index: 10;
     gap: 2px;
 }
+
+.open-sets-left .open-set-group.expanded { transform-origin: left center; }
+.open-sets-right .open-set-group.expanded { transform-origin: right center; }
 
 /* ── Insertion slot ───── */
 .insertion-slot {
@@ -138,7 +141,7 @@
     }
 
     .open-set-group.expanded {
-        transform: scale(1.4);
+        transform: scale(1.65);
     }
 
     .insertion-slot {
@@ -182,4 +185,15 @@
 @media (max-width: 640px) {
     .pair-slot span { width: 18px; height: 26px; }
     .open-pairs-list { max-width: 200px; }
+}
+
+/* İşlenen taş: yolda iken masadaki yeri boş görünür, kopyası işleyenin yerinden uçar (utils/flyTiles.js) */
+.open-set-tile.incoming { visibility: hidden; }
+.open-set-tile.flying-tile {
+    position: fixed;
+    z-index: 500;
+    margin: 0;
+    pointer-events: none;
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
+    will-change: transform;
 }

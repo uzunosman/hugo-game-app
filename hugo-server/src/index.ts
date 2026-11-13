@@ -5,7 +5,7 @@ import cors from 'cors';
 import { config } from './config/config';
 import { setupSocketHandlers } from './socket/socketHandler';
 import { GameManager } from './utils/GameManager';
-import { loadState } from './utils/Persistence';
+import { loadState, saveState } from './utils/Persistence';
 
 // Express uygulaması oluştur
 const app = express();
@@ -52,3 +52,10 @@ server.listen(PORT, () => {
     console.log(`Socket.IO bağlantısı: ws://localhost:${PORT}`);
     console.log(`CORS izin verilen origin: ${config.origin}`);
 }); 
+// Kapanırken (deploy / yeniden başlatma) son hamleler de diske yazılır; açılışta masalar kaldığı yerden sürer
+const shutdown = () => {
+    try { if (config.persist) saveState(GameManager.getInstance()); } catch (error) { console.error('Kapanışta kayıt hatası:', error); }
+    process.exit(0);
+};
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);

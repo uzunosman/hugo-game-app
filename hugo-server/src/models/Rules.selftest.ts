@@ -11,6 +11,8 @@ const t = (color: TileColor, value: number) => new Tile(color, value);
 const setup = () => {
     const game = new Game([0, 1, 2, 3].map(i => new Player(`P${i}`, `s${i}`)));
     game.turnAction = TurnAction.DISCARD;
+    // Rastgele gösterge testleri bozmasın: sahte okey çıkarsa el Hugo sayılır; sabit gösterge sarı 1, okey sarı 2
+    game.indicatorTile = t(YELLOW, 1); game.okeyTile = t(YELLOW, 2);
     const [p0, p1] = game.players;
     return { game, p0, p1 };
 };
@@ -67,9 +69,13 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     assert.strictEqual(r.success, true, r.error);
     assert.strictEqual(p1.penaltyScore, 90, 'per sahibine 9 × 10 ceza');
     assert.strictEqual(game.tableSets[0].tiles.length, 4);
-    // Yanlış uca ekleme reddedilir
+    // Uymayan taş hiçbir uca işlenmez
     const [two] = p0.tiles;
     assert.strictEqual(game.addTileToSet(p0.id, two.id, 'set1', 'end').success, false);
+    // Yanlış uç istense de taş uyan uca işlenir (telefonda parmak perin öbür ucunda kalabilir)
+    const [eight] = give(p0, [t(RED, 8), t(BLUE, 2)]);
+    assert.strictEqual(game.addTileToSet(p0.id, eight.id, 'set1', 'end').success, true);
+    assert.strictEqual(game.tableSets[0].tiles[0].value, 8, 'kırmızı 8 başa eklendi');
 }
 
 // Yandan alınan taş kullanılmalı: başka taş atılamaz, aynı taş 100 cezayla geri atılabilir
@@ -88,20 +94,46 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     assert.strictEqual(p1.penaltyScore, 100);
 }
 
-// İşlek taş: masadaki pere eklenebilecek taşı atmak taş × 10 ceza; eli bitiren son taş muaf
+// İşlek taş: masadaki pere eklenebilecek taşı atmak 100 ceza (Hugo dışı el); eli bitiren son taş muaf
 {
     const { game, p0, p1 } = setup();
+    game.round = 2;
     game.tableSets.push({ id: 'set1', playerId: p1.id, tiles: [t(RED, 10), t(RED, 11), t(RED, 12)], value: 33 });
     const [thirteen] = give(p0, [t(RED, 13), t(BLUE, 2)]);
     const r = game.discardTile(p0.id, thirteen.id);
     assert.ok(r.tile);
-    assert.deepStrictEqual(r.penalties.map(p => p.amount), [130]);
-    assert.strictEqual(p0.penaltyScore, 130);
+    assert.deepStrictEqual(r.penalties.map(p => p.amount), [100]);
+    assert.strictEqual(p0.penaltyScore, 100);
 
     const g2 = setup();
     g2.game.tableSets.push({ id: 'set1', playerId: g2.p1.id, tiles: [t(RED, 10), t(RED, 11), t(RED, 12)], value: 33 });
     const [last] = give(g2.p0, [t(RED, 9)]);
     assert.deepStrictEqual(g2.game.discardTile(g2.p0.id, last.id).penalties, [], 'bitiren taş cezasız');
+}
+
+// İşlek: perde okeyin yerini tuttuğu taşı atmak da işlek (normal elde okey sarı 2, Hugo elinde sahte okey; normal elde 100, Hugo elinde 200; son taş muaf)
+{
+    const seqSet = () => [t(RED, 6), t(YELLOW, 2), t(RED, 8)];      // okey = kırmızı 7
+    const sameSet = () => [t(RED, 9), t(BLUE, 9), t(BLACK, 9), new Tile(TileColor.PURPLE, 'H', true)]; // Hugo elinde okey sahte okeydir; burada sarı 9
+    const g = setup(); g.game.round = 2;
+    g.game.tableSets.push({ id: 's', playerId: g.p1.id, tiles: seqSet(), value: 21 });
+    const [r7] = give(g.p0, [t(RED, 7), t(BLUE, 1)]);
+    assert.deepStrictEqual(g.game.discardTile(g.p0.id, r7.id).penalties.map(p => p.amount), [100], 'okeyin yerindeki taş işlek');
+
+    const h = setup(); // 1. el Hugo
+    h.game.tableSets.push({ id: 's', playerId: h.p1.id, tiles: sameSet(), value: 36 });
+    const [y9] = give(h.p0, [t(YELLOW, 9), t(BLUE, 1)]);
+    assert.deepStrictEqual(h.game.discardTile(h.p0.id, y9.id).penalties.map(p => p.amount), [200], 'Hugo elinde 200');
+
+    const l = setup();
+    l.game.tableSets.push({ id: 's', playerId: l.p1.id, tiles: seqSet(), value: 21 });
+    const [last] = give(l.p0, [t(RED, 7)]);
+    assert.deepStrictEqual(l.game.discardTile(l.p0.id, last.id).penalties, [], 'son taş muaf');
+
+    const n = setup(); n.game.round = 2;
+    n.game.tableSets.push({ id: 's', playerId: n.p1.id, tiles: seqSet(), value: 21 });
+    const [b7] = give(n.p0, [t(BLUE, 7), t(BLUE, 1)]);
+    assert.deepStrictEqual(n.game.discardTile(n.p0.id, b7.id).penalties, [], 'okeyin yerini tutmayan taş işlek değil');
 }
 
 // Süre dolunca: yandan alınan taş bekliyorsa o atılır, yoksa okey olmayan en küçük taş
@@ -365,6 +397,16 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     assert.strictEqual(game.drawTile(p1.id, true), null, 'işlek taş alınamaz');
 }
 
+// İşlek cezası taşın değerinden bağımsız: 100, Hugo elinde 200
+for (const [round, amount] of [[2, 100], [5, 200]]) {
+    const { game, p0, p1 } = setup();
+    game.round = round;
+    game.tableSets.push({ id: 's', playerId: p1.id, kind: 'seri', value: 15, tiles: [t(RED, 4), t(RED, 5), t(RED, 6)] });
+    give(p0, [t(RED, 7), t(BLUE, 1)]);
+    const res = game.discardTile(p0.id, p0.tiles[0].id);
+    assert.strictEqual(res.penalties.find(p => p.tag === 'işlek')?.amount, amount, `${round}. elde işlek cezası ${amount}`);
+}
+
 // Süre dolunca: okey ve per adayı atılmaz, en küçük boşta taş atılır
 {
     const { game, p0 } = setup(); // Hugo: joker okeydir
@@ -373,6 +415,16 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     // Okey per adayını tamamlar: kırmızı 1-2 + okey per sayılır, mavi 5 atılır
     give(p0, [new Tile(TileColor.PURPLE, 'H', true), t(RED, 1), t(RED, 2), t(BLUE, 5), t(BLACK, 9)]);
     assert.strictEqual(game.pickAutoDiscard(p0.id)?.value, 5, 'okeyle tamamlanan per bozulmaz');
+    // En küçük taş perdeyse atılmaz: kırmızı 1-2-3 per, per dışındaki en küçük mavi 7
+    give(p0, [t(RED, 1), t(RED, 2), t(RED, 3), t(BLACK, 9), t(BLUE, 7), new Tile(TileColor.PURPLE, 'H', true)]);
+    assert.strictEqual(game.pickAutoDiscard(p0.id)?.value, 7, 'perdeki küçük taş korunur, okey atılmaz');
+    // Hepsi perdeyse okey değil, en küçük taş atılır
+    give(p0, [t(RED, 1), t(RED, 2), t(RED, 3), t(BLUE, 4), t(BLUE, 5), t(BLUE, 6), new Tile(TileColor.PURPLE, 'H', true)]);
+    const all = game.pickAutoDiscard(p0.id)!;
+    assert.ok(!game.isOkeyTile(all) && all.value === 1, 'hepsi perde: okey yerine en küçük taş');
+    // Elde iki okey ve bir taş: okey atılmaz
+    give(p0, [new Tile(TileColor.PURPLE, 'H', true), new Tile(TileColor.PURPLE, 'H', true), t(RED, 5)]);
+    assert.strictEqual(game.pickAutoDiscard(p0.id)?.value, 5);
 }
 
 // Elde taş kalmadan masaya oynanmaz: en az bir taş atılarak bitirilir

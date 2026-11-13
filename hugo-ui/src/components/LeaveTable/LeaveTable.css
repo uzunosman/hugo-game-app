@@ -1,0 +1,33 @@
+.leave-table { position: relative; }
+.leave-table-pop {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 300;
+    width: 220px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(12, 28, 32, 0.96);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #fff;
+    font-size: 13px;
+    line-height: 1.4;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+.leave-table-pop p { margin: 0 0 8px; }
+.leave-table-error { color: #ffb4a8; }
+.leave-table-actions { display: flex; gap: 6px; }
+.leave-table-actions button {
+    flex: 1;
+    padding: 7px 8px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: transparent;
+    color: #fff;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+.leave-table-actions .leave-table-confirm { background: #c0392b; border-color: #c0392b; }
+.leave-table-actions button:focus-visible { outline: 2px solid #ffd66b; outline-offset: 2px; }
+.leave-table-actions button:disabled { opacity: 0.6; cursor: default; }

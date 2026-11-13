@@ -4,7 +4,7 @@ import { config } from '../config/config';
 import { Game, GameStatus, Penalty, SetKind, TurnAction } from '../models/Game';
 import { Tile } from '../models/Tile';
 import { RoomStatus } from '../models/Room';
-import { saveState } from '../utils/Persistence';
+import { appendArchive, saveState } from '../utils/Persistence';
 import { planOpening, planSets } from '../ai/AiPlanner';
 
 const BOT_NAMES = ['Robo Rıza', 'Robo Nur', 'Robo Can', 'Robo Ece'];
@@ -57,6 +57,11 @@ export const setupSocketHandlers = (io: Server) => {
         const atan = game.getPlayerById(playerId);
         if (atan && atan.tiles.length === 0 && game.checkRoundEnd(playerId)) {
             finishRound(roomId, game, playerId);
+            return { success: true, roundEnded: true };
+        }
+        // Deste bitti: son taşı çekip atan oyuncuyla el biter (atılan taş artık alınamaz)
+        if (game.deck.length === 0 && game.checkRoundEnd()) {
+            finishRound(roomId, game);
             return { success: true, roundEnded: true };
         }
 
@@ -218,6 +223,7 @@ export const setupSocketHandlers = (io: Server) => {
             room.players.forEach(p => p.resetForNewGame());
             room.resetGame();
             room.players.forEach(p => p.setReady(!!p.isBot));
+            room.finishedAt = Date.now();
             io.to(roomId).emit('room:reset', { success: true, room: room.toJSON() });
             io.emit('rooms:list', { success: true, rooms: gameManager.getAllRooms().map(r => r.toJSON()) });
             persist();
@@ -234,6 +240,36 @@ export const setupSocketHandlers = (io: Server) => {
         }, config.game.roundBreakMs);
     };
 
+    const broadcastRooms = () => io.emit('rooms:list', { success: true, rooms: gameManager.getAllRooms().map(r => r.toJSON()) });
+
+    // Masayı kapat (arşivle): ana ekrandan kalkar, masadakiler lobiye döner
+    const closeRoom = (roomId: string, reason: string) => {
+        clearTimeout(turnTimers.get(roomId));
+        turnTimers.delete(roomId);
+        chatLogs.delete(roomId);
+        const entry = gameManager.archiveRoom(roomId, reason);
+        if (!entry) return;
+        try { if (config.persist) appendArchive(entry); } catch (error) { console.error('Arşiv yazılamadı:', error); }
+        io.to(roomId).emit('room:closed', { roomId, reason });
+        io.in(roomId).socketsLeave(roomId);
+        console.log(`Masa arşivlendi: ${entry.name} (${reason})`);
+    };
+
+    // Masa temizliği: insansız, uzun süre boşta ya da bitip yeniden başlamayan masalar kapanır
+    const sweepRooms = () => {
+        const now = Date.now();
+        let closed = false;
+        gameManager.getAllRooms().forEach(room => {
+            const reason = !room.firstHuman() ? 'Masada yalnızca yapay zekâ kaldı'
+                : now - room.lastActivityAt > config.game.idleRoomMs ? 'Masa uzun süre oynanmadı'
+                : room.finishedAt && room.status === RoomStatus.WAITING && now - room.finishedAt > config.game.finishedRoomMs ? 'Oyun bitti, yeniden başlamadı'
+                : null;
+            if (reason) { closeRoom(room.id, reason); closed = true; }
+        });
+        if (closed) { broadcastRooms(); persist(); }
+    };
+    setInterval(sweepRooms, config.game.roomSweepMs).unref();
+
     // Diskten geri yüklenen oyunlar kaldığı yerden sürer; oyuncular dönebilsin diye ilk sırada tam süre
     gameManager.getAllRooms().forEach(room => {
         if (room.game?.status === GameStatus.STARTED) scheduleTurn(room.id, room.game, config.game.turnTimeout);
@@ -243,7 +279,13 @@ export const setupSocketHandlers = (io: Server) => {
 
     io.on('connection', (socket: Socket) => {
         console.log(`Yeni bağlantı: ${socket.id}`);
-        socket.onAny(() => persist()); // her istemci olayından sonra kaydet
+        socket.onAny(() => {
+            // İnsan oyuncunun her olayı masasını canlı tutar; ardından kaydet
+            const me = gameManager.getPlayerBySocketId(socket.id);
+            const myRoom = me?.roomId ? gameManager.getRoomById(me.roomId) : undefined;
+            if (myRoom) myRoom.lastActivityAt = Date.now();
+            persist();
+        });
 
         // İstemci yalnızca kendi oyuncusu adına iş yapabilir (yapay zekâ oyuncuların soketi yoktur, kimse onları yönetemez)
         const owns = (playerId: string | undefined) => {
@@ -323,9 +365,9 @@ export const setupSocketHandlers = (io: Server) => {
         });
 
         // Oyuncu Olayları
-        socket.on('player:register', (data: { name: string }, callback) => {
+        socket.on('player:register', (data: { name: string; avatar?: string }, callback) => {
             try {
-                const { name } = data;
+                const name = typeof data?.name === 'string' ? data.name.trim().slice(0, 20) : '';
 
                 if (!name || name.trim() === '') {
                     return callback({
@@ -335,6 +377,7 @@ export const setupSocketHandlers = (io: Server) => {
                 }
 
                 const player = gameManager.createPlayer(name, socket.id);
+                if (typeof data.avatar === 'string') player.avatar = data.avatar.slice(0, 40);
 
                 callback({
                     success: true,
@@ -456,6 +499,59 @@ export const setupSocketHandlers = (io: Server) => {
             }
         });
 
+        // Oyun sürerken masadan kalk: koltuk (eli, puanı, sırası) aynı kimlikle yapay zekâya geçer,
+        // oyuncu lobiye yeni bir kimlikle döner. Masada insan kalmazsa masa kapanır.
+        socket.on('game:leaveTable', (data: { roomId: string; playerId: string }, callback) => {
+            try {
+                const room = gameManager.getRoomById(data?.roomId);
+                const seat = data?.playerId ? gameManager.getPlayerById(data.playerId) : undefined;
+                if (!room || !seat || !owns(seat.id) || seat.roomId !== room.id) return callback?.(notYours);
+                if (room.status !== RoomStatus.PLAYING || !room.game) return callback?.({ success: false, error: 'Oyun sürmüyor' });
+
+                const used = new Set(room.players.map(p => p.name));
+                const humanName = seat.name;
+                gameManager.updatePlayerSocket(seat.id, `bot:${Math.random().toString(36).slice(2)}`);
+                seat.isBot = true;
+                seat.connected = true;
+                seat.name = BOT_NAMES.find(n => !used.has(n)) || `Yapay zekâ ${room.players.indexOf(seat) + 1}`;
+                seat.setReady(true);
+                socket.leave(room.id);
+                const human = gameManager.createPlayer(humanName, socket.id);
+
+                if (!room.firstHuman()) {
+                    closeRoom(room.id, 'Masada yalnızca yapay zekâ kaldı');
+                } else {
+                    if (room.owner.id === seat.id) room.owner = room.players.find(p => !p.isBot)!;
+                    io.to(room.id).emit('player:joined', { success: true, player: seat.toPublicJSON(), room: room.toJSON() });
+                    if (room.game.isPlayerTurn(seat.id)) scheduleTurn(room.id, room.game);
+                }
+                persist();
+                io.emit('rooms:list', { success: true, rooms: gameManager.getAllRooms().map(r => r.toJSON()) });
+                callback?.({ success: true, player: human.toJSON() });
+            } catch (error) {
+                console.error('Masadan kalkma hatası:', error);
+                callback?.({ success: false, error: 'Masadan kalkılamadı' });
+            }
+        });
+
+        // Masa sahipliğini devret: yalnızca sahip, yalnızca masadaki bir insana
+        socket.on('room:transferOwner', (data: { roomId: string; playerId: string; targetId: string }, callback) => {
+            try {
+                const room = gameManager.getRoomById(data?.roomId);
+                if (!room || !owns(data?.playerId) || room.owner.id !== data.playerId) return callback?.({ success: false, error: 'Yalnızca masa sahibi devredebilir' });
+                const target = room.players.find(p => p.id === data.targetId);
+                if (!target || target.isBot || target.id === room.owner.id) return callback?.({ success: false, error: 'Sahiplik yalnızca masadaki başka bir oyuncuya verilebilir' });
+                room.owner = target;
+                io.to(room.id).emit('player:joined', { success: true, player: target.toPublicJSON(), room: room.toJSON() });
+                broadcastRooms();
+                persist();
+                callback?.({ success: true, room: room.toJSON() });
+            } catch (error) {
+                console.error('Sahiplik devri hatası:', error);
+                callback?.({ success: false, error: 'Sahiplik devredilemedi' });
+            }
+        });
+
         socket.on('room:leave', (data: { roomId: string, playerId: string }, callback) => {
             try {
                 const { roomId, playerId } = data;
@@ -477,6 +573,7 @@ export const setupSocketHandlers = (io: Server) => {
                 }
 
                 const success = gameManager.removePlayerFromRoom(playerId, roomId);
+                sweepRooms(); // yalnızca yapay zekâ kaldıysa masa kapanır
 
                 // Odadan ayrıl
                 socket.leave(roomId);
@@ -1128,6 +1225,7 @@ export const setupSocketHandlers = (io: Server) => {
 
             // Oyuncuyu kaldır
             gameManager.removePlayerBySocketId(socket.id);
+            sweepRooms();
         });
     });
 }; 

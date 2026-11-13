@@ -21,6 +21,7 @@ export class Player {
     openedWithPairs: boolean; // bu elde çiftle açtı (sonra da yalnızca çift indirir)
     openedAtTurn: number;     // ilk açtığı sıranın numarası (elden bitme kontrolü)
     isBot: boolean;           // yapay zekâ oyuncu: sunucuda oynar, soketi yoktur
+    avatar: string;           // oyuncunun seçtiği avatar tohumu (boşsa kimlikten üretilir)
 
     constructor(name: string, socketId: string) {
         this.id = uuidv4();
@@ -42,6 +43,7 @@ export class Player {
         this.isBot = false;
         this.openedWithPairs = false;
         this.openedAtTurn = -1;
+        this.avatar = '';
     }
 
     addTile(tile: Tile): void {
@@ -50,21 +52,8 @@ export class Player {
     }
 
     removeTile(tileId: string): Tile | undefined {
-        console.log(`[DEBUG] removeTile çağrıldı - tileId: ${tileId}`);
-        console.log(`[DEBUG] Mevcut taşlar: ${this.tiles.map(t => t.id).join(', ')}`);
-
         const tileIndex = this.tiles.findIndex(tile => tile.id === tileId);
-        console.log(`[DEBUG] Taş indeksi: ${tileIndex}`);
-
-        if (tileIndex !== -1) {
-            const [removedTile] = this.tiles.splice(tileIndex, 1);
-            console.log(`[DEBUG] Taş çıkarıldı: ${removedTile.id}`);
-            console.log(`[DEBUG] Kalan taşlar: ${this.tiles.map(t => t.id).join(', ')}`);
-            return removedTile;
-        }
-
-        console.log(`[DEBUG] Taş bulunamadı: ${tileId}`);
-        return undefined;
+        return tileIndex !== -1 ? this.tiles.splice(tileIndex, 1)[0] : undefined;
     }
 
     setReady(ready: boolean): void {
@@ -134,7 +123,8 @@ export class Player {
             score: this.getTotalScore(),
             isReady: this.isReady,
             isTurn: this.isTurn,
-            roomId: this.roomId
+            roomId: this.roomId,
+            avatar: this.avatar || ''
         };
     }
 
@@ -158,6 +148,7 @@ export class Player {
             connected: this.connected,
             openedWithPairs: this.openedWithPairs,
             isBot: !!this.isBot,
+            avatar: this.avatar || '',
         };
     }
 } 

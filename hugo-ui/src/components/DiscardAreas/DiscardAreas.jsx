@@ -5,7 +5,6 @@ import Tile from '../Tile/Tile';
  * Köşelerdeki atma alanları bileşeni
  * @param {Object} props - Bileşen özellikleri
  * @param {Object} props.discardedTiles - Atılan taşlar
- * @param {Function} props.handleTileMove - Taş taşıma işleyicisi
  * @param {Function} props.handleDrawDiscardedTile - Atılan taşı çekme işleyicisi
  * @param {Boolean} props.isMyTurn - Oyuncunun sırası mı
  * @param {String} props.turnAction - Mevcut aksiyon (draw/discard)
@@ -16,7 +15,6 @@ import Tile from '../Tile/Tile';
  */
 const DiscardAreas = ({
     discardedTiles,
-    handleTileMove,
     handleDrawDiscardedTile,
     isMyTurn,
     turnAction,
@@ -26,7 +24,8 @@ const DiscardAreas = ({
     hasSelection,
     onTapDiscard,
     kustuCorner,
-    onKustu
+    onKustu,
+    dragOverCorner // sürüklenen ıstaka taşı bu köşenin üstünde (useBoardDrag)
 }) => {
 
     // Bir köşenin interaktif (pointer-events: all) olup olmayacağını belirle:
@@ -38,43 +37,6 @@ const DiscardAreas = ({
         const canDiscard = playerCorner === corner && isMyTurn && (turnAction === 'discard' || isFirstHand);
         const canPickUp = corner === lastDiscardCorner && isMyTurn && turnAction === 'draw';
         return canDiscard || canPickUp;
-    };
-
-    // Köşe bırakma alanı için drag-drop işleyicileri
-    const handleDragOver = (e, corner) => {
-        const isFirstHand = tilesLength === 15 && turnAction === 'draw';
-        if (playerCorner === corner && isMyTurn && (turnAction === 'discard' || isFirstHand)) {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
-            e.currentTarget.classList.add('drag-over');
-        }
-    };
-
-    const handleDragLeave = (e) => {
-        e.currentTarget.classList.remove('drag-over');
-    };
-
-    const handleDrop = (e, corner) => {
-        const isFirstHand = tilesLength === 15 && turnAction === 'draw';
-        if (playerCorner === corner && isMyTurn && (turnAction === 'discard' || isFirstHand)) {
-            e.preventDefault();
-            e.currentTarget.classList.remove('drag-over');
-            try {
-                // 'tile' key bazı tarayıcılarda desteklenmeyebilir, text/plain fallback kullan
-                const raw = e.dataTransfer.getData('tile') || e.dataTransfer.getData('text/plain');
-                if (!raw) {
-                    console.error('Taş verisi alınamadı');
-                    return;
-                }
-                const tileData = JSON.parse(raw);
-                // Kendi ıstakasından sürüklenen taş olmalı (isDiscarded değil)
-                if (!tileData.isDiscarded) {
-                    handleTileMove(tileData.sourceIndex, -1);
-                }
-            } catch (error) {
-                console.error('Taş bırakma sırasında hata:', error);
-            }
-        }
     };
 
     // Atılan taşı sürükleyebilme / alabilme koşulu:
@@ -106,10 +68,8 @@ const DiscardAreas = ({
 
         return (
             <div
-                className={`tile-drop-zone ${positionClass} ${isCornerActive(corner) ? 'active' : ''}`}
-                onDragOver={(e) => handleDragOver(e, corner)}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, corner)}
+                className={`tile-drop-zone ${positionClass} ${isCornerActive(corner) ? 'active' : ''} ${dragOverCorner === corner && corner === playerCorner ? 'drag-over' : ''}`}
+                data-corner={corner}
                 onClick={() => {
                     // Dokunmatik: seçili taş varken kendi köşene dokun → at
                     const isFirstHand = tilesLength === 15 && turnAction === 'draw';

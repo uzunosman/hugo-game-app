@@ -128,6 +128,34 @@ Soketi yoktur; eli hiçbir istemciye gönderilmez. Sunucu her oyun olayında ist
 denetler, bu yüzden tarayıcı konsolundan ne yapay zekâ ne de başka bir oyuncu adına hamle yapılabilir ya da el okunabilir.
 İstemci: `VITE_SOCKET_URL` sunucu adresi (varsayılan `http://localhost:3001`).
 
+**Per taşıma:** ıstakada bir taşa basılı tutunca (yaklaşık yarım saniye) o taşın boşlukla ayrılmış bloğu (per) seçilir ve sürüklenince bütün olarak taşınır; masaüstünde fareyle, telefonda parmakla. Per yalnızca ıstakaya bırakılır, gittiği yerde başka taş varsa yerinde kalır.
+
+**Masadan kalk:** oyun sürerken sağ üstteki kapı simgesi. Onaylayınca koltuk (eli, puanı, sırası) yapay zekâya geçer ve oyun sürer;
+oyuncu lobiye yeni bir kimlikle döner. Masa sahibi kalkarsa sahiplik masadaki bir insana geçer; insan kalmazsa masa kapanır.
+
+## Lobi ve masa yönetimi
+
+- İlk ekran lobidir: masalar ve oturanlar kayıt olmadan görünür. Boş koltuğa (ya da "Masa aç"a) tıklayınca ad sorulur; varsayılan bir avatar atanır, istenirse değiştirilir.
+- Yapay zekâ hiçbir zaman masa sahibi olmaz. Sahip ayrılırsa sahiplik masadaki bir insana geçer; sahip, yetkiyi bekleme ekranından başka bir oyuncuya ("Sahipliği ver") devredebilir.
+- Masalar şu durumlarda kapatılır (arşivlenir, lobide görünmez):
+  - masada yalnızca yapay zekâ kaldıysa,
+  - 30 dakika boyunca hiçbir insan hamlesi olmadıysa (`IDLE_ROOM_MS`),
+  - oyun bitti ve 10 dakika içinde yeniden başlamadıysa (`FINISHED_ROOM_MS`).
+- Kapatılan masanın özeti (oyuncular, puanlar, el geçmişi) durum dosyasının yanındaki `archive.jsonl` dosyasına satır olarak eklenir (yayında `/var/lib/hugo/archive.jsonl`). Masadakiler lobiye döner ve kapanma nedenini görür.
+
+## Yayına alma (VPS, Ubuntu 24.04)
+
+Kod Mac'ten kopyalanır, GitHub gerekmez. Sunucuda Node 22, Caddy (80 portu) ve `hugo` servisi kurulur.
+
+1. Hostinger panelinde VPS'e **Ubuntu 24.04** kur, IP adresini ve root şifresini al.
+2. Mac'te bir kez SSH anahtarını sunucuya ekle (şifreyi bir kez sorar): `ssh-copy-id root@SUNUCU_IP`
+3. Alan adının DNS'inde `@` ve `www` için A kaydını sunucu IP'sine yönlendir (eski A/AAAA/CNAME kayıtlarını sil).
+4. Proje klasöründe: `./deploy/deploy.sh root@SUNUCU_IP hugola.io` (alan adı hatırlanır; sonraki güncellemelerde yazmaya gerek yok, alan adı yoksa boş bırak ve `http://SUNUCU_IP` kullan)
+5. Tarayıcıda `https://hugola.io` aç. HTTPS sertifikasını Caddy kendisi alır ve yeniler.
+
+Güncellemek için 4. adımı tekrar çalıştır. Masalar korunur (`/var/lib/hugo/state.json`).
+Kayıtlar: `ssh root@SUNUCU_IP journalctl -u hugo -f`
+
 ## Geliştirme
 
 ### Sunucu (Hugo Server)

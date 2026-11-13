@@ -37,7 +37,7 @@
     html .action-buttons{
         left: 4px;
         right: auto;
-        bottom: 48px; /* kendi kartının üstünde */
+        bottom: 54px; /* kendi kartının (sıra ipucuyla 47px) üstünde */
         transform: none;
         flex-wrap: wrap;
         gap: 4px;
@@ -89,7 +89,7 @@
     html .penalty-log{
         top: 2px;
         bottom: auto;
-        right: 150px;
+        right: 184px; /* üst sağ araçlar (el, tabela, masadan kalk) ile arasında pay */
         width: 210px;
         flex-direction: column; /* düğme üstte, liste aşağı açılır */
         font-size: 0.7rem;
@@ -100,8 +100,8 @@
     html .game-container .game-board{ border-radius: 12px; }
     html .open-sets-top{ top: 6px; }
     html .open-sets-bottom{ bottom: 6px; }
-    html .open-sets-left{ left: 6px; }
-    html .open-sets-right{ right: 6px; }
+    html .open-sets-left{ left: 6%; }
+    html .open-sets-right{ right: 6%; }
     html .open-sets-list, 
     html .open-sets-bottom .open-sets-list, 
     html .open-sets-top .open-sets-list{ gap: 4px 8px; }

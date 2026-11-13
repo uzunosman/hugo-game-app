@@ -1,0 +1,14 @@
+:80 {
+	@www host www.hugola.io
+	redir @www https://hugola.io{uri} permanent
+
+	encode gzip
+	handle /socket.io/* {
+		reverse_proxy host.docker.internal:3001
+	}
+	handle {
+		root * /srv/dist
+		try_files {path} /index.html
+		file_server
+	}
+}
