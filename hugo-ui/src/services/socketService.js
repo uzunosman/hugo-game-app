@@ -362,6 +362,14 @@ class SocketService {
         this.socket.off('game:turnUndone');
     }
 
+    onTurnExtended(callback) {
+        this.socket.on('game:turnExtended', callback);
+    }
+
+    offTurnExtended() {
+        this.socket.off('game:turnExtended');
+    }
+
     returnTaken(callback) {
         this.socket.emit('game:returnTaken', { playerId: this.playerId }, callback);
     }

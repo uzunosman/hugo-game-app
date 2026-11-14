@@ -102,8 +102,8 @@
     html .game-container .game-board{ border-radius: 12px; }
     html .open-sets-top{ top: 6px; }
     html .open-sets-bottom{ bottom: 6px; }
-    html .open-sets-left{ left: 6%; }
-    html .open-sets-right{ right: 6%; }
+    html .open-sets-left{ left: calc(6% + 5px); }
+    html .open-sets-right{ right: calc(6% + 5px); }
     html .open-sets-list, 
     html .open-sets-bottom .open-sets-list, 
     html .open-sets-top .open-sets-list{ gap: 4px 8px; }

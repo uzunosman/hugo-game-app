@@ -102,6 +102,9 @@
     color: #1b1405;
 }
 
+/* Orta taşlar üst ve alt oyuncunun perlerinin arasındaki boşluğun ortasında (GameBoard ölçer) */
+.game-container .center-area { top: var(--center-y, 50%); }
+
 /* ── Açılan perler: masanın kenarında düzenli ızgara ── */
 .open-sets-area { max-width: 46%; max-height: none; gap: 8px 16px; }
 /* Seri perler ve çiftler yan yana: alan masanın ortasına doğru uzamaz */
@@ -113,8 +116,8 @@
 .open-sets-area.open-sets-right { flex-direction: column; align-items: flex-end; }
 .open-sets-top { top: 12px; }
 .open-sets-bottom { bottom: 12px; }
-.open-sets-left { left: 9%; }
-.open-sets-right { right: 9%; }
+.open-sets-left { left: calc(9% + 5px); }
+.open-sets-right { right: calc(9% + 5px); }
 
 /* Seri perler sütun sütun dizilir: üst/alt 2 satır, yanlar 4 satır, sonra yeni sütun */
 .open-sets-list,
@@ -139,6 +142,9 @@
 
 
 .open-set-group { padding: 2px; gap: 2px; justify-self: start; }
+/* Yan oyuncularda 10 taştan uzun per bir taş boyu kenara kayar (masanın ortasına uzamasın) */
+.open-sets-left .open-set-group.long-set { margin-left: calc(-1 * var(--set-tile-w)); }
+.open-sets-right .open-set-group.long-set { margin-right: calc(-1 * var(--set-tile-w)); }
 .open-sets-right .open-set-group { justify-self: end; }
 .open-set-tile,
 .insertion-slot,

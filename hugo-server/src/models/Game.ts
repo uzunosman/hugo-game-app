@@ -515,7 +515,7 @@ export class Game {
     }
 
     // Süre dolunca atılacak taş: eldeki perlere girmeyen en küçük taş. Okey (Hugo elinde joker) asla atılmaz.
-    // Sıra: per dışı ve per adayı olmayan → per dışı → (hepsi perdeyse) okey olmayan en küçük taş
+    // Sıra: per dışı ve per adayı olmayan → per dışı → (hepsi perdeyse) okey olmayan en küçük taş; işlek taşlar en sona
     pickAutoDiscard(playerId: string): Tile | null {
         const player = this.getPlayerById(playerId);
         if (!player || player.tiles.length === 0) return null;
@@ -526,7 +526,9 @@ export class Game {
         const inSets = new Set(planSets(this, player.tiles).flat().map(t => t.id));
         const outside = plain.filter(t => !inSets.has(t.id));
         const loose = outside.filter(t => !this.inPotentialPer(t, outside.concat(player.tiles.filter(x => this.isOkeyTile(x)))));
-        const pool = loose.length ? loose : outside.length ? outside : plain;
+        // İşlek (masadaki bir pere eklenebilen) taş atılmaz; hepsi işlekse yine en uygunu
+        const safe = (arr: Tile[]) => arr.filter(t => this.islekPenalty(t) === 0);
+        const pool = [safe(loose), safe(outside), safe(plain), loose, outside, plain].find(a => a.length) as Tile[];
         const val = (t: Tile) => this.asPlayed(t).value as number;
         return pool.reduce((min, t) => val(t) < val(min) ? t : min);
     }

@@ -465,6 +465,14 @@ for (const [round, amount] of [[2, 100], [5, 200]]) {
     // Elde iki okey ve bir taş: okey atılmaz
     give(p0, [new Tile(TileColor.PURPLE, 'H', true), new Tile(TileColor.PURPLE, 'H', true), t(RED, 5)]);
     assert.strictEqual(game.pickAutoDiscard(p0.id)?.value, 5);
+    // İşlek taş atılmaz: masada mavi 10-11-12 varken mavi 9 yerine siyah 11
+    game.tableSets.push({ id: 'islek', playerId: p0.id, tiles: [t(BLUE, 10), t(BLUE, 11), t(BLUE, 12)], value: 33 });
+    give(p0, [t(BLUE, 9), t(BLACK, 11)]);
+    assert.strictEqual(game.pickAutoDiscard(p0.id)?.color, BLACK, 'işlek mavi 9 atılmaz');
+    // Hepsi işlekse yine bir taş atılır
+    give(p0, [t(BLUE, 9), t(BLUE, 13)]);
+    assert.ok(game.pickAutoDiscard(p0.id));
+    game.tableSets = game.tableSets.filter(st => st.id !== 'islek');
 }
 
 // Elde taş kalmadan masaya oynanmaz: en az bir taş atılarak bitirilir

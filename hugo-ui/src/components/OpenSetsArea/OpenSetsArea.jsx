@@ -154,10 +154,17 @@ function calculateValidPositions(set, rawActiveTile, okeyTile, isHugo, pairPartn
     return positions;
 }
 
+// Erkek per: okey olmayan taşlar aynı sayı (en az iki taş); tek taş + okeyler sıralı sayılır
+function isGroupSet(set, okeyTile, isHugo) {
+    const normal = set.tiles.filter(t => !isOkeyTile(t, okeyTile, isHugo)).map(t => asPlayedTile(t, okeyTile, isHugo));
+    return normal.length >= 2 && normal.every(t => t.value === normal[0].value);
+}
+
 // ── Bileşen ──────────────────────────────────────────────
 
 // dragOverKey: sürüklenen taşın üstünde olduğu per / çift yeri (useBoardDrag); bırakma da orada yapılır
-const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTileToSet, okeyTile, isHugo, pairPartnerId, dragOverKey, dragOverSide, pendingSetIds }) => {
+// canPlay: oyuncu yere açmış ve sırası onda; değilse perler üstüne gelince büyümez
+const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTileToSet, okeyTile, isHugo, pairPartnerId, dragOverKey, dragOverSide, pendingSetIds, canPlay = true }) => {
     const [hoveredSetId, setHoveredSetId] = useState(null);
 
     const positionMap = { 0: 'bottom', 1: 'right', 2: 'top', 3: 'left' };
@@ -184,12 +191,19 @@ const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTil
 
     const renderSet = (set) => {
         // Çiftlere işleme, çiftlerin önündeki soluk çift yerinden yapılır
-        const isExpanded = (hoveredSetId === set.id || dragOverKey === set.id) && set.kind !== 'cift';
+        // Dörtlü erkek per dolu: okey yoksa hiç işlenmez (büyümez); okey varsa büyür, yuva açılmaz, yalnızca okey alınır
+        const isOkey = (t) => isOkeyTile(t, okeyTile, isHugo);
+        const played = set.tiles.map(t => asPlayedTile(t, okeyTile, isHugo));
+        const fullGroup = set.kind !== 'cift' && set.tiles.length === 4 && isSameNumberSet(played, isOkey);
+        const fullHasOkey = fullGroup && set.tiles.some(isOkey);
+        const isExpanded = canPlay && ((hoveredSetId === set.id && !!selectedTileId) || dragOverKey === set.id)
+            && set.kind !== 'cift' && (!fullGroup || fullHasOkey);
         const validPositions = isExpanded
             ? calculateValidPositions(set, activeTile, okeyTile, isHugo, pairPartnerId)
             : [];
-        const hasStartSlot = validPositions.some(v => v.position === 'start');
-        const hasEndSlot = validPositions.some(v => v.position === 'end');
+        const okeyTakeable = fullHasOkey && validPositions.length > 0;
+        const hasStartSlot = !fullGroup && validPositions.some(v => v.position === 'start');
+        const hasEndSlot = !fullGroup && validPositions.some(v => v.position === 'end');
         // Sürüklenen taşın gideceği uç: iki uç da uyuyorsa (okey) parmağın olduğu yarı, tek uç uyuyorsa o uç
         const activeSide = dragOverKey === set.id
             ? (hasStartSlot && hasEndSlot ? dragOverSide : hasStartSlot ? 'start' : 'end')
@@ -198,9 +212,9 @@ const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTil
         return (
             <div
                 key={set.id}
-                className={`open-set-group ${isExpanded ? 'expanded' : ''} ${pendingSetIds?.includes(set.id) ? 'is-pending' : ''} ${isInteractive && set.kind !== 'cift' ? 'droppable' : ''}`}
+                className={`open-set-group ${isExpanded ? 'expanded' : ''} ${pendingSetIds?.includes(set.id) ? 'is-pending' : ''} ${set.tiles.length > 10 ? 'long-set' : ''} ${isInteractive && canPlay && set.kind !== 'cift' && (!fullGroup || fullHasOkey) ? 'droppable' : ''}`}
                 data-set-id={set.id}
-                data-hover-key={set.id}
+                data-hover-key={canPlay && (!fullGroup || fullHasOkey) ? set.id : undefined}
                 onMouseEnter={() => handleMouseEnter(set.id)}
                 onMouseLeave={() => handleMouseLeave(set.id)}
             >
@@ -217,7 +231,7 @@ const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTil
                     return (
                         <div
                             key={tile.id}
-                            className={`open-set-tile ${tile.color} ${tile.isJoker ? 'is-joker' : ''} ${tileIsOkey ? 'is-okey' : ''} ${incomingTiles.has(tile.id) ? 'incoming' : ''}`}
+                            className={`open-set-tile ${tile.color} ${tile.isJoker ? 'is-joker' : ''} ${tileIsOkey ? 'is-okey' : ''} ${tileIsOkey && okeyTakeable ? 'okey-takeable' : ''} ${incomingTiles.has(tile.id) ? 'incoming' : ''}`}
                             data-set-id={set.id}
                             data-tile-id={tile.id}
                             data-is-okey={tileIsOkey ? 'true' : undefined}
@@ -248,6 +262,14 @@ const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTil
                 if (playerSets.length === 0) return null;
 
                 const seriSets = playerSets.filter(st => st.kind !== 'cift');
+                // Dişi (sıralı) ve erkek (aynı sayı) perler ayrı dizilir: yanlarda sıralılar ortada, erkekler üstte/altta;
+                // alt/üstte sıralılar alt alta, erkekler sağında alt alta
+                const groupSets = seriSets.filter(st => isGroupSet(st, okeyTile, isHugo));
+                const seqSets = seriSets.filter(st => !groupSets.includes(st));
+                const isSide = position === 'left' || position === 'right';
+                const list = (sets, cls = '') => sets.length > 0 && (
+                    <div className={`open-sets-list ${cls}`}>{sets.map(renderSet)}</div>
+                );
                 const pairSets = playerSets.filter(st => st.kind === 'cift');
                 // Elinde eşi olan taş seçili/sürükleniyorsa çiftlerin önünde soluk bir çift yeri açılır
                 const showPairSlot = pairSets.length > 0 && !!activeTile && !!pairPartnerId;
@@ -257,8 +279,17 @@ const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTil
                         key={p.id}
                         className={`open-sets-area open-sets-${position}`}
                     >
-                        {seriSets.length > 0 && (
-                            <div className="open-sets-list">{seriSets.map(renderSet)}</div>
+                        {isSide ? (
+                            <>
+                                {list(groupSets.filter((_, i) => i % 2 === 0), 'open-groups-list')}
+                                {list(seqSets, 'open-seq-list')}
+                                {list(groupSets.filter((_, i) => i % 2 === 1), 'open-groups-list')}
+                            </>
+                        ) : (
+                            <>
+                                {list(seqSets, 'open-seq-list')}
+                                {list(groupSets, 'open-groups-list')}
+                            </>
                         )}
                         {pairSets.length > 0 && (
                             <div className="open-sets-list open-pairs-list">

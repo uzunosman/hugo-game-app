@@ -26,8 +26,12 @@ export const handleDrawTile = ({
     setTilePositions,
     targetIndex // Sürükle-bırak ile belirtilen hedef pozisyon (opsiyonel)
 }) => {
-    if (gameState.currentPlayerId !== playerId || gameState.turnAction !== 'draw') {
-        setError('Şu anda taş çekemezsiniz');
+    if (gameState.currentPlayerId !== playerId) {
+        setError('Sıra sende değil');
+        return;
+    }
+    if (gameState.turnAction !== 'draw') {
+        setError('Bu sırada taş çektin, şimdi taş at');
         return;
     }
 
@@ -181,14 +185,14 @@ export const handleTileMove = ({
     if (targetIndex === -1) {
         // Oyuncunun sırası olup olmadığını kontrol et
         if (gameState.currentPlayerId !== playerId) {
-            console.error('Şu anda taş atamazsınız, sıranız değil');
+            setError('Sıra sende değil');
             return;
         }
 
         // Oyun yeni başladıysa ve 15 taşımız varsa veya taş atma aksiyonu varsa taş atabilir
         const isFirstTurn = tiles.length === 15 && gameState.turnAction === 'draw';
         if (!isFirstTurn && gameState.turnAction !== 'discard') {
-            console.error('Şu anda taş atamazsınız, önce taş çekmelisiniz');
+            setError('Önce taş çekmelisin');
             return;
         }
 
@@ -319,8 +323,12 @@ export const handleDrawDiscardedTile = ({
     onTaken
 }) => {
     // Sadece sıradaki oyuncu, draw aşamasında işlem yapabilir
-    if (gameState.currentPlayerId !== playerId || gameState.turnAction !== 'draw') {
-        setError('Şu anda taş çekemezsiniz');
+    if (gameState.currentPlayerId !== playerId) {
+        setError('Sıra sende değil');
+        return;
+    }
+    if (gameState.turnAction !== 'draw') {
+        setError('Bu sırada taş çektin, şimdi taş at');
         return;
     }
 

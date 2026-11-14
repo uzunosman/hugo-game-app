@@ -22,7 +22,7 @@ Az puan iyidir: 9 el sonunda toplam puanı en düşük olan kazanır (eşitlikte
 | **İşlek taş atmak**: atılan taş masadaki bir seriye/pere baştan ya da sondan eklenebiliyor | Taşı atana | **100** | **200** | Eli bitiren son taş için yazılmaz. Okey atmak işlek sayılmaz. Çiftler kontrol edilmez. İşlek atılan taş sıradaki oyuncu tarafından **yerden alınamaz** (ikinci ceza yazdırılamaz). Süre dolup taş otomatik atılırsa da uygulanır. |
 | **Yerden (yandan) taş almak** | Taşı **atana** | taş değeri × 10 | taş değeri × 20 | Sahte okey, okeyin değeriyle hesaplanır. Kendi attığın taş için yazılmaz. |
 | **Yandan alınan taşı kullanmadan geri atmak** | Taşı alana | **100** | **100** | Yandan alınan taş kullanılmadıysa yalnızca o taş atılabilir. |
-| **Kusmak**: yandan alınan taşı kullanmadan geri koymak | — | **0** | **0** | Cezasız. Atana yazılan "yerden" cezası **silinir**. Oyuncu desteden çeker, kusulan taş o sırada tekrar alınamaz. O sırada el açıldıysa, per indirildiyse ya da işlendiyse kusulamaz. |
+| **Kusmak**: yandan alınan taşı kullanmadan geri koymak | — | **0** | **0** | Cezasız. Atana yazılan "yerden" cezası **silinir**. Oyuncu desteden çeker, kusulan taş o sırada tekrar alınamaz. Kustu taş atılana kadar basılabilir: o sırada masaya oynandıysa (el açma, per indirme, işleme) önce hepsi ele döner ve **geri alma cezası** yazılır (100, Hugo elinde 200), sonra taş kusulur. |
 | **İşleme**: başkasının serisine/perine taş eklemek | Per **sahibine** | taş değeri × 10 | taş değeri × 10 | Okey işlenirse eklendiği yerdeki değer sayılır (örn. 5-6-7'nin sonuna okey → 8 × 10 = 80). Kendi perine işlemek cezasızdır. |
 | **Okey almak**: perdeki okeyin yerine gerçek taşı koyup okeyi almak | Per **sahibine** | **100** | **100** | Aynı sayılı perde (erkek per) okey ancak per 4 taşa tamamlanınca alınabilir. Aynı sırada okey işleyen tekrar okey alamaz. |
 | **Çift işlemek**: başkasının çiftlerine elindeki çifti eklemek | Çift **sahibine** | (çiftin toplamı × 10) × 2 | aynı | Örn. iki 5: ((5 + 5) × 10) × 2 = **200**. Çiftlere tek taş işlenmez. Kendi çiftine işlemek cezasızdır. |
@@ -135,12 +135,13 @@ Not: kod yalnızca ilk açılışa bakar; aynı elde sonradan indirilen perler b
 ## 7. Süre dolunca (otomatik oynama)
 
 Sıra süresi 60 sn'dir; bağlantısı kopan oyuncunun sırası 3 sn sonra otomatik oynanır.
+Her işleme, el açma (per per açma dahil) ve per indirmede sıradaki oyuncunun süresine **10 sn** eklenir.
 Süre dolunca:
-1. Yandan alınmış taş varsa cezasız kusulur.
+1. Yandan alınmış taş varsa ve o sırada masaya oynanmadıysa cezasız kusulur.
 2. Desteden taş çekilir.
-3. Per adayına girmeyen en küçük taş atılır; okey asla atılmaz.
+3. Per adayına girmeyen en küçük taş atılır; okey asla atılmaz, **işlek taş atılmaz** (elde yalnızca işlek taş kalmadıkça).
 
-Bu atışta da işlek kuralı geçerlidir.
+Elde yalnızca işlek taş kaldıysa işlek kuralı bu atışta da geçerlidir.
 
 ## 8. `document.txt` başındaki eski maddelerle farklar
 

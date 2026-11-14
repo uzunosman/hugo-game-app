@@ -277,6 +277,9 @@ const useGameState = (player, room) => {
             if (playerId === player.id && turnAction) setGameState(prev => ({ ...prev, turnAction }));
         });
 
+        // İşleme / per açma: sıradaki oyuncunun süresi uzadı (sunucu sayacıyla aynı)
+        socketService.onTurnExtended(({ seconds }) => setTimeLeft(t => t + (seconds || 0)));
+
         // Kustu: yandan alınan taş, atanın köşesine geri döner
         socketService.onTileReturned(({ playerId, toPlayerId, tile }) => {
             const corner = getCornerByPlayerId(toPlayerId);
@@ -374,6 +377,7 @@ const useGameState = (player, room) => {
             socketService.offAutoPlayed();
             socketService.offTileReturned();
             socketService.offTurnUndone();
+            socketService.offTurnExtended();
         };
         // Dinleyiciler oyuncu başına bir kez kurulur; room.players oyun boyunca değişmez
         // eslint-disable-next-line react-hooks/exhaustive-deps

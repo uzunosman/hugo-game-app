@@ -13,6 +13,8 @@ const THRESHOLD = 6;    // px: bundan az kımıldama dokunma/tıklama sayılır
 // STICKY_MS süre dışarı çıksa da kilit kalır (telefonda parmak taşı örter, küçük perde nişan kayar)
 const STICKY_MS = 450;
 const STICKY_PX = 36;
+// Istakada taşlar hemen kaymasın: parmak bir hücrede bu kadar durunca önizleme o hücreye geçer
+const PREVIEW_MS = 170;
 const near = (r, x, y, pad) => x >= r.left - pad && x <= r.right + pad && y >= r.top - pad && y <= r.bottom + pad;
 
 const cellIndex = (cell) => Number(cell.dataset.cell);
@@ -93,6 +95,7 @@ export default function useBoardDrag(props) {
         if (!s) return;
         session.current = null;
         clearTimeout(s.timer);
+        clearTimeout(s.cellTimer);
         // Dinleyiciler basıldığı andaki render'ın fonksiyonlarıdır: aynılarını kaldır
         window.removeEventListener('pointermove', s.h.move);
         window.removeEventListener('pointerup', s.h.up);
@@ -190,6 +193,25 @@ export default function useBoardDrag(props) {
         if (overCorner && overCorner === playerCorner) actions.discard(s.srcIdx);
     };
 
+    // Önizlenen hücre: ıstakadan çıkınca hemen boşalır, yeni hücreye PREVIEW_MS bekleyince geçer
+    const shownCell = (s, cell) => {
+        if (cell === s.shown || cell == null) {
+            clearTimeout(s.cellTimer); s.want = undefined;
+            s.shown = cell;
+            return cell;
+        }
+        if (s.want !== cell) {
+            clearTimeout(s.cellTimer);
+            s.want = cell;
+            s.cellTimer = setTimeout(() => {
+                if (session.current !== s) return;
+                s.shown = cell; s.want = undefined;
+                publish({ overCell: cell });
+            }, PREVIEW_MS);
+        }
+        return s.shown ?? null;
+    };
+
     function onMove(e) {
         const s = session.current;
         if (!s || e.pointerId !== s.pointerId) return;
@@ -202,7 +224,7 @@ export default function useBoardDrag(props) {
         moveGhost(s);
         const hit = hitTest(s.x, s.y);
         const overSet = s.kind === 'tile' ? lockSet(s, hit) : null;
-        publish({ overCell: hit.overCell, overSet, overSide: overSet ? sideOf(s) : null, overCorner: hit.overCorner, overTable: s.kind === 'group' && hit.overTable });
+        publish({ overCell: shownCell(s, hit.overCell), overSet, overSide: overSet ? sideOf(s) : null, overCorner: hit.overCorner, overTable: s.kind === 'group' && hit.overTable });
     }
 
     function onUp(e) {
@@ -238,6 +260,7 @@ export default function useBoardDrag(props) {
         const s = {
             ...src, pointerId: e.pointerId, pointerType: e.pointerType, board: e.currentTarget,
             x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, dragging: false, group: null,
+            shown: src.kind === 'tile' ? src.srcIdx : null,
             tileId: src.kind === 'tile' ? latest.current.positions[src.srcIdx] : null,
         };
         s.h = { move: onMove, up: onUp, cancel: onCancel, ctx: onContextMenu };

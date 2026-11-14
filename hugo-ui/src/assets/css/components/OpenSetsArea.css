@@ -206,3 +206,8 @@
 
 /* Açılış eşiği henüz dolmamış, yerde bekleyen per: kesik çerçeve, hafif soluk */
 .open-set-group.is-pending { outline: 2px dashed rgba(255, 216, 138, 0.95); outline-offset: 2px; opacity: 0.8; }
+
+/* Dolu dörtlü perdeki okey: elindeki taşla alınabilir */
+.open-set-tile.okey-takeable { box-shadow: 0 0 0 2px #f5c542, 0 0 10px rgba(245, 197, 66, 0.8); animation: okey-take 1s ease-in-out infinite alternate; cursor: pointer; }
+@keyframes okey-take { to { box-shadow: 0 0 0 3px #f5c542, 0 0 16px rgba(245, 197, 66, 1); } }
+@media (prefers-reduced-motion: reduce) { .open-set-tile.okey-takeable { animation: none; } }

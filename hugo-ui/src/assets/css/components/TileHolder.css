@@ -122,9 +122,10 @@
 .game-board.is-dragging, .game-board.is-dragging * { cursor: grabbing !important; }
 /* Sürüklerken hücreler kaymasın diye geçiş animasyonu kapalı; önizleme anında görünür */
 .tile-holder-container.is-dragging .tile-cell { transition: none; }
-/* Bırakılınca taşın geleceği yer: taş soluk ve kesik çerçeveli (boş hücrede yalnızca çerçeve) */
-.tile-cell.drop-preview { border-radius: 4px; box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.95); background: rgba(255, 255, 255, 0.25); }
-.tile-cell.drop-preview .tile { opacity: 0.55; }
+/* Bırakılınca taşın geleceği yer: ıstakada boşluk açılır (soluk kopya gösterilmez);
+   desteden / yerden çekerken boş hücre çerçevelenir */
+.tile-cell.drop-preview .tile { visibility: hidden; }
+.tile-cell.drop-preview:not(:has(.tile)) { border-radius: 4px; box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.85); }
 .tile-cell.drop-blocked { box-shadow: inset 0 0 0 2px #c62828; border-radius: 4px; }
 /* Parmağı / imleci izleyen taş(lar) */
 .drag-ghost {

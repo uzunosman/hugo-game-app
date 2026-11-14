@@ -16,6 +16,7 @@ const CHAT_MIN_GAP_MS = 700; // soket başına mesaj aralığı: sel engeli
 export const setupSocketHandlers = (io: Server) => {
     const gameManager = GameManager.getInstance();
     const turnTimers = new Map<string, NodeJS.Timeout>();
+    const turnDeadlines = new Map<string, number>(); // oyuncu sırasının biteceği an (ms)
 
     // Durum değiştikçe diske yaz (300 ms içindeki değişiklikler tek kayıtta toplanır)
     let saveTimer: NodeJS.Timeout | null = null;
@@ -44,7 +45,17 @@ export const setupSocketHandlers = (io: Server) => {
             return;
         }
         const ms = overrideMs ?? (current.connected ? config.game.turnTimeout : config.game.disconnectedTurnTimeout);
+        turnDeadlines.set(roomId, Date.now() + ms);
         turnTimers.set(roomId, setTimeout(() => autoPlay(roomId, game, current.id), ms));
+    };
+
+    // İşleme / per açma: sıradaki oyuncunun süresine 10 sn eklenir (herkesin halkası da uzar)
+    const EXTEND_MS = 10_000;
+    const extendTurn = (roomId: string, game: Game, playerId: string) => {
+        const deadline = turnDeadlines.get(roomId);
+        if (!deadline || !turnTimers.has(roomId) || !game.isPlayerTurn(playerId)) return;
+        scheduleTurn(roomId, game, Math.max(0, deadline - Date.now()) + EXTEND_MS);
+        io.to(roomId).emit('game:turnExtended', { playerId, seconds: EXTEND_MS / 1000 });
     };
 
     // Taş atma + tur sonu / sıra geçişi (oyuncu hamlesi ve otomatik hamle aynı yolu kullanır)
@@ -134,7 +145,8 @@ export const setupSocketHandlers = (io: Server) => {
         }
 
         // Yandan alınıp kullanılmamış taş önce kusulur (cezasız), sonra desteden çekilir
-        if (game.takenDiscardTileId && player.tiles.some(t => t.id === game.takenDiscardTileId)) {
+        // (masaya oynadıysa kusulmaz: hamleler kalır, taş 100 cezayla atılır)
+        if (game.takenDiscardTileId && !game.playedToTableThisTurn && player.tiles.some(t => t.id === game.takenDiscardTileId)) {
             returnTaken(roomId, game, playerId);
         }
 
@@ -159,6 +171,13 @@ export const setupSocketHandlers = (io: Server) => {
 
     // Kustu: taş atanın köşesine döner, atanın cezası silinir
     const returnTaken = (roomId: string, game: Game, playerId: string) => {
+        // Bu sırada masaya oynadıysa önce geri alınır (geri alma cezasıyla), sonra taş kusulur
+        if (game.playedToTableThisTurn && game.takenDiscardTileId) {
+            const player = game.getPlayerById(playerId);
+            const r = game.undoTurnPlays(playerId, game.isHugoRound() ? 200 : 100);
+            if (!r.success || !player) return { success: false, error: r.error };
+            emitUndo(roomId, game, player, r);
+        }
         const { tile, toPlayerId, revert, error } = game.returnTakenTile(playerId);
         if (!tile) return { success: false, error };
         io.to(roomId).emit('game:tileReturned', { playerId, toPlayerId, tile: tile.toJSON() });
@@ -1015,6 +1034,7 @@ export const setupSocketHandlers = (io: Server) => {
 
                 // Tüm oyunculara bildirimi gönder (bekleyen açılış da herkese görünür)
                 emitHandOpened(player.roomId, room.game, player, result);
+                extendTurn(player.roomId, room.game, player.id);
 
                 // İsteği yapan oyuncuya kalan taşlarını bildir
                 callback({
@@ -1072,6 +1092,7 @@ export const setupSocketHandlers = (io: Server) => {
                     updatedSet: result.updatedSet,
                     swappedOkey: !!result.swappedOkeyTile
                 });
+                extendTurn(player.roomId, room.game, playerId);
                 if (result.penalty) {
                     const { targetPlayerId, amount, tag, tile } = result.penalty;
                     emitPenalty(player.roomId, room.game, { playerId: targetPlayerId, amount, tag, tile, reason: tag === 'okey' ? 'Perindeki okey alındı' : 'Perine taş işlendi' });
@@ -1126,6 +1147,7 @@ export const setupSocketHandlers = (io: Server) => {
                         reason: 'Çiftine işlendi'
                     });
                 }
+                extendTurn(room.id, room.game, player.id);
                 callback({ success: true, remainingTiles: result.remainingTiles });
             } catch (error) {
                 console.error('Çift işleme hatası:', error);
@@ -1175,6 +1197,7 @@ export const setupSocketHandlers = (io: Server) => {
                         kind: s.kind
                     }))
                 });
+                extendTurn(player.roomId, room.game, playerId);
 
                 callback({
                     success: true,

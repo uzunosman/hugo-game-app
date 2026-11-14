@@ -67,14 +67,20 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+/* YZ etiketi avatarın sağ üstünde küçük rozet */
 .pp-bot {
-    flex: none;
-    font-size: 9px;
+    position: absolute;
+    top: -5px;
+    right: -7px;
+    z-index: 1;
+    font-size: 8px;
     font-weight: 800;
-    padding: 2px 4px;
+    line-height: 1;
+    padding: 2px 3px;
     border-radius: 4px;
-    background: rgba(255, 255, 255, 0.16);
-    color: var(--pp-muted);
+    background: #2b3a46;
+    color: var(--pp-ink);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.25);
 }
 .pp-meta { display: flex; flex-wrap: wrap; gap: 3px; }
 .pp-meta:empty { display: none; }
@@ -93,7 +99,6 @@
 .pp-set { color: var(--pp-set); }
 .pp-set.valid { color: var(--pp-open); }
 .pp-offline { color: var(--pp-set); }
-.pp-hint { background: var(--pp-turn); color: #0b1a14; }
 
 .player-panel.offline { opacity: 0.6; }
 .player-panel.offline .pp-avatar img { filter: grayscale(1); }
@@ -101,6 +106,9 @@
 /* Konumlar (bantlar layout.css'te) */
 .player-panel.current-player { left: 50%; transform: translateX(-50%); }
 .player-panel.top { left: 50%; transform: translateX(-50%); }
+/* Karşı oyuncu tek satır: avatar · ad · etiketler */
+.player-panel.top .pp-body { flex-direction: row; align-items: center; gap: 6px; }
+.player-panel.top .pp-meta { flex-wrap: nowrap; }
 /* Yan oyuncular: dikey, sade kart */
 .player-panel.left,
 .player-panel.right {
@@ -122,9 +130,6 @@
     text-align: center;
     overflow-wrap: anywhere;
 }
-/* Yan kartta yer dar: YZ etiketi yerine robot avatarı yeterli */
-.player-panel.left .pp-bot,
-.player-panel.right .pp-bot { display: none; }
 .player-panel.left .pp-meta,
 .player-panel.right .pp-meta { flex-direction: column; align-items: center; }
 
@@ -139,7 +144,7 @@
     .pp-chip { font-size: 9px; padding: 2px 3px; }
     .player-panel.left, .player-panel.right { width: 46px; padding: 4px 2px; }
     .player-panel.left .pp-name, .player-panel.right .pp-name { font-size: 9px; }
-    .pp-bot { display: none; }
+    .pp-bot { font-size: 7px; padding: 1px 2px; right: -6px; }
 }
 
 /* Aksiyon butonları konteyneri */

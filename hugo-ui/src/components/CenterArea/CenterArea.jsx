@@ -4,9 +4,7 @@ import '../../assets/css/components/CenterArea.css';
 
 const CenterArea = ({ remainingTiles = [], openTile = null, onDrawTile, gameRound = 1, isHugoRound: serverHugo, canDrawTile = false }) => {
     const handleTileClick = () => {
-        if (onDrawTile && canDrawTile) {
-            onDrawTile();
-        }
+        onDrawTile?.(); // çekemiyorsa uyarıyı çeken taraf gösterir (sıra / aşama)
     };
 
     // Hugo eli kontrolü (1, 5, 9. eller — sunucudaki config.game.hugoRounds ile aynı)

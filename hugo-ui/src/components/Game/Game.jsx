@@ -60,7 +60,7 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
     const [takenInfo, setTakenInfo] = useState(null);
     // Bu sırada masaya oynandı mı (el açma, per indirme, işleme): "Geri al" butonu için
     const [playedThisTurn, setPlayedThisTurn] = useState(false);
-    useEffect(() => { setPlayedThisTurn(false); }, [gameState.currentPlayerId, gameState.round]);
+    useEffect(() => { setPlayedThisTurn(false); setTakenInfo(null); }, [gameState.currentPlayerId, gameState.round]);
     // Masaya ilk oynamadan önceki ıstaka dizilişi: geri alınca taşlar eski yerlerine döner
     const positionsBeforePlay = useRef(null);
     const rememberRack = () => { if (!playedThisTurn) positionsBeforePlay.current = tilePositions; };
@@ -189,37 +189,43 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
         });
     };
 
-    const kustuCorner = takenInfo && isMyTurn && gameState.turnAction === 'discard'
-        && tiles.some(t => t.id === takenInfo.tileId) ? takenInfo.corner : null;
+    // Kustu taş atılana kadar görünür; masaya oynadıysa basınca önce geri alınır (geri alma cezası)
+    const kustuCorner = takenInfo && isMyTurn && gameState.turnAction === 'discard' ? takenInfo.corner : null;
+
+    // Geri alınan el: taşlar masaya oynamadan önceki yerlerine döner
+    const restoreRack = (remaining) => {
+        setTiles(remaining);
+        const saved = positionsBeforePlay.current; // updater sonra çalışır: ref sıfırlanmadan al
+        setTilePositions(prev => {
+            const ids = new Set(remaining.map(t => t.id));
+            const base = saved || prev;
+            const next = base.map(id => (id && ids.has(id) ? id : null));
+            remaining.forEach(t => {
+                if (next.includes(t.id)) return;
+                const empty = next.indexOf(null);
+                if (empty !== -1) next[empty] = t.id;
+            });
+            return next;
+        });
+        positionsBeforePlay.current = null;
+        setPlayedThisTurn(false);
+        setSelectedTile(null);
+    };
 
     // Geri al: bu sırada masaya oynanan taşlar 100 cezayla ele döner (taş atılınca geri alınamaz)
     const onUndoTurn = () => {
         socketService.undoTurn((response) => {
             if (!response?.success) return setError(response?.error || 'Geri alınamadı');
-            const remaining = response.remainingTiles || [];
-            setTiles(remaining);
-            const saved = positionsBeforePlay.current; // updater sonra çalışır: ref sıfırlanmadan al
-            setTilePositions(prev => {
-                const ids = new Set(remaining.map(t => t.id));
-                const base = saved || prev;
-                const next = base.map(id => (id && ids.has(id) ? id : null));
-                remaining.forEach(t => {
-                    if (next.includes(t.id)) return;
-                    const empty = next.indexOf(null);
-                    if (empty !== -1) next[empty] = t.id;
-                });
-                return next;
-            });
-            positionsBeforePlay.current = null;
-            setPlayedThisTurn(false);
-            setSelectedTile(null);
+            restoreRack(response.remainingTiles || []);
         });
     };
 
     const onKustu = () => {
+        const undoing = playedThisTurn;
         socketService.returnTaken((response) => {
-            if (response?.success) setTakenInfo(null);
-            else setError(response?.error || 'Taş geri konamadı');
+            if (!response?.success) return setError(response?.error || 'Taş geri konamadı');
+            setTakenInfo(null);
+            if (undoing) restoreRack(response.remainingTiles || []);
         });
     };
 
@@ -333,7 +339,6 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
             rememberRack();
             socketService.addPairToSet([tileId, partnerId], targetSetId, (response) => {
                 if (response.success) {
-                    setTakenInfo(null); // masaya oynandı: yandan alınan taş artık kusulamaz
                     setPlayedThisTurn(true);
                     setTiles(response.remainingTiles || []);
                     setTilePositions(prev => prev.map(id => (id === tileId || id === partnerId ? null : id)));
@@ -349,7 +354,6 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
         rememberRack();
         socketService.addTileToSet(tileId, targetSetId, position, (response) => {
             if (response.success) {
-                setTakenInfo(null);
                 setPlayedThisTurn(true);
                 const remaining = response.remainingTiles || [];
                 setTiles(remaining);
@@ -398,7 +402,6 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
         rememberRack();
         socketService.dropPer(validSets, (response) => {
             if (response.success) {
-                setTakenInfo(null);
                 setPlayedThisTurn(true);
                 const remaining = response.remainingTiles || [];
                 setTiles(remaining);
@@ -420,7 +423,6 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
         rememberRack();
         socketService.openHand(sets, (response) => {
             if (!response.success) return setError(response.error || 'Per yere açılamadı');
-            setTakenInfo(null);
             setPlayedThisTurn(true);
             setTiles(response.remainingTiles || []);
             setTilePositions(prev => prev.map(id => (id && ids.has(id) ? null : id)));
@@ -468,7 +470,6 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
         rememberRack();
         socketService.openHand(validSets, (response) => {
             if (response.success) {
-                setTakenInfo(null);
                 setPlayedThisTurn(true);
                 // Kalan taşları güncelle
                 const remaining = response.remainingTiles || [];
@@ -484,8 +485,14 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
         }, kind);
     };
 
+    // Boş bir yere tıklanınca ıstakadaki seçim (ve büyüyen per) kalkar
+    const KEEPS_SELECTION = '.tile, .tile-cell, .open-set-group, .pair-slot, .tile-drop-zone, .deck-tile-wrapper, button, input, textarea, a, [role="dialog"]';
+    const onBlankClick = (e) => {
+        if (selectedTile !== null && !e.target.closest(KEEPS_SELECTION)) setSelectedTile(null);
+    };
+
     return (
-        <div className="game-container">
+        <div className="game-container" onClick={onBlankClick}>
             {error && <div className="game-toast" role="status">{error}</div>}
 
             {/* Oyuncu Panelleri */}
@@ -507,9 +514,6 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
                         penaltyScore={openState?.penaltyScore || 0}
                         connected={openState?.connected !== false}
                         bubble={chatBubbles[p.id]}
-                        turnHint={index === 0 && p.id === gameState.currentPlayerId
-                            ? (gameState.turnAction === 'draw' && !isFirstHandBlock ? 'Taş çek' : 'Taş at')
-                            : null}
                     />
                 );
             })}
@@ -601,6 +605,8 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
                 }}
                 kustuCorner={kustuCorner}
                 onKustu={onKustu}
+                onWarn={setError}
+                canPlaySets={myOpenState.isOpen && isMyTurn}
                 onTapDiscard={() => {
                     onTileMove(selectedTile, -1);
                     setSelectedTile(null);

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useLayoutEffect, useRef } from 'react';
 import TileHolder from '../TileHolder/TileHolder';
 import CenterArea from '../CenterArea/CenterArea';
 import DiscardAreas from '../DiscardAreas/DiscardAreas';
@@ -48,7 +48,9 @@ const GameBoard = ({
     onOkeyFlip,
     onGroupMove,
     onPlayGroup,
-    pendingSetIds
+    pendingSetIds,
+    onWarn,
+    canPlaySets
 }) => {
     const isFirstHandBlock = tiles.length === 15 && turnAction === 'draw';
     const canDrawFromDeck = isMyTurn && turnAction === 'draw' && !isFirstHandBlock;
@@ -73,8 +75,26 @@ const GameBoard = ({
         },
     });
 
+    // Üst oyuncunun perleri aşağı uzadıkça orta taşlar da aşağı kayar: üst ve alt perlerin arasındaki boşluğun ortası
+    const boardRef = useRef(null);
+    useLayoutEffect(() => {
+        const place = () => {
+            const board = boardRef.current;
+            if (!board) return;
+            const top = board.querySelector('.open-sets-top');
+            const bottom = board.querySelector('.open-sets-bottom');
+            const h = board.querySelector('.open-sets-container')?.offsetHeight || 0;
+            const topEdge = top ? top.offsetTop + top.offsetHeight : 0; // offset*: büyüyen (scale) per ölçüyü bozmaz
+            const bottomEdge = bottom ? bottom.offsetTop : h;
+            board.style.setProperty('--center-y', `${Math.round((topEdge + bottomEdge) / 2)}px`);
+        };
+        place();
+        window.addEventListener('resize', place);
+        return () => window.removeEventListener('resize', place);
+    });
+
     return (
-        <div className={`game-board ${dragView?.dragging ? 'is-dragging' : ''} ${dragView?.overTable ? 'drop-table' : ''}`} onPointerDown={onPointerDown}>
+        <div ref={boardRef} className={`game-board ${dragView?.dragging ? 'is-dragging' : ''} ${dragView?.overTable ? 'drop-table' : ''}`} onPointerDown={onPointerDown}>
             <div className="board-content">
                 {/* Köşe Bırakma Alanları */}
                 <DiscardAreas
@@ -105,11 +125,12 @@ const GameBoard = ({
                     dragOverKey={dragView?.dragging ? dragView.overSet : null}
                     dragOverSide={dragView?.dragging ? dragView.overSide : null}
                     pendingSetIds={pendingSetIds}
+                    canPlay={canPlaySets}
                 />
 
                 {/* Merkez Alan */}
                 <CenterArea
-                    onDrawTile={() => handleDrawTile(false)}
+                    onDrawTile={() => (isMyTurn && isFirstHandBlock ? onWarn?.('İlk elde taş çekilmez: bir taş at') : handleDrawTile(false))}
                     canDrawTile={canDrawFromDeck}
                     remainingTiles={Array(deckCount ?? 0).fill(null)}
                     openTile={indicatorTile}
