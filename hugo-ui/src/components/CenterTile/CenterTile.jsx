@@ -7,7 +7,8 @@ const CenterTile = ({
     isClosed,
     remainingCount,
     isIndicator = false,
-    isDisabled = false
+    isDisabled = false,
+    drawHint = false // sırası gelmiş, henüz taş çekmemiş oyuncuya desteden "Taş çek"
 }) => {
     const className = `center-tile ${color || ''} ${isClosed ? 'closed' : ''} ${isIndicator ? 'indicator' : ''} ${isDisabled ? 'disabled' : ''}`;
 
@@ -18,10 +19,11 @@ const CenterTile = ({
                 draggable="false"
             >
                 {!isClosed && value}
+                {isClosed && remainingCount !== null && (
+                    <span className="remaining-count" aria-label={`Destede ${remainingCount} taş`}>{remainingCount}</span>
+                )}
+                {isClosed && drawHint && <span className="draw-hint">Taş çek</span>}
             </div>
-            {isClosed && remainingCount !== null && (
-                <div className="remaining-count">{remainingCount}</div>
-            )}
         </div>
     );
 };

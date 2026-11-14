@@ -264,12 +264,12 @@ const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTil
 
                 const seriSets = playerSets.filter(st => st.kind !== 'cift');
                 // Dişi (sıralı) ve erkek (aynı sayı) perler ayrı dizilir: yanlarda sıralılar ortada, erkekler üstte/altta;
-                // alt/üstte sıralılar alt alta, erkekler sağında alt alta
+                // alt/üstte 2×2 tablo (soldan sağa, iki satır; 4'ten fazlada sütun eklenir): önce sıralılar, sonra erkekler
                 const groupSets = seriSets.filter(st => isGroupSet(st, okeyTile, isHugo));
                 const seqSets = seriSets.filter(st => !groupSets.includes(st));
                 const isSide = position === 'left' || position === 'right';
-                const list = (sets, cls = '') => sets.length > 0 && (
-                    <div className={`open-sets-list ${cls}`}>{sets.map(renderSet)}</div>
+                const list = (sets, cls = '', style) => sets.length > 0 && (
+                    <div className={`open-sets-list ${cls}`} style={style}>{sets.map(renderSet)}</div>
                 );
                 const pairSets = playerSets.filter(st => st.kind === 'cift');
                 // Elinde eşi olan taş seçili/sürükleniyorsa çiftlerin önünde soluk bir çift yeri açılır
@@ -287,10 +287,7 @@ const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTil
                                 {list(groupSets.filter((_, i) => i % 2 === 1), 'open-groups-list')}
                             </>
                         ) : (
-                            <>
-                                {list(seqSets, 'open-seq-list')}
-                                {list(groupSets, 'open-groups-list')}
-                            </>
+                            list([...seqSets, ...groupSets], 'open-seq-list open-table-list', { '--set-cols': Math.max(2, Math.ceil((seqSets.length + groupSets.length) / 2)) })
                         )}
                         {pairSets.length > 0 && (
                             <div className="open-sets-list open-pairs-list">

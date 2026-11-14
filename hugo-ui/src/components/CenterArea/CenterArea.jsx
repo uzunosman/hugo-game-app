@@ -23,6 +23,7 @@ const CenterArea = ({ remainingTiles = [], openTile = null, onDrawTile, gameRoun
                         isClosed={true}
                         remainingCount={remainingTiles.length > 0 ? remainingTiles.length : null}
                         isDisabled={!canDrawTile}
+                        drawHint={canDrawTile}
                     />
                 </div>
 

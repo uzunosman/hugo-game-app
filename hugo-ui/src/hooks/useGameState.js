@@ -29,16 +29,22 @@ const useGameState = (player, room) => {
     const [selectedTile, setSelectedTile] = useState(null);
     const [timeLeft, setTimeLeft] = useState(60);
     const [tilePositions, setTilePositions] = useState(Array(30).fill(null));
-    // Sayfa yenilenip oyuna dönülünce son atılan taş, atanın köşesinde yeniden gösterilir
-    // shortcut: yalnızca son taş geri kurulur (köşeler zaten sadece son taşı gösterir); tam geçmiş gerekirse sunucu köşe başına yığın göndermeli
+    // Sayfa yenilenip oyuna dönülünce atılan taşlar atanın köşesinde yeniden kurulur (sunucu her taşın atanını tutar)
     const [discardedTiles, setDiscardedTiles] = useState(() => {
         const empty = { topLeft: [], topRight: [], bottomRight: [], bottomLeft: [] };
         const pile = room.game?.discardPile || [];
-        const by = room.game?.lastDiscardPlayerId;
-        if (!pile.length || !by) return empty;
-        const rel = (room.players.findIndex(p => p.id === by) - room.players.findIndex(p => p.id === player.id) + 4) % 4;
-        const corner = ['bottomRight', 'topRight', 'topLeft', 'bottomLeft'][rel];
-        return { ...empty, [corner]: [{ ...pile[pile.length - 1], discardedBy: by }] };
+        const owners = room.game?.discardOwners || [];
+        const last = room.game?.lastDiscardPlayerId;
+        const me = room.players.findIndex(p => p.id === player.id);
+        pile.forEach((tile, i) => {
+            // Eski kayıtta atanı bilinmeyen taşlardan yalnızca en üstteki, son atanın köşesine konur
+            const by = owners[i] ?? (i === pile.length - 1 ? last : null);
+            const idx = room.players.findIndex(p => p.id === by);
+            if (idx === -1) return;
+            const corner = ['bottomRight', 'topRight', 'topLeft', 'bottomLeft'][(idx - me + 4) % 4];
+            empty[corner].push({ ...tile, discardedBy: by });
+        });
+        return empty;
     });
     // En son taş atan oyuncunun ID'si (hangi köşeden çekilebileceğini belirlemek için)
     const [lastDiscardPlayerId, setLastDiscardPlayerId] = useState(room.game?.lastDiscardPlayerId || null);

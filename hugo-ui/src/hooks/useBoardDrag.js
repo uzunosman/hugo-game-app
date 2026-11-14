@@ -134,6 +134,8 @@ export default function useBoardDrag(props) {
 
     // Sürüklenen taşın kilitlendiği per (yoksa null): doğrudan üstündeki, ya da az önce üstünde olduğu
     const lockSet = (s, hit) => {
+        // Kendi köşesinin üstündeyse taş atılır: yakındaki pere kilit bırakılır
+        if (hit.overCorner && hit.overCorner === latest.current.playerCorner) { s.lock = null; return null; }
         const el = hit.overSet ? hit.el.closest('[data-hover-key]') : null;
         if (el) {
             if (s.lock?.key !== hit.overSet) navigator.vibrate?.(10);
@@ -180,6 +182,7 @@ export default function useBoardDrag(props) {
         if (inRack) return;
         // Son taş: ıstaka dışında nereye bırakılırsa atılır, el biter
         if (tiles.length === 1) return actions.discard(s.srcIdx);
+        if (overCorner && overCorner === playerCorner) return actions.discard(s.srcIdx); // köşe, yakındaki perden önce gelir
         const tileId = s.tileId;
         const slot = el?.closest('.insertion-slot');
         if (slot) return actions.addToSet(tileId, slot.dataset.setId, slot.dataset.position);
@@ -190,7 +193,6 @@ export default function useBoardDrag(props) {
         // Perin üstünde ya da parmak perden kaymış ama kilit sürüyor: parmağın olduğu uca işle
         const lock = s.kind === 'tile' && lockSet(s, hit) && s.lock;
         if (lock) return actions.addToSet(tileId, lock.setId, sideOf(s));
-        if (overCorner && overCorner === playerCorner) actions.discard(s.srcIdx);
     };
 
     // Önizlenen hücre: ıstakadan çıkınca hemen boşalır, yeni hücreye PREVIEW_MS bekleyince geçer

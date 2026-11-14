@@ -556,4 +556,15 @@ for (const [round, amount] of [[2, 100], [5, 200]]) {
     assert.strictEqual(game.addTileToSet(p0.id, k1.id, 'c1', 'end').success, false, 'okeysiz çifte tek taş işlenmez');
 }
 
+// Atılan taşların atanı tutulur (sayfa yenilenince köşe geçmişi kurulur); yerden alınınca listeden düşer
+{
+    const { game, p0, p1 } = setup();
+    const [a] = give(p0, [t(RED, 3), t(BLUE, 1)]);
+    game.discardTile(p0.id, a.id);
+    assert.deepStrictEqual(game.toPublicJSON().discardOwners, [p0.id]);
+    give(p1, [t(BLACK, 1), t(BLACK, 2)]);
+    assert.ok(game.drawTile(p1.id, true), 'yerden alınmalı');
+    assert.deepStrictEqual(game.toPublicJSON().discardOwners, []);
+}
+
 console.log('Rules.selftest: el açma, set doğrulama, sıra, işleme, yandan alma, işlek taş, otomatik atış, Hugo, sahte okey, çift açma, çift işleme ve el sonu puanlama kuralları ✓');

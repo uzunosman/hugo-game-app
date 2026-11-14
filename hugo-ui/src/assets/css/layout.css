@@ -139,14 +139,17 @@
     align-items: start;
     max-width: none;
 }
-/* Üst/alt: sıralılar tek sütunda alt alta, erkekler sağında alt alta; bir sırada en fazla 2 per (çiftler ızgarada kalır) */
-.open-sets-top .open-sets-list:not(.open-pairs-list),
-.open-sets-bottom .open-sets-list:not(.open-pairs-list) { display: flex; flex-direction: column; align-items: flex-start; }
 /* Yanlar: tek sütun, perler alt alta; alan dikeyde ortalı olduğundan per açıldıkça ortada kalır */
 .open-sets-left .open-sets-list,
 .open-sets-right .open-sets-list { display: flex; flex-direction: column; gap: 6px; }
 .open-sets-right .open-sets-list { align-items: flex-end; }
 .open-pairs-list { --set-rows: 2; gap: 6px 10px; }
+/* Kuzey/güney: perler 2×2 tablo, satır satır dolar */
+.open-sets-list.open-table-list { grid-auto-flow: row; grid-template-rows: none; grid-template-columns: repeat(var(--set-cols, 2), auto); justify-items: start; }
+/* Yan oyuncuların çiftleri iki sütun: her sırada iki çift */
+.open-sets-left .open-pairs-list,
+.open-sets-right .open-pairs-list { display: grid; grid-auto-flow: row; grid-template-rows: none; grid-template-columns: repeat(2, auto); gap: 6px 10px; }
+.open-sets-right .open-pairs-list { justify-items: end; }
 
 
 .open-set-group { padding: 2px; gap: 2px; justify-self: start; }
@@ -237,7 +240,7 @@
 .hugo-c1 i { background: var(--ui-yellow, #FFC107); }
 .hugo-c2 i { background: var(--ui-blue, #00BCD4); }
 .hugo-c3 i { background: var(--ui-black, #000000); }
-.center-area .center-tiles { padding: 0; gap: 8px; }
+.center-area .center-tiles { padding: 0; gap: 3px; } /* deste ve gösterge yan yana, aralarında az boşluk */
 
 /* Köşelere atılan taşlar ıstakadaki taşla aynı boyda; köşe alanı taşı saracak kadar */
 .tile-drop-zone {
@@ -274,3 +277,44 @@
     font-size: var(--set-tile-font);
     cursor: default;
 }
+
+/* Taş sürüklenirken kendi köşen büyür, üstüne gelince biraz daha: bırakma alanı geniş */
+.tile-drop-zone { transition: transform 0.15s ease; }
+.tile-drop-zone.top-left { transform-origin: top left; }
+.tile-drop-zone.top-right { transform-origin: top right; }
+.tile-drop-zone.bottom-left { transform-origin: bottom left; }
+.tile-drop-zone.bottom-right { transform-origin: bottom right; }
+.game-board.drag-tile .tile-drop-zone.active { transform: scale(1.2); }
+.game-board.drag-tile .tile-drop-zone.active.drag-over { transform: scale(1.4); }
+@media (prefers-reduced-motion: reduce) { .tile-drop-zone { transition: none; } }
+
+/* Deste: kalan taş sayısı taşın ortasında, çekme sırası gelmişse altında "Taş çek" */
+.center-area .center-tile.closed { flex-direction: column; gap: calc(var(--tile-h, 60px) * 0.06); }
+.center-area .remaining-count {
+    position: static;
+    width: auto;
+    height: auto;
+    min-width: 1.9em;
+    padding: 0.28em 0.35em;
+    border-radius: 999px;
+    background: #0b6e7f;
+    color: #fff;
+    font-size: calc(var(--tile-font, 24px) * 0.5);
+    font-weight: 800;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+}
+.center-area .draw-hint {
+    font-size: calc(var(--tile-font, 24px) * 0.36);
+    font-weight: 800;
+    line-height: 1.05;
+    text-align: center;
+    color: #0b6e7f;
+    width: min-content; /* "Taş çek" dar taşta iki satıra iner */
+}
+.center-area .center-tile.closed:has(.draw-hint) { box-shadow: 0 0 0 2px #fff, 0 0 12px rgba(255, 255, 255, 0.7); animation: deck-call 1.2s ease-in-out infinite alternate; }
+@keyframes deck-call { to { box-shadow: 0 0 0 2px #fff, 0 0 18px rgba(255, 255, 255, 1); } }
+@media (prefers-reduced-motion: reduce) { .center-area .center-tile.closed:has(.draw-hint) { animation: none; } }
+/* Gösterge: yeşil çerçeve yok, sıradan taş gibi */
+.center-area .center-tile.indicator { border: 1px solid rgba(0, 0, 0, 0.1); }

@@ -177,3 +177,16 @@
 .joker-dots i:nth-child(4) { background: var(--ui-black, #000000); }
 .tile.is-joker { padding-bottom: 0; }
 .tile.is-joker::after { display: none; } /* tek renk noktası yerine dört nokta */
+
+/* Istakadaki okey: renk noktası yerine yıldız */
+.tile.is-okey:not(.tile-flipped):not(.is-joker)::after {
+    content: '★';
+    width: auto;
+    height: auto;
+    border-radius: 0;
+    background: none !important;
+    color: inherit;
+    font-size: calc(var(--tile-dot, 8px) * 2.2);
+    line-height: 1;
+    bottom: calc(var(--tile-dot-b, 8px) - var(--tile-dot, 8px) * 0.7);
+}

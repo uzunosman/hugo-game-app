@@ -40,6 +40,7 @@ const TileHolder = ({ tiles, tilePositions, onTileClick, onTileDoubleClick, sele
                         tileId={tileId}
                         isSelected={isSelected}
                         isFlipped={flippedTileIds?.has(tileId)}
+                        isOkey={isOkeyTile(tile, okeyTile, isHugo)}
                         onClick={() => onTileClick(index)}
                         // Okeye çift tıklama atmaz, okey simgesine çevirir (sürükleyip köşeye bırakınca yine atılır)
                         onDoubleClick={onOkeyFlip && isOkeyTile(tile, okeyTile, isHugo) ? () => onOkeyFlip(tileId) : () => onTileDoubleClick?.(index)}

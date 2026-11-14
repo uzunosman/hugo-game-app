@@ -121,7 +121,7 @@
     html .tile-drop-zone.bottom-left, html .tile-drop-zone.bottom-right{ bottom: 6px; }
     html .tile-drop-zone.top-left, html .tile-drop-zone.bottom-left{ left: 6px; }
     html .tile-drop-zone.top-right, html .tile-drop-zone.bottom-right{ right: 6px; }
-    html .center-area .center-tiles{ gap: 6px; }
+    html .center-area .center-tiles{ gap: 3px; }
     html .kustu-btn{ font-size: 10px; padding: 6px 2px; }
 
     /* Tabela ve el sonu: kısa ekranda kaydırılabilir */

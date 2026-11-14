@@ -85,7 +85,8 @@ const GameBoard = ({
             const box = board?.querySelector('.open-sets-container');
             const deck = board?.querySelectorAll('.center-tiles > *');
             if (!box || !deck?.length) return;
-            if (box.querySelector('.open-set-group.expanded')) return; // işlerken büyüyen per ölçüyü bozmasın: yerleşim sabit kalır
+            // Sürüklerken (büyüyen per, büyüyen köşe) ölçü bozulmasın: yerleşim sabit kalır
+            if (board.classList.contains('is-dragging') || box.querySelector('.open-set-group.expanded')) return;
             const q = (pos) => box.querySelector(`.open-sets-${pos}`);
             const areas = { top: q('top'), bottom: q('bottom'), left: q('left'), right: q('right') };
             // Önce varsayılan yerlere dön, sonra ölç (aynı karede: titreme olmaz)
@@ -115,7 +116,7 @@ const GameBoard = ({
     });
 
     return (
-        <div ref={boardRef} className={`game-board ${dragView?.dragging ? 'is-dragging' : ''} ${dragView?.overTable ? 'drop-table' : ''}`} onPointerDown={onPointerDown}>
+        <div ref={boardRef} className={`game-board ${dragView?.dragging ? 'is-dragging' : ''} ${dragView?.dragging && dragView.kind === 'tile' ? 'drag-tile' : ''} ${dragView?.overTable ? 'drop-table' : ''}`} onPointerDown={onPointerDown}>
             <div className="board-content">
                 {/* Köşe Bırakma Alanları */}
                 <DiscardAreas

@@ -92,6 +92,7 @@ export class Game {
     players: Player[];
     deck: Tile[];
     discardPile: Tile[];
+    discardOwners: (string | null)[]; // discardPile ile aynı sırada: taşı atan oyuncu (köşe geçmişi için)
     currentPlayerIndex: number;
     firstPlayerIndex: number;
     status: GameStatus;
@@ -125,6 +126,7 @@ export class Game {
         this.players = [...players];
         this.deck = [];
         this.discardPile = [];
+        this.discardOwners = [];
         this.currentPlayerIndex = 0;
         this.firstPlayerIndex = 0;
         this.status = GameStatus.WAITING;
@@ -304,6 +306,7 @@ export class Game {
             // İşlek atılan ya da bu sırada kusulan taş yerden alınamaz
             if (!top || top.id === this.lockedDiscardTileId || top.id === this.returnedTileId) return null;
             drawnTile = this.discardPile.pop();
+            this.owners().pop();
             const discarder = this.lastDiscardPlayerId ? this.getPlayerById(this.lastDiscardPlayerId) : undefined;
             const value = drawnTile ? this.asPlayed(drawnTile).value : 0;
             const amount = (typeof value === 'number' ? value : 0) * (this.isHugoRound() ? 20 : 10);
@@ -369,6 +372,7 @@ export class Game {
         tile.setStatus(TileStatus.DISCARDED);
         tile.setVisible(true);
         this.discardPile.push(tile);
+        this.owners().push(playerId);
         this.lastDiscardPlayerId = playerId;
         this.takenDiscardTileId = null;
         this.takenPenalty = null;
@@ -402,6 +406,7 @@ export class Game {
         player.removeTile(tile.id);
         tile.setStatus(TileStatus.DISCARDED);
         this.discardPile.push(tile);
+        this.owners().push(this.lastDiscardPlayerId);
         let revert: Penalty | null = null;
         if (this.takenPenalty) {
             this.getPlayerById(this.takenPenalty.playerId)?.removePenalty(this.takenPenalty.amount);
@@ -1304,6 +1309,7 @@ export class Game {
         this.finishedElden = false;
         this.tableSets = [];
         this.discardPile = [];
+        this.discardOwners = [];
 
         // Tur numarası burada artmaz; yeni eli yalnızca startNextRound() başlatır
         this.status = this.round >= 9 ? GameStatus.FINISHED : GameStatus.ROUND_ENDED;
@@ -1333,6 +1339,7 @@ export class Game {
         this.round++;
         this.deck = [];
         this.discardPile = [];
+        this.discardOwners = [];
         this.tableSets = [];
         this.okeyPlayedThisTurn = false;
         this.playedToTableThisTurn = false;
@@ -1371,6 +1378,11 @@ export class Game {
         return this.tableSets.map(set => this.tableSetToJSON(set));
     }
 
+    // Eski kayıtlarda liste yok: o taşların atanı bilinmez (null)
+    private owners(): (string | null)[] {
+        return (this.discardOwners ||= []);
+    }
+
     toJSON(): Record<string, any> {
         return {
             id: this.id,
@@ -1405,6 +1417,8 @@ export class Game {
             indicatorTile: this.indicatorTile?.toJSON() || null,
             okeyTile: this.okeyTile?.toJSON() || null, // gösterge +1; herkesin bildiği bilgi
             lastDiscardPlayerId: this.lastDiscardPlayerId,
+            // Sondan hizalı: eski kayıttan kalan, atanı bilinmeyen taşlar null
+            discardOwners: this.discardPile.map((_, i) => this.owners()[i - (this.discardPile.length - this.owners().length)] ?? null),
             tableSets: this.tableSetsToJSON(),
             isHugoRound: this.isHugoRound(),
             roundEndResults: this.roundEndResults,
