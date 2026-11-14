@@ -753,6 +753,15 @@ export class Game {
         }
 
         if (targetSet.kind === 'cift') {
+            // Çiftte okey varsa okeyin eşi olan taşla okey alınır; yoksa çiftlere tek taş işlenmez
+            const oi = targetSet.tiles.findIndex(t => this.isOkeyTile(t));
+            const mate = oi === -1 ? undefined : targetSet.tiles[1 - oi];
+            const same = (a: Tile, b: Tile) => { const x = this.asPlayed(a), y = this.asPlayed(b); return x.color === y.color && x.value === y.value; };
+            if (mate && !this.isOkeyTile(mate) && !this.isOkeyTile(tile) && !this.okeyPlayedThisTurn && same(tile, mate)) {
+                const testTiles = [...targetSet.tiles]; testTiles[oi] = tile;
+                const newValue = this.validatePairTiles(testTiles);
+                if (newValue > 0) return this.swapOkey(player, targetSet, oi, tile, newValue);
+            }
             return { success: false, error: 'Çiftlere tek taş işlenmez: elindeki çifti işle' };
         }
 
@@ -773,39 +782,7 @@ export class Game {
                 testTiles[okeyIndex] = tile;
 
                 const newValue = this.validateSetTiles(testTiles);
-                if (newValue > 0) {
-                    const okeyTile = targetSet.tiles[okeyIndex];
-
-                    this.beginTablePlay(player);
-                    player.removeTile(tileId);
-                    tile.setStatus(TileStatus.ON_TABLE);
-                    tile.setVisible(true);
-
-                    targetSet.tiles[okeyIndex] = tile;
-                    targetSet.value = newValue;
-
-                    okeyTile.setStatus(TileStatus.IN_HAND);
-                    player.addTile(okeyTile);
-
-                    // Set sahibine 100 puan ceza
-                    let penalty: { targetPlayerId: string; amount: number; tag: string; tile: string } | undefined;
-                    if (setOwner) {
-                        setOwner.addPenalty(100);
-                        penalty = { targetPlayerId: setOwner.id, amount: 100, tag: 'okey', tile: tileLabel(tile) };
-                        this.turnSnapshot?.penalties.push({ playerId: penalty.targetPlayerId, amount: penalty.amount, reason: '', tag: penalty.tag, tile: penalty.tile });
-                    }
-
-                    this.playedToTableThisTurn = true;
-                    this.lastActionTime = new Date();
-
-                    return {
-                        success: true,
-                        updatedSet: this.tableSetToJSON(targetSet),
-                        swappedOkeyTile: okeyTile.toJSON(),
-                        penalty,
-                        remainingTiles: player.tiles.map(t => t.toJSON())
-                    };
-                }
+                if (newValue > 0) return this.swapOkey(player, targetSet, okeyIndex, tile, newValue);
             }
         }
 
@@ -865,6 +842,43 @@ export class Game {
         return {
             success: true,
             updatedSet: this.tableSetToJSON(targetSet),
+            penalty,
+            remainingTiles: player.tiles.map(t => t.toJSON())
+        };
+    }
+
+    // Perdeki okeyin yerine elden gerçek taş konur, okey ele geçer; set sahibine 100 ceza
+    private swapOkey(player: Player, targetSet: TableSet, okeyIndex: number, tile: Tile, newValue: number) {
+        const tileId = tile.id;
+        const setOwner = this.getPlayerById(targetSet.playerId);
+        const okeyTile = targetSet.tiles[okeyIndex];
+
+        this.beginTablePlay(player);
+        player.removeTile(tileId);
+        tile.setStatus(TileStatus.ON_TABLE);
+        tile.setVisible(true);
+
+        targetSet.tiles[okeyIndex] = tile;
+        targetSet.value = newValue;
+
+        okeyTile.setStatus(TileStatus.IN_HAND);
+        player.addTile(okeyTile);
+
+        // Set sahibine 100 puan ceza
+        let penalty: { targetPlayerId: string; amount: number; tag: string; tile: string } | undefined;
+        if (setOwner) {
+            setOwner.addPenalty(100);
+            penalty = { targetPlayerId: setOwner.id, amount: 100, tag: 'okey', tile: tileLabel(tile) };
+            this.turnSnapshot?.penalties.push({ playerId: penalty.targetPlayerId, amount: penalty.amount, reason: '', tag: penalty.tag, tile: penalty.tile });
+        }
+
+        this.playedToTableThisTurn = true;
+        this.lastActionTime = new Date();
+
+        return {
+            success: true,
+            updatedSet: this.tableSetToJSON(targetSet),
+            swappedOkeyTile: okeyTile.toJSON(),
             penalty,
             remainingTiles: player.tiles.map(t => t.toJSON())
         };

@@ -536,4 +536,24 @@ for (const [round, amount] of [[2, 100], [5, 200]]) {
     assert.strictEqual(game.tableSets[0].tiles[2].id, r7.id);
 }
 
+// Per açmış oyuncu da çift açanın çiftlerine çift işleyebilir; çiftteki okey eşi olan taşla alınır
+{
+    const J = () => new Tile(TileColor.PURPLE, 'H', true);
+    const { game, p0, p1 } = setup(); // 1. el Hugo: joker okeydir
+    p0.isOpen = true; p0.openedWithPairs = false; // per açmış
+    p1.isOpen = true; p1.openedWithPairs = true;
+    game.tableSets.push({ id: 'c1', playerId: p1.id, tiles: [t(RED, 4), t(RED, 4)], value: 8, kind: 'cift' });
+    game.tableSets.push({ id: 'c2', playerId: p1.id, tiles: [t(BLUE, 9), J()], value: 18, kind: 'cift' });
+    const [b6a, b6b, b9] = give(p0, [t(BLUE, 6), t(BLUE, 6), t(BLUE, 9), t(BLACK, 1), t(BLACK, 3)]);
+    const pr = game.addPairToSet(p0.id, [b6a.id, b6b.id], 'c1');
+    assert.strictEqual(pr.success, true, pr.error);
+    const r = game.addTileToSet(p0.id, b9.id, 'c2', 'end');
+    assert.strictEqual(r.success, true, r.error);
+    assert.ok(r.swappedOkeyTile, 'çiftteki okey alınmalı');
+    assert.deepStrictEqual(game.tableSets.find(x => x.id === 'c2')!.tiles.map(x => x.value), [9, 9]);
+    assert.ok(p0.tiles.some(x => x.isJoker), 'okey ele geçmeli');
+    const [k1] = give(p0, [t(BLACK, 1), t(BLACK, 3)]);
+    assert.strictEqual(game.addTileToSet(p0.id, k1.id, 'c1', 'end').success, false, 'okeysiz çifte tek taş işlenmez');
+}
+
 console.log('Rules.selftest: el açma, set doğrulama, sıra, işleme, yandan alma, işlek taş, otomatik atış, Hugo, sahte okey, çift açma, çift işleme ve el sonu puanlama kuralları ✓');

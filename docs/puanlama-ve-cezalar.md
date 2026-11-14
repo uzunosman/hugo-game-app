@@ -25,7 +25,7 @@ Az puan iyidir: 9 el sonunda toplam puanı en düşük olan kazanır (eşitlikte
 | **Kusmak**: yandan alınan taşı kullanmadan geri koymak | — | **0** | **0** | Cezasız. Atana yazılan "yerden" cezası **silinir**. Oyuncu desteden çeker, kusulan taş o sırada tekrar alınamaz. Kustu taş atılana kadar basılabilir: o sırada masaya oynandıysa (el açma, per indirme, işleme) önce hepsi ele döner ve **geri alma cezası** yazılır (100, Hugo elinde 200), sonra taş kusulur. |
 | **İşleme**: başkasının serisine/perine taş eklemek | Per **sahibine** | taş değeri × 10 | taş değeri × 10 | Okey işlenirse eklendiği yerdeki değer sayılır (örn. 5-6-7'nin sonuna okey → 8 × 10 = 80). Kendi perine işlemek cezasızdır. |
 | **Okey almak**: perdeki okeyin yerine gerçek taşı koyup okeyi almak | Per **sahibine** | **100** | **100** | Aynı sayılı perde (erkek per) okey ancak per 4 taşa tamamlanınca alınabilir. Aynı sırada okey işleyen tekrar okey alamaz. |
-| **Çift işlemek**: başkasının çiftlerine elindeki çifti eklemek | Çift **sahibine** | (çiftin toplamı × 10) × 2 | aynı | Örn. iki 5: ((5 + 5) × 10) × 2 = **200**. Çiftlere tek taş işlenmez. Kendi çiftine işlemek cezasızdır. |
+| **Çift işlemek**: başkasının çiftlerine elindeki çifti eklemek | Çift **sahibine** | (çiftin toplamı × 10) × 2 | aynı | Örn. iki 5: ((5 + 5) × 10) × 2 = **200**. Çiftlere tek taş işlenmez; yalnızca çiftte okey varsa okeyin eşi olan taş işlenip okey alınır (sahibine okey cezası 100). Per açmış oyuncu da çift işleyebilir. Kendi çiftine işlemek cezasızdır. |
 | **Geri almak**: o sırada masaya oynananları ele döndürmek | Geri alana | **100** | **100** | Açılış, indirilen perler ve işlenen taşlar ele döner. Bu sırada başkalarına yazılan işleme/okey cezaları **silinir**. Taş atıldıktan sonra geri alınamaz. |
 | **Açılış tamamlanmadan süre dolması**: tek tek yere indirilen perler eşiğe ulaşmadı, elde de tamamlayacak per yok | Süresi dolana | **100** | **200** | Yere inen perler ele döner (geri alma gibi), sonra taş otomatik atılır. Eldeki perlerle (okey dahil) eşik tamamlanıyorsa ceza yazılmaz, perler açılır. |
 | Yetersiz değerle el açmayı denemek | — | **0** | **0** | Ceza yazılmaz, el açılmaz (bkz. bölüm 3). |
@@ -41,6 +41,7 @@ Az puan iyidir: 9 el sonunda toplam puanı en düşük olan kazanır (eşitlikte
 | Masada henüz kimse açmamışsa | Seri veya çiftlerin toplamı **en az 51** |
 | Masada açan varsa | Masadaki **en yüksek açılışı geçmek** (seri ve çift aynı eşiği kullanır) |
 | Çiftle açan | Sonra yalnızca çift indirir |
+| Çiftle açan | Köşelere atılmış eski taşları görebilir: köşeye tıklayınca yana açılır, başka yere tıklayınca kapanır |
 | Masaya her oynayışta | Elde en az bir taş kalmalı; el son taş atılarak biter |
 | Per per açma | Per ıstakadan masaya sürüklenince yalnızca o per yere iner. Eşik dolana kadar perler yerde bekler (kesik çerçeve) ve taş atılamaz. "Tümünü aç" ıstakadaki tüm geçerli perleri açar. |
 

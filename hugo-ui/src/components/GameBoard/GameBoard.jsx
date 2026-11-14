@@ -51,7 +51,8 @@ const GameBoard = ({
     onPlayGroup,
     pendingSetIds,
     onWarn,
-    canPlaySets
+    canPlaySets,
+    canSeeDiscards
 }) => {
     const isFirstHandBlock = tiles.length === 15 && turnAction === 'draw';
     const canDrawFromDeck = isMyTurn && turnAction === 'draw' && !isFirstHandBlock;
@@ -89,31 +90,18 @@ const GameBoard = ({
             const areas = { top: q('top'), bottom: q('bottom'), left: q('left'), right: q('right') };
             // Önce varsayılan yerlere dön, sonra ölç (aynı karede: titreme olmaz)
             board.style.removeProperty('--center-y');
-            Object.values(areas).forEach(el => { el?.style.removeProperty('--fit-y'); el?.style.removeProperty('--fit-s'); el?.style.removeProperty('--set-rows'); });
+            Object.values(areas).forEach(el => { el?.style.removeProperty('--fit-y'); el?.style.removeProperty('--fit-s'); });
             const o = box.getBoundingClientRect();
             const rel = (r) => ({ x0: r.left - o.left, x1: r.right - o.left, y0: r.top - o.top, y1: r.bottom - o.top });
             const groups = (el) => (el ? [...el.querySelectorAll('.open-set-group, .pair-slot')].map(g => rel(g.getBoundingClientRect())) : []);
             const c = [...deck].map(el => el.getBoundingClientRect());
             const center = rel({ left: Math.min(...c.map(r => r.left)), right: Math.max(...c.map(r => r.right)), top: Math.min(...c.map(r => r.top)), bottom: Math.max(...c.map(r => r.bottom)) });
             const fixed = [...board.querySelectorAll('.tile-drop-zone')].map(z => rel(z.getBoundingClientRect()));
-            // Üst/alt perler önce 2 satır; yana sığmıyorsa 3-4 satıra (aşağı doğru) dizilir, o da yetmezse küçülür
-            const measure = (rows) => {
-                [areas.top, areas.bottom].forEach(el => el?.style.setProperty('--set-rows', rows));
-                const sides = ['left', 'right'].filter(k => areas[k]).map(k => {
-                    const a = rel(areas[k].getBoundingClientRect());
-                    return { k, a, rects: groups(areas[k]), originX: k === 'left' ? a.x0 : a.x1, originY: (a.y0 + a.y1) / 2 };
-                });
-                const fit = fitTable({ H: o.height, top: groups(areas.top), bottom: groups(areas.bottom), center, sides, fixed });
-                return { rows, sides, fit, score: Math.min(fit.topScale, ...fit.sides.map(x => x.s)) };
-            };
-            let best = measure(2);
-            for (const rows of [3, 4]) {
-                if (best.score === 1 || !(areas.top || areas.bottom)) break;
-                const m = measure(rows);
-                if (m.score > best.score) best = m;
-            }
-            const { rows, sides, fit } = best;
-            [areas.top, areas.bottom].forEach(el => el?.style.setProperty('--set-rows', rows));
+            const sides = ['left', 'right'].filter(k => areas[k]).map(k => {
+                const a = rel(areas[k].getBoundingClientRect());
+                return { k, a, rects: groups(areas[k]), originX: k === 'left' ? a.x0 : a.x1, originY: (a.y0 + a.y1) / 2 };
+            });
+            const fit = fitTable({ H: o.height, top: groups(areas.top), bottom: groups(areas.bottom), center, sides, fixed });
             board.style.setProperty('--center-y', `${Math.round(fit.centerY)}px`);
             if (fit.topScale < 1) { areas.top?.style.setProperty('--fit-s', fit.topScale); areas.bottom?.style.setProperty('--fit-s', fit.bottomScale); }
             sides.forEach(({ k, a }, i) => {
@@ -142,6 +130,7 @@ const GameBoard = ({
                     hasSelection={selectedTile !== null && selectedTile !== undefined}
                     onTapDiscard={onTapDiscard}
                     kustuCorner={kustuCorner}
+                    canSeeHistory={canSeeDiscards}
                     onKustu={onKustu}
                 />
 

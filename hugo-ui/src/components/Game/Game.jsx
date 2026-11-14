@@ -8,7 +8,7 @@ import PenaltyLog from '../PenaltyLog/PenaltyLog';
 import Chat from '../Chat/Chat';
 import useGameState from '../../hooks/useGameState';
 import socketService from '../../services/socketService';
-import { getOrderedPlayers, getPlayerPosition, getPlayerCorner, getCurrentPlayerIndex, calculateHandScore, calculatePairScore, findPairPartner, getConsecutiveGroups, validateSet, validatePair, arrangeTiles } from '../../utils/gameUtils';
+import { getOrderedPlayers, getPlayerPosition, getPlayerCorner, getCurrentPlayerIndex, calculateHandScore, calculatePairScore, findPairPartner, canTakePairOkey, getConsecutiveGroups, validateSet, validatePair, arrangeTiles } from '../../utils/gameUtils';
 import { handleDrawTile, handleTileMove, handleDrawDiscardedTile } from '../../utils/tileHandlers';
 import { moveGroup } from '../../utils/rackDrag';
 import '../../assets/css/components/GameBoard.css';
@@ -331,9 +331,10 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
     const onAddTileToSet = (tileId, targetSetId, position) => {
         if (!myOpenState.isOpen || !isMyTurn) return;
 
-        // Hedef çiftse elindeki eşiyle birlikte çift olarak işle
-        if (tableSets.find(s => s.id === targetSetId)?.kind === 'cift') {
-            const tile = tiles.find(t => t.id === tileId);
+        // Hedef çiftse elindeki eşiyle birlikte çift olarak işle; çiftte okey varsa ve taş okeyin eşiyse okey alınır
+        const targetSet = tableSets.find(s => s.id === targetSetId);
+        const tile = tiles.find(t => t.id === tileId);
+        if (targetSet?.kind === 'cift' && !canTakePairOkey(targetSet, tile, gameState.okeyTile, gameState.isHugoRound)) {
             const partnerId = findPairPartner(tile, tiles, gameState.okeyTile, gameState.isHugoRound);
             if (!partnerId) return setError('Bu taşın elinde eşi yok: çiftlere çift işlenir');
             rememberRack();
@@ -606,6 +607,7 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
                 kustuCorner={kustuCorner}
                 onKustu={onKustu}
                 onWarn={setError}
+                canSeeDiscards={!!(myOpenState.isOpen && myOpenState.openedWithPairs)}
                 canPlaySets={myOpenState.isOpen && isMyTurn}
                 onTapDiscard={() => {
                     onTileMove(selectedTile, -1);

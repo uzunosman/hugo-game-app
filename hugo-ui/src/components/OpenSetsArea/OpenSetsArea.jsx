@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { isOkeyTile, asPlayedTile } from '../../utils/gameUtils';
+import { isOkeyTile, asPlayedTile, canTakePairOkey } from '../../utils/gameUtils';
 import '../../assets/css/components/OpenSetsArea.css';
 import { incomingTiles } from '../../utils/flyTiles';
 import JokerFace from '../Tile/JokerFace';
@@ -196,12 +196,13 @@ const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTil
         const played = set.tiles.map(t => asPlayedTile(t, okeyTile, isHugo));
         const fullGroup = set.kind !== 'cift' && set.tiles.length === 4 && isSameNumberSet(played, isOkey);
         const fullHasOkey = fullGroup && set.tiles.some(isOkey);
+        const pairOkey = canPlay && canTakePairOkey(set, activeTile, okeyTile, isHugo); // çiftteki okey eşiyle alınır
         const isExpanded = canPlay && ((hoveredSetId === set.id && !!selectedTileId) || dragOverKey === set.id)
-            && set.kind !== 'cift' && (!fullGroup || fullHasOkey);
-        const validPositions = isExpanded
+            && (set.kind !== 'cift' ? (!fullGroup || fullHasOkey) : pairOkey);
+        const validPositions = isExpanded && set.kind !== 'cift'
             ? calculateValidPositions(set, activeTile, okeyTile, isHugo, pairPartnerId)
             : [];
-        const okeyTakeable = fullHasOkey && validPositions.length > 0;
+        const okeyTakeable = (fullHasOkey && validPositions.length > 0) || pairOkey;
         const hasStartSlot = !fullGroup && validPositions.some(v => v.position === 'start');
         const hasEndSlot = !fullGroup && validPositions.some(v => v.position === 'end');
         // Sürüklenen taşın gideceği uç: iki uç da uyuyorsa (okey) parmağın olduğu yarı, tek uç uyuyorsa o uç
@@ -212,7 +213,7 @@ const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTil
         return (
             <div
                 key={set.id}
-                className={`open-set-group ${isExpanded ? 'expanded' : ''} ${pendingSetIds?.includes(set.id) ? 'is-pending' : ''} ${set.tiles.length > 10 ? 'long-set' : ''} ${isInteractive && canPlay && set.kind !== 'cift' && (!fullGroup || fullHasOkey) ? 'droppable' : ''}`}
+                className={`open-set-group ${isExpanded ? 'expanded' : ''} ${pendingSetIds?.includes(set.id) ? 'is-pending' : ''} ${set.tiles.length > 10 ? 'long-set' : ''} ${isInteractive && canPlay && (set.kind !== 'cift' ? (!fullGroup || fullHasOkey) : pairOkey) ? 'droppable' : ''}`}
                 data-set-id={set.id}
                 data-hover-key={canPlay && (!fullGroup || fullHasOkey) ? set.id : undefined}
                 onMouseEnter={() => handleMouseEnter(set.id)}

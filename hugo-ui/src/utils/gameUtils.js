@@ -419,3 +419,13 @@ const placeGroups = (groups) => {
     for (const t of leftovers) positions[positions.indexOf(null)] = t.id;
     return positions;
 };
+
+// Çiftteki okey, okeyin eşi olan taşla alınabilir mi (sunucu Game.addTileToSet ile aynı kural)
+export const canTakePairOkey = (set, tile, okeyTile, isHugo) => {
+    if (set?.kind !== 'cift' || !tile || isOkeyTile(tile, okeyTile, isHugo)) return false;
+    const oi = set.tiles.findIndex(t => isOkeyTile(t, okeyTile, isHugo));
+    const mate = oi === -1 ? null : set.tiles[1 - oi];
+    if (!mate || isOkeyTile(mate, okeyTile, isHugo)) return false;
+    const a = asPlayedTile(tile, okeyTile, isHugo), b = asPlayedTile(mate, okeyTile, isHugo);
+    return a.color === b.color && a.value === b.value;
+};

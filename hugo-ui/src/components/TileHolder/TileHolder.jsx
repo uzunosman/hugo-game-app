@@ -41,7 +41,8 @@ const TileHolder = ({ tiles, tilePositions, onTileClick, onTileDoubleClick, sele
                         isSelected={isSelected}
                         isFlipped={flippedTileIds?.has(tileId)}
                         onClick={() => onTileClick(index)}
-                        onDoubleClick={() => onTileDoubleClick?.(index)}
+                        // Okeye çift tıklama atmaz, okey simgesine çevirir (sürükleyip köşeye bırakınca yine atılır)
+                        onDoubleClick={onOkeyFlip && isOkeyTile(tile, okeyTile, isHugo) ? () => onOkeyFlip(tileId) : () => onTileDoubleClick?.(index)}
                         onContextMenu={onOkeyFlip && isOkeyTile(tile, okeyTile, isHugo) ? (e) => { e.preventDefault(); onOkeyFlip(tileId); } : undefined}
                     />
                 )}

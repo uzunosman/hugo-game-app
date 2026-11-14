@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Tile from '../Tile/Tile';
 
 /**
@@ -25,8 +25,21 @@ const DiscardAreas = ({
     onTapDiscard,
     kustuCorner,
     onKustu,
-    dragOverCorner // sürüklenen ıstaka taşı bu köşenin üstünde (useBoardDrag)
+    dragOverCorner, // sürüklenen ıstaka taşı bu köşenin üstünde (useBoardDrag)
+    canSeeHistory // çift açan oyuncu köşeye tıklayınca o köşeye atılmış eski taşları görür
 }) => {
+    const [historyCorner, setHistoryCorner] = useState(null);
+    // Geçmiş açıkken başka bir yere tıklanınca kapanır
+    useEffect(() => {
+        if (!historyCorner) return;
+        const close = (e) => { if (!e.target.closest?.(`[data-corner="${historyCorner}"]`)) setHistoryCorner(null); };
+        document.addEventListener('pointerdown', close);
+        return () => document.removeEventListener('pointerdown', close);
+    }, [historyCorner]);
+    useEffect(() => { if (!canSeeHistory) setHistoryCorner(null); }, [canSeeHistory]);
+    const toggleHistory = (corner) => {
+        if (canSeeHistory && (discardedTiles[corner] || []).length > 1) setHistoryCorner(c => (c === corner ? null : corner));
+    };
 
     // Bir köşenin interaktif (pointer-events: all) olup olmayacağını belirle:
     // 1. Kendi köşesi + discard aşaması → taş atma hedefi
@@ -56,6 +69,8 @@ const DiscardAreas = ({
     const handleDiscardedTileClick = (corner, tileIndex) => {
         if (canTakeDiscardedTile(corner, tileIndex)) {
             handleDrawDiscardedTile(corner, tileIndex);
+        } else {
+            toggleHistory(corner);
         }
     };
 
@@ -70,12 +85,19 @@ const DiscardAreas = ({
             <div
                 className={`tile-drop-zone ${positionClass} ${isCornerActive(corner) ? 'active' : ''} ${dragOverCorner === corner && corner === playerCorner ? 'drag-over' : ''}`}
                 data-corner={corner}
-                onClick={() => {
+                onClick={(e) => {
                     // Dokunmatik: seçili taş varken kendi köşene dokun → at
                     const isFirstHand = tilesLength === 15 && turnAction === 'draw';
                     if (corner === playerCorner && hasSelection && isMyTurn && (turnAction === 'discard' || isFirstHand)) onTapDiscard?.();
+                    else if (e.target === e.currentTarget) toggleHistory(corner);
                 }}
             >
+                {historyCorner === corner && (
+                    // En yeni taş köşeye en yakın; köşedeki üst taş zaten görünüyor
+                    <div className="discard-history" aria-label="Bu köşeye atılan önceki taşlar">
+                        {tiles.slice(0, -1).reverse().map(t => <Tile key={t.id} tile={t} isDiscarded={true} />)}
+                    </div>
+                )}
                 {corner === kustuCorner && (
                     <button
                         type="button"

@@ -139,6 +139,9 @@
     align-items: start;
     max-width: none;
 }
+/* Üst/alt: sıralılar tek sütunda alt alta, erkekler sağında alt alta; bir sırada en fazla 2 per (çiftler ızgarada kalır) */
+.open-sets-top .open-sets-list:not(.open-pairs-list),
+.open-sets-bottom .open-sets-list:not(.open-pairs-list) { display: flex; flex-direction: column; align-items: flex-start; }
 /* Yanlar: tek sütun, perler alt alta; alan dikeyde ortalı olduğundan per açıldıkça ortada kalır */
 .open-sets-left .open-sets-list,
 .open-sets-right .open-sets-list { display: flex; flex-direction: column; gap: 6px; }
@@ -245,4 +248,29 @@
 .tile-drop-zone.active {
     width: calc(var(--tile-w, 40px) + 24px);
     height: calc(var(--tile-h, 60px) + 24px);
+}
+
+/* Çift açan oyuncu: köşeye tıklayınca o köşeye atılmış önceki taşlar masanın içine doğru yana açılır */
+.discard-history {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 60;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    width: max-content;
+    max-width: min(60vw, calc(var(--set-tile-w) * 12 + 22px));
+    padding: 4px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.45);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+.tile-drop-zone.top-left .discard-history, .tile-drop-zone.bottom-left .discard-history { left: calc(100% + 6px); }
+.tile-drop-zone.top-right .discard-history, .tile-drop-zone.bottom-right .discard-history { right: calc(100% + 6px); flex-direction: row-reverse; }
+.discard-history .tile {
+    width: var(--set-tile-w);
+    height: var(--set-tile-h);
+    font-size: var(--set-tile-font);
+    cursor: default;
 }
