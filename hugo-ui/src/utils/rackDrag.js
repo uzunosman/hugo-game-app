@@ -1,5 +1,6 @@
 // Istaka sürükle-bırak mantığı (saf fonksiyonlar; rack.selftest.mjs ile test edilir)
-import { insertShift } from './tileHandlers.js';
+import { insertShift, rackGroupAt } from './tileHandlers.js';
+import { validatePair, validateSet } from './gameUtils.js';
 
 export const ROW = 15;
 const rowOf = (i) => (i < ROW ? 0 : 1);
@@ -87,3 +88,16 @@ export const rackPreview = (positions, drag) => {
 };
 
 const range = (s, n) => Array.from({ length: n }, (_, i) => s + i);
+
+// Basılı tutulan taşın peri: satırdaki kesintisiz dizi yalnızca kurala uyan bir perse (seri / aynı sayı en az 3 taş,
+// ya da çift) seçilir. Per değilse null: taş tek başına sürüklenir.
+export const perGroupAt = (positions, idx, tiles, opts) => {
+    const byId = Object.fromEntries(tiles.map(t => [t.id, t]));
+    const isPair = (a, b) => !!byId[a] && !!byId[b] && validatePair([byId[a], byId[b]], opts) > 0;
+    const group = rackGroupAt(positions, idx, isPair);
+    if (!group) return null;
+    const groupTiles = positions.slice(group.start, group.start + group.len).map(id => byId[id]);
+    if (groupTiles.some(t => !t)) return null;
+    const ok = group.len === 2 ? validatePair(groupTiles, opts) > 0 : validateSet(groupTiles, opts) > 0;
+    return ok ? group : null;
+};

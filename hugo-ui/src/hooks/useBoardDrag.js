@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { rackGroupAt } from '../utils/tileHandlers';
+import { perGroupAt } from '../utils/rackDrag';
 
 // Masadaki tüm sürükle-bırak: fare, dokunmatik ve kalem aynı Pointer Events yolunu kullanır.
 //  - Istaka taşı: sürükle → ıstakada yer değiştir, köşeye at, masadaki pere işle (son taş ıstaka dışında her yere: at)
-//  - Basılı tut (LONG_PRESS) → taşın satırdaki kesintisiz dizisi (per) seçilir; sürükle → per ıstakada taşınır,
+//  - Basılı tut (LONG_PRESS) → taşın satırdaki kesintisiz dizisi geçerli bir perse seçilir; sürükle → per ıstakada taşınır,
 //    masaya bırakılırsa el açılır / per indirilir
 //  - Deste / yerdeki son taş: ıstakaya sürükle → çek
 // Sürüklenen taş yerinden kalkar (ıstakada gölgesi kalmaz); bırakılacağı yer ıstakada canlı gösterilir.
@@ -108,8 +108,8 @@ export default function useBoardDrag(props) {
     const arm = () => {
         const s = session.current;
         if (!s || s.dragging || s.kind !== 'tile') return;
-        const { positions, isPair } = latest.current;
-        const group = rackGroupAt(positions, s.srcIdx, isPair);
+        const { positions, tiles, setOpts } = latest.current;
+        const group = perGroupAt(positions, s.srcIdx, tiles, setOpts); // yalnızca kurala uyan per seçilir
         if (!group) return;
         s.kind = 'group';
         s.group = group;

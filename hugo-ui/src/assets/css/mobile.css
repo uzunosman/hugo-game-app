@@ -10,7 +10,9 @@
         --tile-pb: calc(var(--tile-h) * 0.22);
         --tile-dot: 4px;
         --tile-dot-b: 4px;
-        --rack-h: calc(var(--tile-h) * 2 + 18px);
+        /* iPhone'da ana ekran çizgisi ıstakanın alt satırına binmesin: ıstakanın altında boşluk */
+        --rack-gap: max(14px, env(safe-area-inset-bottom, 0px));
+        --rack-h: calc(var(--tile-h) * 2 + 18px + var(--rack-gap));
         --tileholder-h: var(--rack-h);
         --top-band: 32px;
         --side-band: 46px;
@@ -21,7 +23,7 @@
     }
 
     /* Istaka: ince çerçeve, satırlar taşa yapışık */
-    html .tile-holder-container{ padding: 0; }
+    html .tile-holder-container{ padding: 0 0 var(--rack-gap); }
     html .tile-holder{ padding: 3px 4px; width: calc(var(--tile-w) * 15 + 22px); border-radius: 6px 6px 0 0; }
     html .tile-row{ min-height: calc(var(--tile-h) + 2px); padding: 0; }
     html .tile-row-divider{ margin: 0; }

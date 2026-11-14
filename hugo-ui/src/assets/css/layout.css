@@ -197,27 +197,28 @@
     transform: none;
 }
 
-/* Orta taşlar: deste ve gösterge masadaki diğer taşlarla aynı ölçüde */
+/* Orta taşlar: deste ve gösterge ıstakadaki taş boyunda */
 .center-area .center-tile {
-    width: var(--set-tile-w);
-    height: var(--set-tile-h);
-    font-size: var(--set-tile-font);
+    width: var(--tile-w, 40px);
+    height: var(--tile-h, 60px);
+    font-size: var(--tile-font, 24px);
     border-radius: 4px;
 }
-.center-area .center-tile.indicator.green { font-size: calc(var(--set-tile-font) * 1.25); }
-/* Hugo eli göstergesi: yatay taş, HUGO harfleri ve her harfin altında bir renk noktası (lobi logosu gibi) */
-.center-area .center-tile.hugo-indicator {
-    width: calc(var(--set-tile-w) * 2.4);
-    flex-direction: row;
+.center-area .center-tile.indicator.green { font-size: calc(var(--tile-font, 24px) * 1.25); }
+.center-area .center-tile.indicator { transform: none; } /* gösterge de tam ıstaka taşı boyunda */
+/* Hugo eli göstergesi: diğer taşlarla aynı boyda; HUGO harfleri alt alta, her harfin yanında bir renk noktası.
+   Normal göstergedeki yeşil çerçeve yok: sıradan bir taş gibi durur */
+.center-area .center-tile.indicator.hugo-indicator {
+    flex-direction: column;
     justify-content: center;
-    gap: calc(var(--set-tile-w) * 0.12);
-    padding: 0 4px;
-    font-size: calc(var(--set-tile-font) * 0.9);
+    gap: 0;
+    padding: 0;
+    font-size: calc(var(--tile-h, 60px) * 0.19); /* 4 satır taş yüksekliğine sığar */
     color: #1b1b1b;
-    border-color: #4CAF50;
+    border: 1px solid rgba(0, 0, 0, 0.1);
 }
-.hugo-letter { display: flex; flex-direction: column; align-items: center; gap: 3px; font-weight: 800; line-height: 1; }
-.hugo-letter i { width: 5px; height: 5px; border-radius: 50%; }
+.hugo-letter { display: flex; align-items: center; gap: 0.25em; font-weight: 800; line-height: 1.05; }
+.hugo-letter i { width: 0.36em; height: 0.36em; border-radius: 50%; }
 .hugo-c0 i { background: var(--ui-red, #FF0000); }
 .hugo-c1 i { background: var(--ui-yellow, #FFC107); }
 .hugo-c2 i { background: var(--ui-blue, #00BCD4); }

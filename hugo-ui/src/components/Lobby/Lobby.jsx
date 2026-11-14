@@ -4,6 +4,14 @@ import { avatarFor, rememberAvatars } from '../../utils/avatar';
 import ProfileDialog from './ProfileDialog';
 import './Lobby.css';
 
+// iPhone / iPad Safari sayfaya tam ekran izni vermez; ana ekrana eklenen uygulama çubuksuz açılır
+const IOS_TIP_KEY = 'hugo.iosTipHidden';
+const showIosTip = () => {
+    const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const standalone = window.navigator.standalone || window.matchMedia?.('(display-mode: standalone), (display-mode: fullscreen)').matches;
+    try { return ios && !standalone && !localStorage.getItem(IOS_TIP_KEY); } catch { return ios && !standalone; }
+};
+
 const SIDES = ['bottom', 'right', 'top', 'left']; // koltuk sırası = oyun sırası, masanın etrafında
 
 const statusText = (room) => {
@@ -20,7 +28,9 @@ function Lobby({ player, onRegister, onJoinRoom, notice }) {
     const [newRoomName, setNewRoomName] = useState('');
     const [error, setError] = useState(notice || '');
     const [loading, setLoading] = useState(false);
-    const [pending, setPending] = useState(null); // ad/avatar bekleyen işlem: { kind: 'join', room } | { kind: 'create', name }
+    const [pending, setPending] = useState(null);
+    const [iosTip, setIosTip] = useState(showIosTip);
+    const hideIosTip = () => { setIosTip(false); try { localStorage.setItem(IOS_TIP_KEY, '1'); } catch { /* depolama kapalı */ } }; // ad/avatar bekleyen işlem: { kind: 'join', room } | { kind: 'create', name }
 
     useEffect(() => {
         const apply = (response) => { if (response?.success) setRooms(response.rooms); };
@@ -88,6 +98,14 @@ function Lobby({ player, onRegister, onJoinRoom, notice }) {
                     </div>
                 )}
             </header>
+
+            {iosTip && (
+                <p className="lobby-tip">
+                    Tam ekran oynamak için Safari'de <b>Paylaş</b> düğmesine, sonra <b>Ana Ekrana Ekle</b>'ye dokun.
+                    Hugo'yu ana ekrandan açınca adres çubuğu ve sekmeler görünmez.
+                    <button type="button" onClick={hideIosTip} aria-label="İpucunu kapat">×</button>
+                </p>
+            )}
 
             <form className="lobby-create" onSubmit={handleCreateRoom}>
                 <label className="visually-hidden" htmlFor="roomName">Yeni masanın adı</label>

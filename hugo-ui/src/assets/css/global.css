@@ -73,3 +73,7 @@ body {
     font-weight: bold;
     color: var(--tile-bg);
 }
+/* Oyun tarayıcıda oynanır: sürükleyip dokunurken metin seçilmesin, uzun basışta seçim / büyüteç çıkmasın.
+   Yazı alanları (ad, masa adı, sohbet) seçilebilir kalır */
+body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+input, textarea, [contenteditable="true"] { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }

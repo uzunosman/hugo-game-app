@@ -4,7 +4,6 @@ import CenterArea from '../CenterArea/CenterArea';
 import DiscardAreas from '../DiscardAreas/DiscardAreas';
 import OpenSetsArea from '../OpenSetsArea/OpenSetsArea';
 import useBoardDrag from '../../hooks/useBoardDrag';
-import { validatePair } from '../../utils/gameUtils';
 import '../../assets/css/components/GameBoard.css';
 
 /**
@@ -55,13 +54,12 @@ const GameBoard = ({
     const canDrawFromDeck = isMyTurn && turnAction === 'draw' && !isFirstHandBlock;
 
     // Tüm sürükle-bırak (fare + dokunmatik) tek yoldan: useBoardDrag
-    const byId = Object.fromEntries(tiles.map(t => [t.id, t]));
     const { dragView, onPointerDown } = useBoardDrag({
         positions: tilePositions,
         tiles,
         playerCorner,
         canDrawFromDeck,
-        isPair: (a, b) => !!byId[a] && !!byId[b] && validatePair([byId[a], byId[b]], { okeyTile, isHugo: isHugoRound }) > 0,
+        setOpts: { okeyTile, isHugo: isHugoRound },
         actions: {
             moveTile: handleTileMove,
             moveGroup: onGroupMove,

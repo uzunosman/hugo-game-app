@@ -2,7 +2,7 @@
 import assert from 'node:assert';
 import { getConsecutiveGroups, arrangeTiles, calculateHandScore, calculatePairScore, findPairPartner, validatePair, validateSet, CELLS_PER_ROW } from './gameUtils.js';
 import { insertShift, rackGroupAt, reconcilePositions } from './tileHandlers.js';
-import { moveGroup, rackPreview } from './rackDrag.js';
+import { moveGroup, rackPreview, perGroupAt } from './rackDrag.js';
 
 let n = 0;
 const tile = (color, value, extra = {}) => ({ id: `t${n++}`, color, value, ...extra });
@@ -149,6 +149,19 @@ const row = (cells) => [...cells, ...Array(CELLS_PER_ROW * 2 - cells.length).fil
     const full = Array(30).fill(null).map((_, i) => (i < 15 ? `f${i}` : null));
     full[20] = 'P'; full[21] = 'Q';
     assert.strictEqual(moveGroup(full, { start: 20, len: 2 }, 20, 5), null, 'dolu satır');
+}
+
+// Basılı tutunca yalnızca kurala uyan per seçilir; per olmayan dizi seçilmez (taş tek sürüklenir)
+{
+    const opts = { okeyTile: { color: 'red', value: 1 }, isHugo: false };
+    const hand = [tile('red', 5), tile('red', 6), tile('red', 7), tile('black', 9), tile('blue', 2), tile('blue', 9), tile('blue', 9), tile('yellow', 4), tile('yellow', 4)];
+    const [r5, r6, r7, k9, b2, b9, b9b, y4, y4b] = hand;
+    const p = row([r5.id, r6.id, r7.id, null, k9.id, b2.id, null, b9.id, b9b.id, y4.id, y4b.id]);
+    assert.deepStrictEqual(perGroupAt(p, 1, hand, opts), { start: 0, len: 3 }, 'kırmızı 5-6-7 per seçilir');
+    assert.strictEqual(perGroupAt(p, 4, hand, opts), null, 'siyah 9 + mavi 2 per değil: seçilmez');
+    assert.deepStrictEqual(perGroupAt(p, 8, hand, opts), { start: 7, len: 2 }, 'yan yana çiftlerde basılan çift seçilir');
+    const extra = row([r5.id, r6.id, r7.id, k9.id]);
+    assert.strictEqual(perGroupAt(extra, 0, hand, opts), null, 'pere bitişik fazladan taş varsa dizi per değil');
 }
 
 // Sürükleme önizlemesi: kalkan taş yerinde gölge bırakmaz, hedefte görünür
