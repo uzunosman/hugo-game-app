@@ -8,7 +8,7 @@ import PenaltyLog from '../PenaltyLog/PenaltyLog';
 import Chat from '../Chat/Chat';
 import useGameState from '../../hooks/useGameState';
 import socketService from '../../services/socketService';
-import { getOrderedPlayers, getPlayerPosition, getPlayerCorner, getCurrentPlayerIndex, calculateHandScore, calculatePairScore, findPairPartner, canTakePairOkey, getConsecutiveGroups, validateSet, validatePair, arrangeTiles } from '../../utils/gameUtils';
+import { getOrderedPlayers, getPlayerPosition, getPlayerCorner, getCurrentPlayerIndex, calculateHandScore, calculatePairScore, canTakePairOkey, getConsecutiveGroups, validateSet, validatePair, arrangeTiles } from '../../utils/gameUtils';
 import { handleDrawTile, handleTileMove, handleDrawDiscardedTile } from '../../utils/tileHandlers';
 import { moveGroup } from '../../utils/rackDrag';
 import '../../assets/css/components/GameBoard.css';
@@ -32,6 +32,9 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
         setGameState,
         error,
         setError,
+        errorId,
+        dismissNotice,
+        noticeBacklog,
         setLoading,
         selectedTile,
         setSelectedTile,
@@ -71,11 +74,13 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
 
     // Okey taşlarına sağ tıkla - ters çevrilmiş görünsün
     // Bildirim 3 sn sonra kendiliğinden kaybolur
+    // Bildirim 3 sn (sırada bekleyen varsa 1,8 sn) görünür, sonra sıradaki gelir
+    const hasBacklog = noticeBacklog > 0;
     useEffect(() => {
-        if (!error) return;
-        const t = setTimeout(() => setError(''), 3000);
+        if (!errorId) return;
+        const t = setTimeout(dismissNotice, hasBacklog ? 1800 : 3000);
         return () => clearTimeout(t);
-    }, [error, setError]);
+    }, [errorId, hasBacklog, dismissNotice]);
 
     const [flippedTileIds, setFlippedTileIds] = useState(() => new Set());
     // Son dizme kipi: Çift diz'e basıldıysa kartta per yerine çift değeri gösterilir (Seri diz'e kadar)
@@ -231,13 +236,14 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
 
 
     // Taşa çift tıklandığında köşeye at (targetIndex = -1 → sürükle-bırak köşe atma ile aynı mantık)
-    const onTileDoubleClick = (positionIndex) => {
-        onTileMove(positionIndex, -1);
+    const onTileDoubleClick = (positionIndex, fromRect) => {
+        onTileMove(positionIndex, -1, fromRect);
     };
 
     // Taş taşıma işleyicisi
-    const onTileMove = (sourceIndex, targetIndex) => {
+    const onTileMove = (sourceIndex, targetIndex, fromRect) => {
         handleTileMove({
+            fromRect,
             sourceIndex,
             targetIndex,
             tilePositions,
@@ -335,21 +341,7 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
         const targetSet = tableSets.find(s => s.id === targetSetId);
         const tile = tiles.find(t => t.id === tileId);
         if (targetSet?.kind === 'cift' && !canTakePairOkey(targetSet, tile, gameState.okeyTile, gameState.isHugoRound)) {
-            const partnerId = findPairPartner(tile, tiles, gameState.okeyTile, gameState.isHugoRound);
-            if (!partnerId) return setError('Bu taşın elinde eşi yok: çiftlere çift işlenir');
-            rememberRack();
-            socketService.addPairToSet([tileId, partnerId], targetSetId, (response) => {
-                if (response.success) {
-                    setPlayedThisTurn(true);
-                    setTiles(response.remainingTiles || []);
-                    setTilePositions(prev => prev.map(id => (id === tileId || id === partnerId ? null : id)));
-                    setSelectedTile(null);
-                    setDraggingTile(null);
-                } else {
-                    setError(response.error || 'Çift işlenemedi');
-                }
-            });
-            return;
+            return setError('Çift işlemek için ıstakada yan yana duran çifti basılı tutup çiftlerin üstüne sürükle');
         }
 
         rememberRack();
@@ -378,6 +370,20 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
             } else {
                 setError(response.error || 'İşleme yapılamadı');
             }
+        });
+    };
+
+    // Istakadan basılı tutulup başkasının çiftlerine sürüklenen çift
+    const onAddPairToSet = (ids, targetSetId) => {
+        if (!isMyTurn) return;
+        if (!myOpenState.isOpen) return setError('Çift işlemek için önce elini açmalısın');
+        rememberRack();
+        socketService.addPairToSet(ids, targetSetId, (response) => {
+            if (!response.success) return setError(response.error || 'Çift işlenemedi');
+            setPlayedThisTurn(true);
+            setTiles(response.remainingTiles || []);
+            setTilePositions(prev => prev.map(id => (ids.includes(id) ? null : id)));
+            setSelectedTile(null);
         });
     };
 
@@ -494,7 +500,7 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
 
     return (
         <div className="game-container" onClick={onBlankClick}>
-            {error && <div className="game-toast" role="status">{error}</div>}
+            {error && <div key={errorId} className="game-toast" role="status">{error}</div>}
 
             {/* Oyuncu Panelleri */}
             {players.map((p, index) => {
@@ -589,9 +595,6 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
                 okeyTile={gameState.okeyTile}
                 gameRound={gameState.round}
                 isHugoRound={gameState.isHugoRound}
-                pairPartnerId={myOpenState.isOpen && activeTile
-                    ? findPairPartner(activeTile, tiles, gameState.okeyTile, gameState.isHugoRound)
-                    : null}
                 onPlayGroup={onPlayGroup}
                 pendingSetIds={pendingOpen?.setIds}
                 onGroupMove={(group, grabIdx, targetIdx) => {
@@ -610,7 +613,7 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
                 canSeeDiscards={!!(myOpenState.isOpen && myOpenState.openedWithPairs)}
                 canPlaySets={myOpenState.isOpen && isMyTurn}
                 onTapDiscard={() => {
-                    onTileMove(selectedTile, -1);
+                    onTileMove(selectedTile, -1, document.querySelector(`.tile-holder .tile-cell[data-cell="${selectedTile}"] .tile`)?.getBoundingClientRect());
                     setSelectedTile(null);
                 }}
                 selectedTile={selectedTile}
@@ -619,6 +622,9 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
                 selectedTileId={selectedTileId}
                 activeTile={activeTile}
                 onAddTileToSet={onAddTileToSet}
+                onAddPairToSet={onAddPairToSet}
+                kustuTileId={kustuCorner ? takenInfo?.tileId : null}
+                noticeId={errorId}
                 onTileDragStart={handleTileDragStart}
                 onTileDragEnd={handleTileDragEnd}
                 flippedTileIds={flippedTileIds}

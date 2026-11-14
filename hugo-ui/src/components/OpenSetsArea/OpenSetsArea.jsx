@@ -73,14 +73,10 @@ function getEdgeValues(tiles, isOkey = (t) => t.isJoker) {
 /**
  * Aktif taş ve set bilgisine göre geçerli ekleme pozisyonlarını hesapla.
  */
-function calculateValidPositions(set, rawActiveTile, okeyTile, isHugo, pairPartnerId) {
+function calculateValidPositions(set, rawActiveTile, okeyTile, isHugo) {
     if (!rawActiveTile) return [];
-    // Çiftlere tek taş işlenmez; seçili taşın elde eşi varsa çift olarak işlenir
-    if (set.kind === 'cift') {
-        if (!pairPartnerId) return [];
-        const played = asPlayedTile(rawActiveTile, okeyTile, isHugo);
-        return [{ position: 'end', displayValue: played.value, displayColor: played.color }];
-    }
+    // Çiftlere tek taş işlenmez: ıstakadaki çift basılı tutulup sürüklenir (useBoardDrag)
+    if (set.kind === 'cift') return [];
     const positions = [];
     // Sahte okeyler okeyin değeriyle hesaba girer
     const tiles = set.tiles.map(t => asPlayedTile(t, okeyTile, isHugo));
@@ -164,7 +160,7 @@ function isGroupSet(set, okeyTile, isHugo) {
 
 // dragOverKey: sürüklenen taşın üstünde olduğu per / çift yeri (useBoardDrag); bırakma da orada yapılır
 // canPlay: oyuncu yere açmış ve sırası onda; değilse perler üstüne gelince büyümez
-const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTileToSet, okeyTile, isHugo, pairPartnerId, dragOverKey, dragOverSide, pendingSetIds, canPlay = true }) => {
+const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTileToSet, okeyTile, isHugo, dragOverKey, dragOverSide, dragOverPairs, pendingSetIds, canPlay = true }) => {
     const [hovered, setHovered] = useState(null); // { setId, tileId }: üstüne gelinen per, o anda seçili taşla
 
     const positionMap = { 0: 'bottom', 1: 'right', 2: 'top', 3: 'left' };
@@ -201,9 +197,9 @@ const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTil
         const isExpanded = canPlay && ((!!selectedTileId && hovered?.setId === set.id && hovered.tileId === selectedTileId) || dragOverKey === set.id)
             && (set.kind !== 'cift' ? (!fullGroup || fullHasOkey) : pairOkey);
         const validPositions = isExpanded && set.kind !== 'cift'
-            ? calculateValidPositions(set, activeTile, okeyTile, isHugo, pairPartnerId)
+            ? calculateValidPositions(set, activeTile, okeyTile, isHugo)
             : [];
-        const okeyTakeable = (fullHasOkey && validPositions.length > 0) || pairOkey;
+        const okeyTakeable = fullHasOkey && validPositions.length > 0; // çiftteki okey alınabilir ama parlamaz
         const hasStartSlot = !fullGroup && validPositions.some(v => v.position === 'start');
         const hasEndSlot = !fullGroup && validPositions.some(v => v.position === 'end');
         // Sürüklenen taşın gideceği uç: iki uç da uyuyorsa (okey) parmağın olduğu yarı, tek uç uyuyorsa o uç
@@ -273,8 +269,6 @@ const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTil
                     <div className={`open-sets-list ${cls}`} style={style}>{sets.map(renderSet)}</div>
                 );
                 const pairSets = playerSets.filter(st => st.kind === 'cift');
-                // Elinde eşi olan taş seçili/sürükleniyorsa çiftlerin önünde soluk bir çift yeri açılır
-                const showPairSlot = pairSets.length > 0 && !!activeTile && !!pairPartnerId;
 
                 return (
                     <div
@@ -291,20 +285,8 @@ const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTil
                             list([...seqSets, ...groupSets], 'open-seq-list open-table-list', { '--set-cols': Math.max(2, Math.ceil((seqSets.length + groupSets.length) / 2)) })
                         )}
                         {pairSets.length > 0 && (
-                            <div className="open-sets-list open-pairs-list">
-                                {showPairSlot && (
-                                    <div
-                                        className={`pair-slot ${dragOverKey === `pair-${p.id}` ? 'hover' : ''}`}
-                                        data-hover-key={`pair-${p.id}`}
-                                        data-set-id={pairSets[0].id}
-                                        role="button"
-                                        aria-label="Çifti buraya işle"
-                                        title="Çifti buraya işle"
-                                        onClick={() => handleSlotClick(pairSets[0].id, 'end')}
-                                    >
-                                        <span /><span />
-                                    </div>
-                                )}
+                            // Istakadaki çift basılı tutulup buraya sürüklenince çiftler parlar: bırakınca çift işlenir
+                            <div className={`open-sets-list open-pairs-list ${dragOverPairs && dragOverPairs === pairSets[0].id ? 'pair-drop' : ''}`}>
                                 {pairSets.map(renderSet)}
                             </div>
                         )}

@@ -83,7 +83,7 @@ const DiscardAreas = ({
 
         return (
             <div
-                className={`tile-drop-zone ${positionClass} ${isCornerActive(corner) ? 'active' : ''} ${dragOverCorner === corner && corner === playerCorner ? 'drag-over' : ''}`}
+                className={`tile-drop-zone ${positionClass} ${isCornerActive(corner) ? 'active' : ''} ${dragOverCorner === corner && (corner === playerCorner || corner === kustuCorner) ? 'drag-over' : ''}`}
                 data-corner={corner}
                 onClick={(e) => {
                     // Dokunmatik: seçili taş varken kendi köşene dokun → at
@@ -102,10 +102,14 @@ const DiscardAreas = ({
                     <button
                         type="button"
                         className="kustu-btn"
-                        title="Yandan aldığın taşı geri koy, desteden çek"
+                        title="Yandan aldığın taşı geri koy, desteden çek (taşı buraya sürükleyerek de kusabilirsin)"
                         onClick={(e) => { e.stopPropagation(); onKustu?.(); }}
                     >
                         Kustu
+                        {/* Taş geri konuyor: aşağı inen ok, altında köşe yuvası */}
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M12 3v11" /><path d="M7.5 9.5 12 14l4.5-4.5" /><path d="M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4" />
+                        </svg>
                     </button>
                 )}
                 {lastTile && corner !== kustuCorner && (

@@ -211,3 +211,6 @@
 .open-set-tile.okey-takeable { box-shadow: 0 0 0 2px #f5c542, 0 0 10px rgba(245, 197, 66, 0.8); animation: okey-take 1s ease-in-out infinite alternate; cursor: pointer; }
 @keyframes okey-take { to { box-shadow: 0 0 0 3px #f5c542, 0 0 16px rgba(245, 197, 66, 1); } }
 @media (prefers-reduced-motion: reduce) { .open-set-tile.okey-takeable { animation: none; } }
+
+/* Istakadan sürüklenen çift başkasının çiftlerinin üstünde: bırakınca işlenir */
+.open-pairs-list.pair-drop { outline: 2px dashed rgba(255, 255, 255, 0.9); outline-offset: 4px; border-radius: 6px; background: rgba(255, 255, 255, 0.08); }

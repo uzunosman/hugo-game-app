@@ -6,7 +6,7 @@ import '../../assets/css/components/TileHolder.css';
 
 // Istaka: 2 × 15 hücre. Sürükleme GameBoard'daki useBoardDrag ile yapılır; burada yalnızca çizilir.
 // dragView sürerken taşlar bırakınca alacakları yerde gösterilir, sürüklenen taş yerinden kalkar.
-const TileHolder = ({ tiles, tilePositions, onTileClick, onTileDoubleClick, selectedTileIndex, okeyTile, isHugo, flippedTileIds, onOkeyFlip, onArrange, dragView }) => {
+const TileHolder = ({ tiles, tilePositions, onTileClick, onTileDoubleClick, selectedTileIndex, okeyTile, isHugo, flippedTileIds, onOkeyFlip, onArrange, dragView, hiddenIds }) => {
     const tilesMap = Object.fromEntries(tiles.map(t => [t.id, t]));
     const dragging = dragView?.dragging ? dragView : null;
     const { cells, preview, blocked } = rackPreview(tilePositions, dragging);
@@ -15,7 +15,7 @@ const TileHolder = ({ tiles, tilePositions, onTileClick, onTileDoubleClick, sele
 
     const renderCell = (index) => {
         const tileId = cells[index];
-        const tile = tileId ? tilesMap[tileId] : null;
+        const tile = tileId && !hiddenIds?.has(tileId) ? tilesMap[tileId] : null; // gizli: sunucu cevabı bekleyen, ıstakadan çıkan taş
         const isSelected = !dragging && selectedTileIndex === index;
         const classes = [
             'tile-cell',

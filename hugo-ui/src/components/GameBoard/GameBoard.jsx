@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import TileHolder from '../TileHolder/TileHolder';
 import CenterArea from '../CenterArea/CenterArea';
 import DiscardAreas from '../DiscardAreas/DiscardAreas';
@@ -33,7 +33,6 @@ const GameBoard = ({
     gameRound,
     isHugoRound,
     onArrange,
-    pairPartnerId,
     onTapDiscard,
     kustuCorner,
     onKustu,
@@ -43,6 +42,7 @@ const GameBoard = ({
     selectedTileId,
     activeTile,
     onAddTileToSet,
+    onAddPairToSet,
     onTileDragStart,
     onTileDragEnd,
     flippedTileIds,
@@ -52,24 +52,47 @@ const GameBoard = ({
     pendingSetIds,
     onWarn,
     canPlaySets,
-    canSeeDiscards
+    canSeeDiscards,
+    noticeId, // yeni uyarı (ör. hamle reddedildi): gizlenen taşlar ıstakaya döner
+    kustuTileId
 }) => {
     const isFirstHandBlock = tiles.length === 15 && turnAction === 'draw';
     const canDrawFromDeck = isMyTurn && turnAction === 'draw' && !isFirstHandBlock;
+
+    // Istakadan çıkan taş (atılan, işlenen, yere açılan) sunucu cevabına kadar ıstakada gizli kalır: eski yerinde yeniden belirmez.
+    // Cevap gelince taş zaten elden çıkar; hamle reddedilirse uyarıyla ya da en geç 1,5 sn sonra geri görünür.
+    const [hiddenIds, setHiddenIds] = useState(() => new Set());
+    const hideTimer = useRef(null);
+    const hide = (ids) => {
+        setHiddenIds(new Set(ids.filter(Boolean)));
+        clearTimeout(hideTimer.current);
+        hideTimer.current = setTimeout(() => setHiddenIds(new Set()), 1500);
+    };
+    useEffect(() => { setHiddenIds(prev => (prev.size ? new Set() : prev)); }, [tiles, noticeId]);
+    useEffect(() => () => clearTimeout(hideTimer.current), []);
+    const canDiscardNow = isMyTurn && (turnAction === 'discard' || isFirstHandBlock);
+    const discard = (idx, fromRect) => {
+        if (canDiscardNow) hide([tilePositions[idx]]);
+        handleTileDoubleClick(idx, fromRect);
+    };
 
     // Tüm sürükle-bırak (fare + dokunmatik) tek yoldan: useBoardDrag
     const { dragView, onPointerDown } = useBoardDrag({
         positions: tilePositions,
         tiles,
         playerCorner,
+        kustuCorner,
+        kustuTileId,
         canDrawFromDeck,
         setOpts: { okeyTile, isHugo: isHugoRound },
         actions: {
             moveTile: handleTileMove,
             moveGroup: onGroupMove,
-            playGroup: onPlayGroup, // per masaya sürüklendi: el aç / per indir
-            discard: handleTileDoubleClick, // köşeye atma ile aynı yol (sıra / aşama kontrolü orada)
-            addToSet: onAddTileToSet,
+            playGroup: (ids) => { if (canDiscardNow) hide(ids); onPlayGroup(ids); }, // per masaya sürüklendi: el aç / per indir
+            discard, // köşeye atma ile aynı yol (sıra / aşama kontrolü orada)
+            addToSet: (tileId, ...rest) => { if (canPlaySets) hide([tileId]); onAddTileToSet(tileId, ...rest); },
+            addPair: (ids, setId) => { if (canPlaySets) hide(ids); onAddPairToSet(ids, setId); },
+            kustu: onKustu,
             drawDeck: handleDrawFromDeck,
             drawDiscard: handleDrawDiscardedTile,
             dragStart: onTileDragStart,
@@ -144,8 +167,8 @@ const GameBoard = ({
                     onAddTileToSet={onAddTileToSet}
                     okeyTile={okeyTile}
                     isHugo={isHugoRound}
-                    pairPartnerId={pairPartnerId}
                     dragOverKey={dragView?.dragging ? dragView.overSet : null}
+                    dragOverPairs={dragView?.dragging ? dragView.overPairs : null}
                     dragOverSide={dragView?.dragging ? dragView.overSide : null}
                     pendingSetIds={pendingSetIds}
                     canPlay={canPlaySets}
@@ -166,7 +189,8 @@ const GameBoard = ({
                     tiles={tiles}
                     tilePositions={tilePositions}
                     onTileClick={handleTileClick}
-                    onTileDoubleClick={handleTileDoubleClick}
+                    onTileDoubleClick={(idx) => discard(idx, document.querySelector(`.tile-holder .tile-cell[data-cell="${idx}"] .tile`)?.getBoundingClientRect())}
+                    hiddenIds={hiddenIds}
                     selectedTileIndex={selectedTile}
                     dragView={dragView}
                     okeyTile={okeyTile}

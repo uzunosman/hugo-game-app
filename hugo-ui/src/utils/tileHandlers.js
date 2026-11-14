@@ -1,6 +1,7 @@
 /**
  * Taş işleme fonksiyonları
  */
+import { flyToCorner } from './flyTiles.js';
 
 /**
  * Taş çekme işlemi
@@ -171,7 +172,8 @@ export const handleTileMove = ({
     setError,
     setGameState,
     getPlayerCorner,
-    currentPlayerIndex
+    currentPlayerIndex,
+    fromRect // atılan taşın uçacağı başlangıç (ıstakadaki yeri ya da bırakıldığı yer)
 }) => {
     console.log(`handleTileMove: ${sourceIndex} -> ${targetIndex}`);
 
@@ -243,6 +245,7 @@ export const handleTileMove = ({
                     console.log('Atılan taş köşeye eklendi:', corner, discardedTile);
                     return newDiscardedTiles;
                 });
+                flyToCorner(corner, fromRect);
 
                 // Sırayı bir sonraki oyuncuya geçir (game:nextTurn event'i de gelecek ama önce yerel güncelle)
                 setGameState(prevState => ({

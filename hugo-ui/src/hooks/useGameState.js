@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import socketService from '../services/socketService';
-import { flyTilesIn } from '../utils/flyTiles';
+import { flyTilesIn, flyToCorner, playerPanelRect } from '../utils/flyTiles';
 import { reconcilePositions } from '../utils/tileHandlers';
 
 const rackKey = (playerId) => `hugo.rack.${playerId}`;
@@ -24,7 +24,15 @@ const writeRack = (playerId, positions) => {
 const useGameState = (player, room) => {
     const [tiles, setTiles] = useState([]);
     const [gameState, setGameState] = useState(room.game);
-    const [error, setError] = useState('');
+    // Bildirimler sıraya girer, art arda gösterilir (ör. perine iki taş işlenince iki ceza bildirimi). '' yeni bildirim eklemez.
+    const [notices, setNotices] = useState([]);
+    const setError = useCallback((msg) => {
+        if (msg) setNotices(q => [...q, { id: `${Date.now()}-${Math.random()}`, msg }].slice(-6));
+    }, []);
+    const dismissNotice = useCallback(() => setNotices(q => q.slice(1)), []);
+    const error = notices[0]?.msg || '';
+    const errorId = notices[0]?.id || null;
+    const noticeBacklog = notices.length - 1;
     const [loading, setLoading] = useState(false);
     const [selectedTile, setSelectedTile] = useState(null);
     const [timeLeft, setTimeLeft] = useState(60);
@@ -183,6 +191,7 @@ const useGameState = (player, room) => {
                             ];
                             return newDiscardedTiles;
                         });
+                        flyToCorner(corner, playerPanelRect(response.playerId)); // taş atanın kartından köşeye uçar
                     }
                 }
             }
@@ -439,6 +448,9 @@ const useGameState = (player, room) => {
         setGameState,
         error,
         setError,
+        errorId,
+        dismissNotice,
+        noticeBacklog,
         loading,
         setLoading,
         selectedTile,

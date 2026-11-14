@@ -45,3 +45,31 @@ export const flyTilesIn = (tileIds, playerId, myId) => {
         });
     }));
 };
+
+// Atılan taş: kaynaktan (ıstakadaki taş / bırakıldığı yer / atan oyuncunun kartı) köşeye uçar.
+// Köşedeki yeni taş render sonrası bulunur, uçuş bitene kadar gizli kalır.
+export const flyToCorner = (corner, from) => {
+    if (!corner || !from || reducedMotion()) return;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+        const target = document.querySelector(`.tile-drop-zone[data-corner="${corner}"] .tile`);
+        if (!target?.animate) return;
+        const to = target.getBoundingClientRect();
+        const ghost = target.cloneNode(true);
+        ghost.classList.add('flying-discard');
+        Object.assign(ghost.style, { position: 'fixed', left: `${to.left}px`, top: `${to.top}px`, width: `${to.width}px`, height: `${to.height}px`, margin: '0', zIndex: 500, pointerEvents: 'none' });
+        document.body.appendChild(ghost);
+        target.style.visibility = 'hidden';
+        const sx = from.left + from.width / 2 - (to.left + to.width / 2);
+        const sy = from.top + from.height / 2 - (to.top + to.height / 2);
+        const sc = from.width && to.width ? from.width / to.width : 1;
+        const done = () => { target.style.visibility = ''; ghost.remove(); };
+        ghost.animate([
+            { transform: `translate(${sx}px, ${sy}px) scale(${sc})` },
+            { transform: 'translate(0, 0) scale(1)' },
+        ], { duration: 320, easing: 'cubic-bezier(.3,.8,.35,1)' }).finished.catch(() => {}).finally(done);
+        setTimeout(done, 1000); // sekme arka plandaysa animasyon ilerlemez: köşedeki taş gizli kalmasın
+    }));
+};
+
+// Başka oyuncunun kartının yeri (atılan taş oradan çıkar)
+export const playerPanelRect = (playerId) => document.querySelector(`.player-panel[data-player-id="${playerId}"]`)?.getBoundingClientRect();

@@ -102,6 +102,7 @@ export default function useBoardDrag(props) {
         window.removeEventListener('pointerup', s.h.up);
         window.removeEventListener('pointercancel', s.h.cancel);
         window.removeEventListener('contextmenu', s.h.ctx, true);
+        if (s.ghost) s.ghostRect = s.ghost.firstChild?.getBoundingClientRect();
         s.ghost?.remove();
         if (s.kind === 'discard' && s.el) s.el.style.visibility = '';
         if (s.dragging && s.kind === 'tile') latest.current.actions.dragEnd?.();
@@ -136,7 +137,7 @@ export default function useBoardDrag(props) {
     // Sürüklenen taşın kilitlendiği per (yoksa null): doğrudan üstündeki, ya da az önce üstünde olduğu
     const lockSet = (s, hit) => {
         // Kendi köşesinin üstündeyse taş atılır: yakındaki pere kilit bırakılır
-        if (hit.overCorner && hit.overCorner === latest.current.playerCorner) { s.lock = null; return null; }
+        if (hit.overCorner && (hit.overCorner === latest.current.playerCorner || hit.overCorner === latest.current.kustuCorner)) { s.lock = null; return null; }
         const el = hit.overSet ? hit.el.closest('[data-hover-key]') : null;
         if (el) {
             if (s.lock?.key !== hit.overSet) navigator.vibrate?.(10);
@@ -156,11 +157,22 @@ export default function useBoardDrag(props) {
     // kullanıcı parmağını kaydırarak seçer; seçilen uçtaki yuva parlar). Uymayan uçta sunucu öbür ucu dener.
     const sideOf = (s) => (s.lock && s.x < s.lock.rect.left + s.lock.rect.width / 2 ? 'start' : 'end');
 
+    // Sürüklenen çiftin işleneceği çift (başka oyuncunun çiftleri), yoksa null
+    const pairTarget = (s, el) => {
+        if (s.kind !== 'group' || s.group?.len !== 2) return null;
+        const list = el?.closest('.open-pairs-list');
+        if (!list || list.closest('.open-sets-bottom')) return null;
+        return list.querySelector('.open-set-group[data-set-id]')?.dataset.setId ?? null;
+    };
+
     const drop = (s, hit) => {
-        const { positions, tiles, playerCorner, actions } = latest.current;
+        const { positions, tiles, playerCorner, kustuCorner, kustuTileId, actions } = latest.current;
         const { el, overCell, inRack, overCorner } = hit;
         if (s.kind === 'group') {
             if (overCell != null) return actions.moveGroup(s.group, s.srcIdx, overCell);
+            // Çift, başkasının çiftlerinin üstüne bırakıldı: çift işlenir (kendi çiftlerine bırakmak per indirmedir)
+            const pairsTo = pairTarget(s, el);
+            if (pairsTo) return actions.addPair?.(s.groupIds, pairsTo);
             // Masaya bırakılan per: el açılır ya da per indirilir (köşeye per atılmaz)
             if (hit.overTable) actions.playGroup?.(s.groupIds);
             return;
@@ -182,15 +194,15 @@ export default function useBoardDrag(props) {
         }
         if (inRack) return;
         // Son taş: ıstaka dışında nereye bırakılırsa atılır, el biter
-        if (tiles.length === 1) return actions.discard(s.srcIdx);
-        if (overCorner && overCorner === playerCorner) return actions.discard(s.srcIdx); // köşe, yakındaki perden önce gelir
+        if (tiles.length === 1) return actions.discard(s.srcIdx, s.ghostRect);
+        // Yandan alınan taş alındığı köşeye geri bırakıldı: kusulur
+        if (overCorner && overCorner === kustuCorner && s.tileId === kustuTileId) return actions.kustu?.();
+        if (overCorner && overCorner === playerCorner) return actions.discard(s.srcIdx, s.ghostRect); // köşe, yakındaki perden önce gelir
         const tileId = s.tileId;
         const slot = el?.closest('.insertion-slot');
         if (slot) return actions.addToSet(tileId, slot.dataset.setId, slot.dataset.position);
         const okey = el?.closest('.open-set-tile.is-okey');
         if (okey) return actions.addToSet(tileId, okey.dataset.setId, 'end');
-        const pair = el?.closest('.pair-slot');
-        if (pair) return actions.addToSet(tileId, pair.dataset.setId, 'end');
         // Perin üstünde ya da parmak perden kaymış ama kilit sürüyor: parmağın olduğu uca işle
         const lock = s.kind === 'tile' && lockSet(s, hit) && s.lock;
         if (lock) return actions.addToSet(tileId, lock.setId, sideOf(s));
@@ -227,7 +239,7 @@ export default function useBoardDrag(props) {
         moveGhost(s);
         const hit = hitTest(s.x, s.y);
         const overSet = s.kind === 'tile' ? lockSet(s, hit) : null;
-        publish({ overCell: shownCell(s, hit.overCell), overSet, overSide: overSet ? sideOf(s) : null, overCorner: hit.overCorner, overTable: s.kind === 'group' && hit.overTable });
+        publish({ overCell: shownCell(s, hit.overCell), overSet, overSide: overSet ? sideOf(s) : null, overCorner: hit.overCorner, overTable: s.kind === 'group' && hit.overTable, overPairs: pairTarget(s, hit.el) });
     }
 
     function onUp(e) {
