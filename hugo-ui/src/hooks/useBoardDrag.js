@@ -71,6 +71,7 @@ export default function useBoardDrag(props) {
             const r = src.getBoundingClientRect();
             const c = src.cloneNode(true);
             c.classList.remove('selected');
+            c.querySelectorAll('.draw-hint, .remaining-count').forEach(n => n.remove()); // desteden çekilen taş: düz kapalı taş
             Object.assign(c.style, { width: `${r.width}px`, height: `${r.height}px`, visibility: 'visible', opacity: '1', margin: '0', transform: 'none' });
             ghost.appendChild(c);
         });
