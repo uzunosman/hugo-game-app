@@ -165,7 +165,7 @@ function isGroupSet(set, okeyTile, isHugo) {
 // dragOverKey: sürüklenen taşın üstünde olduğu per / çift yeri (useBoardDrag); bırakma da orada yapılır
 // canPlay: oyuncu yere açmış ve sırası onda; değilse perler üstüne gelince büyümez
 const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTileToSet, okeyTile, isHugo, pairPartnerId, dragOverKey, dragOverSide, pendingSetIds, canPlay = true }) => {
-    const [hoveredSetId, setHoveredSetId] = useState(null);
+    const [hovered, setHovered] = useState(null); // { setId, tileId }: üstüne gelinen per, o anda seçili taşla
 
     const positionMap = { 0: 'bottom', 1: 'right', 2: 'top', 3: 'left' };
 
@@ -178,13 +178,14 @@ const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTil
         }
     };
 
-    // Mouse hover (select & click modu)
+    // Mouse hover (select & click modu). Dokunmatikte mouseleave gelmez: büyüme yalnızca dokunulduğu andaki seçili taş için,
+    // ıstakada başka taş seçilince eski dokunulan per kendiliğinden büyümez
     const handleMouseEnter = (setId) => {
-        if (selectedTileId) setHoveredSetId(setId);
+        if (selectedTileId) setHovered({ setId, tileId: selectedTileId });
     };
 
     const handleMouseLeave = (setId) => {
-        if (hoveredSetId === setId) setHoveredSetId(null);
+        if (hovered?.setId === setId) setHovered(null);
     };
 
     const isInteractive = !!selectedTileId || !!activeTile;
@@ -197,7 +198,7 @@ const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTil
         const fullGroup = set.kind !== 'cift' && set.tiles.length === 4 && isSameNumberSet(played, isOkey);
         const fullHasOkey = fullGroup && set.tiles.some(isOkey);
         const pairOkey = canPlay && canTakePairOkey(set, activeTile, okeyTile, isHugo); // çiftteki okey eşiyle alınır
-        const isExpanded = canPlay && ((hoveredSetId === set.id && !!selectedTileId) || dragOverKey === set.id)
+        const isExpanded = canPlay && ((!!selectedTileId && hovered?.setId === set.id && hovered.tileId === selectedTileId) || dragOverKey === set.id)
             && (set.kind !== 'cift' ? (!fullGroup || fullHasOkey) : pairOkey);
         const validPositions = isExpanded && set.kind !== 'cift'
             ? calculateValidPositions(set, activeTile, okeyTile, isHugo, pairPartnerId)

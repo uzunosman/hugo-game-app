@@ -279,14 +279,9 @@
 }
 
 /* Taş sürüklenirken kendi köşen büyür, üstüne gelince biraz daha: bırakma alanı geniş */
-.tile-drop-zone { transition: transform 0.15s ease; }
-.tile-drop-zone.top-left { transform-origin: top left; }
-.tile-drop-zone.top-right { transform-origin: top right; }
-.tile-drop-zone.bottom-left { transform-origin: bottom left; }
-.tile-drop-zone.bottom-right { transform-origin: bottom right; }
-.game-board.drag-tile .tile-drop-zone.active { transform: scale(1.2); }
-.game-board.drag-tile .tile-drop-zone.active.drag-over { transform: scale(1.4); }
-@media (prefers-reduced-motion: reduce) { .tile-drop-zone { transition: none; } }
+/* Taş sürüklenirken köşe görsel olarak büyümez, en üst katmanda durur; bırakma alanı görünmez bir payla genişler */
+.game-board.drag-tile .tile-drop-zone { z-index: 400; }
+.game-board.drag-tile .tile-drop-zone.active::before { content: ''; position: absolute; inset: -14px; }
 
 /* Deste: kalan taş sayısı taşın ortasında, çekme sırası gelmişse altında "Taş çek" */
 .center-area .center-tile.closed { flex-direction: column; gap: calc(var(--tile-h, 60px) * 0.06); }
