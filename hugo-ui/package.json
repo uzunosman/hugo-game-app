@@ -8,7 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "node src/utils/rack.selftest.mjs"
+    "test": "node src/utils/rack.selftest.mjs && node src/utils/tableFit.selftest.mjs"
   },
   "dependencies": {
     "@dicebear/collection": "^9.4.2",

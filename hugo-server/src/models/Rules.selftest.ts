@@ -523,4 +523,17 @@ for (const [round, amount] of [[2, 100], [5, 200]]) {
     assert.ok(k.error);
 }
 
+// Hugo elinde iki okeyli perde ikinci okeyin yerini tutan taş da okeyi alır
+{
+    const J = () => new Tile(TileColor.PURPLE, 'H', true);
+    const { game, p0, p1 } = setup(); // 1. el Hugo: joker okeydir
+    p0.isOpen = true;
+    const [r7] = give(p0, [t(RED, 7), t(BLUE, 1), t(BLUE, 3)]);
+    game.tableSets.push({ id: 's', playerId: p1.id, tiles: [t(RED, 5), J(), J(), t(RED, 8)], value: 26 });
+    const r = game.addTileToSet(p0.id, r7.id, 's', 'end');
+    assert.strictEqual(r.success, true, r.error);
+    assert.ok(r.swappedOkeyTile, 'ortadaki ikinci okey alınmalı');
+    assert.strictEqual(game.tableSets[0].tiles[2].id, r7.id);
+}
+
 console.log('Rules.selftest: el açma, set doğrulama, sıra, işleme, yandan alma, işlek taş, otomatik atış, Hugo, sahte okey, çift açma, çift işleme ve el sonu puanlama kuralları ✓');

@@ -760,14 +760,15 @@ export class Game {
 
         // 1. Okey swap denemesi — sette joker/okey varsa yerine gerçek taşı koy
         // Bu turda okey işlemiş oyuncu tekrar okey alamaz
-        const okeyIndex = targetSet.tiles.findIndex(t => this.isOkeyTile(t));
-        if (okeyIndex !== -1 && !this.okeyPlayedThisTurn && !this.isOkeyTile(tile)) {
+        // Perde birden çok okey olabilir (Hugo eli): taşın yerini tuttuğu okey hangisiyse o alınır
+        const okeyIndexes = targetSet.tiles.map((t, i) => (this.isOkeyTile(t) ? i : -1)).filter(i => i !== -1);
+        if (okeyIndexes.length && !this.okeyPlayedThisTurn && !this.isOkeyTile(tile)) {
             // Erkek per (aynı sayı seti): okey swap ancak set 4 taşla doluyken
             // Sıralı per: tek taş ile swap mümkün
             const isSameNumber = this.isSameNumberSet(targetSet.tiles);
             const canSwapOkey = !isSameNumber || targetSet.tiles.length === 4;
 
-            if (canSwapOkey) {
+            for (const okeyIndex of canSwapOkey ? okeyIndexes : []) {
                 const testTiles = [...targetSet.tiles];
                 testTiles[okeyIndex] = tile;
 

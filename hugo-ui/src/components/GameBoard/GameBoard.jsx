@@ -4,6 +4,7 @@ import CenterArea from '../CenterArea/CenterArea';
 import DiscardAreas from '../DiscardAreas/DiscardAreas';
 import OpenSetsArea from '../OpenSetsArea/OpenSetsArea';
 import useBoardDrag from '../../hooks/useBoardDrag';
+import { fitTable } from '../../utils/tableFit';
 import '../../assets/css/components/GameBoard.css';
 
 /**
@@ -75,18 +76,50 @@ const GameBoard = ({
         },
     });
 
-    // Üst oyuncunun perleri aşağı uzadıkça orta taşlar da aşağı kayar: üst ve alt perlerin arasındaki boşluğun ortası
+    // Hiçbir taş üst üste gelmesin: orta taşlar ve yan perler dikeyde boşluğa kayar, sığmazsa küçülür (utils/tableFit)
     const boardRef = useRef(null);
     useLayoutEffect(() => {
         const place = () => {
             const board = boardRef.current;
-            if (!board) return;
-            const top = board.querySelector('.open-sets-top');
-            const bottom = board.querySelector('.open-sets-bottom');
-            const h = board.querySelector('.open-sets-container')?.offsetHeight || 0;
-            const topEdge = top ? top.offsetTop + top.offsetHeight : 0; // offset*: büyüyen (scale) per ölçüyü bozmaz
-            const bottomEdge = bottom ? bottom.offsetTop : h;
-            board.style.setProperty('--center-y', `${Math.round((topEdge + bottomEdge) / 2)}px`);
+            const box = board?.querySelector('.open-sets-container');
+            const deck = board?.querySelectorAll('.center-tiles > *');
+            if (!box || !deck?.length) return;
+            if (box.querySelector('.open-set-group.expanded')) return; // işlerken büyüyen per ölçüyü bozmasın: yerleşim sabit kalır
+            const q = (pos) => box.querySelector(`.open-sets-${pos}`);
+            const areas = { top: q('top'), bottom: q('bottom'), left: q('left'), right: q('right') };
+            // Önce varsayılan yerlere dön, sonra ölç (aynı karede: titreme olmaz)
+            board.style.removeProperty('--center-y');
+            Object.values(areas).forEach(el => { el?.style.removeProperty('--fit-y'); el?.style.removeProperty('--fit-s'); el?.style.removeProperty('--set-rows'); });
+            const o = box.getBoundingClientRect();
+            const rel = (r) => ({ x0: r.left - o.left, x1: r.right - o.left, y0: r.top - o.top, y1: r.bottom - o.top });
+            const groups = (el) => (el ? [...el.querySelectorAll('.open-set-group, .pair-slot')].map(g => rel(g.getBoundingClientRect())) : []);
+            const c = [...deck].map(el => el.getBoundingClientRect());
+            const center = rel({ left: Math.min(...c.map(r => r.left)), right: Math.max(...c.map(r => r.right)), top: Math.min(...c.map(r => r.top)), bottom: Math.max(...c.map(r => r.bottom)) });
+            const fixed = [...board.querySelectorAll('.tile-drop-zone')].map(z => rel(z.getBoundingClientRect()));
+            // Üst/alt perler önce 2 satır; yana sığmıyorsa 3-4 satıra (aşağı doğru) dizilir, o da yetmezse küçülür
+            const measure = (rows) => {
+                [areas.top, areas.bottom].forEach(el => el?.style.setProperty('--set-rows', rows));
+                const sides = ['left', 'right'].filter(k => areas[k]).map(k => {
+                    const a = rel(areas[k].getBoundingClientRect());
+                    return { k, a, rects: groups(areas[k]), originX: k === 'left' ? a.x0 : a.x1, originY: (a.y0 + a.y1) / 2 };
+                });
+                const fit = fitTable({ H: o.height, top: groups(areas.top), bottom: groups(areas.bottom), center, sides, fixed });
+                return { rows, sides, fit, score: Math.min(fit.topScale, ...fit.sides.map(x => x.s)) };
+            };
+            let best = measure(2);
+            for (const rows of [3, 4]) {
+                if (best.score === 1 || !(areas.top || areas.bottom)) break;
+                const m = measure(rows);
+                if (m.score > best.score) best = m;
+            }
+            const { rows, sides, fit } = best;
+            [areas.top, areas.bottom].forEach(el => el?.style.setProperty('--set-rows', rows));
+            board.style.setProperty('--center-y', `${Math.round(fit.centerY)}px`);
+            if (fit.topScale < 1) { areas.top?.style.setProperty('--fit-s', fit.topScale); areas.bottom?.style.setProperty('--fit-s', fit.bottomScale); }
+            sides.forEach(({ k, a }, i) => {
+                areas[k].style.setProperty('--fit-y', `${Math.round((a.y0 + a.y1) / 2 + fit.sides[i].dy)}px`);
+                if (fit.sides[i].s < 1) areas[k].style.setProperty('--fit-s', fit.sides[i].s);
+            });
         };
         place();
         window.addEventListener('resize', place);
