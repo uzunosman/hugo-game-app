@@ -100,11 +100,18 @@ function Lobby({ player, onRegister, onJoinRoom, notice }) {
             </header>
 
             {iosTip && (
-                <p className="lobby-tip">
-                    Tam ekran oynamak için Safari'de <b>Paylaş</b> düğmesine, sonra <b>Ana Ekrana Ekle</b>'ye dokun.
-                    Hugo'yu ana ekrandan açınca adres çubuğu ve sekmeler görünmez.
-                    <button type="button" onClick={hideIosTip} aria-label="İpucunu kapat">×</button>
-                </p>
+                <aside className="lobby-tip" aria-label="Tam ekran ipucu">
+                    {/* Safari'nin Paylaş simgesi: kutudan çıkan ok */}
+                    <svg className="lobby-tip-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 3v12M7.5 7.5 12 3l4.5 4.5" />
+                        <path d="M8 10H6a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9a1 1 0 0 0-1-1h-2" />
+                    </svg>
+                    <div className="lobby-tip-text">
+                        <strong>Tam ekran oyna</strong>
+                        <span>Safari'de <b>Paylaş</b> düğmesine, sonra <b>Ana Ekrana Ekle</b>'ye dokun. Hugo'yu ana ekrandan açınca adres çubuğu ve sekmeler görünmez.</span>
+                    </div>
+                    <button type="button" className="lobby-tip-close" onClick={hideIosTip} aria-label="İpucunu kapat">×</button>
+                </aside>
             )}
 
             <form className="lobby-create" onSubmit={handleCreateRoom}>

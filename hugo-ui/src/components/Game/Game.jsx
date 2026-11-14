@@ -78,6 +78,8 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
     }, [error, setError]);
 
     const [flippedTileIds, setFlippedTileIds] = useState(() => new Set());
+    // Son dizme kipi: Çift diz'e basıldıysa kartta per yerine çift değeri gösterilir (Seri diz'e kadar)
+    const [rackMode, setRackMode] = useState('seri');
 
     useEffect(() => {
         setFlippedTileIds(new Set());
@@ -498,7 +500,8 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
                         position={getPlayerPosition(index)}
                         isCurrentPlayer={p.id === gameState.currentPlayerId}
                         timeLeft={p.id === gameState.currentPlayerId ? timeLeft : null}
-                        setScore={index === 0 ? handScore.setTotal : null}
+                        setScore={index === 0 ? (rackMode === 'cift' ? pairScore.pairTotal : handScore.setTotal) : null}
+                        setLabel={rackMode === 'cift' ? 'Çift' : 'Per'}
                         isOpen={openState?.isOpen}
                         openedTotal={openState?.openedTotal}
                         penaltyScore={openState?.penaltyScore || 0}
@@ -592,6 +595,7 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
                     setSelectedTile(null);
                 }}
                 onArrange={(mode) => {
+                    setRackMode(mode);
                     setTilePositions(arrangeTiles(tiles, mode, gameState.okeyTile, gameState.isHugoRound));
                     setSelectedTile(null);
                 }}

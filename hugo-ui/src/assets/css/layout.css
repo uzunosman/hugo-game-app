@@ -206,7 +206,7 @@
 }
 .center-area .center-tile.indicator.green { font-size: calc(var(--tile-font, 24px) * 1.25); }
 .center-area .center-tile.indicator { transform: none; } /* gösterge de tam ıstaka taşı boyunda */
-/* Hugo eli göstergesi: diğer taşlarla aynı boyda; HUGO harfleri alt alta, her harfin yanında bir renk noktası.
+/* Hugo eli göstergesi: diğer taşlarla aynı boyda; HUGO harfleri alt alta, her harfin solunda bir renk noktası.
    Normal göstergedeki yeşil çerçeve yok: sıradan bir taş gibi durur */
 .center-area .center-tile.indicator.hugo-indicator {
     flex-direction: column;
@@ -217,7 +217,7 @@
     color: #1b1b1b;
     border: 1px solid rgba(0, 0, 0, 0.1);
 }
-.hugo-letter { display: flex; align-items: center; gap: 0.25em; font-weight: 800; line-height: 1.05; }
+.hugo-letter { display: flex; flex-direction: row-reverse; align-items: center; gap: 0.25em; font-weight: 800; line-height: 1.05; } /* nokta harfin solunda */
 .hugo-letter i { width: 0.36em; height: 0.36em; border-radius: 50%; }
 .hugo-c0 i { background: var(--ui-red, #FF0000); }
 .hugo-c1 i { background: var(--ui-yellow, #FFC107); }
