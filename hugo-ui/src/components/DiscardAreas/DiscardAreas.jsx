@@ -83,13 +83,13 @@ const DiscardAreas = ({
 
         return (
             <div
-                className={`tile-drop-zone ${positionClass} ${isCornerActive(corner) ? 'active' : ''} ${dragOverCorner === corner && (corner === playerCorner || corner === kustuCorner) ? 'drag-over' : ''}`}
+                className={`tile-drop-zone ${positionClass} ${isCornerActive(corner) ? 'active' : ''} ${canSeeHistory && tiles.length > 1 ? 'has-history' : ''} ${dragOverCorner === corner && (corner === playerCorner || corner === kustuCorner) ? 'drag-over' : ''}`}
                 data-corner={corner}
                 onClick={(e) => {
                     // Dokunmatik: seçili taş varken kendi köşene dokun → at
                     const isFirstHand = tilesLength === 15 && turnAction === 'draw';
                     if (corner === playerCorner && hasSelection && isMyTurn && (turnAction === 'discard' || isFirstHand)) onTapDiscard?.();
-                    else if (e.target === e.currentTarget) toggleHistory(corner);
+                    else if (!e.target.closest('.tile.can-drag')) toggleHistory(corner); // alınabilen taşın kendi tıklaması var
                 }}
             >
                 {historyCorner === corner && (
