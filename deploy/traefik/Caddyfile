@@ -3,6 +3,12 @@
 	redir @www https://hugola.io{uri} permanent
 
 	encode gzip
+	# Sayfa her açılışta yeniden doğrulanır (ana ekrana eklenen uygulama eski sürümde kalmasın);
+	# /assets dosyalarının adı her derlemede değişir, uzun süre önbellekte kalabilir
+	@assets path /assets/*
+	header @assets Cache-Control "public, max-age=31536000, immutable"
+	@pages not path /assets/* /socket.io/*
+	header @pages Cache-Control "no-cache"
 	handle /socket.io/* {
 		reverse_proxy host.docker.internal:3001
 	}

@@ -57,6 +57,10 @@ EOF
 cat > /etc/caddy/Caddyfile <<EOF
 $SITE {
     encode gzip
+    @assets path /assets/*
+    header @assets Cache-Control "public, max-age=31536000, immutable"
+    @pages not path /assets/* /socket.io/*
+    header @pages Cache-Control "no-cache"
     handle /socket.io/* {
         reverse_proxy 127.0.0.1:3001
     }
