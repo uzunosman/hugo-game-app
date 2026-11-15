@@ -52,7 +52,7 @@
     html .tile-holder-container .rack-tools{
         left: auto;
         right: 4px;
-        bottom: 4px;
+        bottom: 16px; /* sağ alttaki sürüm etiketiyle çakışmasın */
         flex-direction: column;
         gap: 4px;
     }

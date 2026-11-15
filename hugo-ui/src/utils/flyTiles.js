@@ -3,8 +3,6 @@
 
 // Yolda olan taş id'leri: OpenSetsArea bunları iniş bitene kadar gizli çizer
 export const incomingTiles = new Set();
-// Kendi taşlarımızın çıkış yeri (sürükleyip bırakılan yer): masaya iniş oradan başlar, ıstakanın ortasından değil
-export const tileOrigins = new Map();
 
 const DURATION = 480;
 const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -19,12 +17,9 @@ const sourceRect = (playerId, myId) => {
 // Masaya yeni çizilen taşları (tileIds) işleyenin yerinden uçurur; render sonrasına ertelenir
 export const flyTilesIn = (tileIds, playerId, myId) => {
     if (!tileIds.length) return;
-    if (reducedMotion()) return;
+    // Oynayan oyuncu kendi işlemesini / açmasını animasyonsuz görür; uçuş yalnızca diğer oyunculara
+    if (reducedMotion() || playerId === myId) return;
     tileIds.forEach(id => incomingTiles.add(id));
-    // Kendi taşı: bırakıldığı yer ya da ıstakadaki yeri (henüz ıstakadan kalkmadıysa) şimdi alınır
-    const mine = playerId === myId;
-    const origins = mine ? Object.fromEntries(tileIds.map(id => [id, tileOrigins.get(id) || rackTileEl(id)?.getBoundingClientRect()])) : {};
-    tileIds.forEach(id => tileOrigins.delete(id));
     requestAnimationFrame(() => requestAnimationFrame(() => {
         const from = sourceRect(playerId, myId);
         const stagger = Math.min(90, 700 / tileIds.length); // çok taşlı açılış da 1 saniyeyi geçmesin
@@ -33,11 +28,6 @@ export const flyTilesIn = (tileIds, playerId, myId) => {
             const land = () => { incomingTiles.delete(id); target?.classList.remove('incoming'); };
             if (!target || !target.animate) return land();
             const to = target.getBoundingClientRect();
-            if (origins[id]) { // kendi taşı: atma gibi ağır, düz bir süzülüşle yerine iner
-                target.style.visibility = 'hidden';
-                flyClone(target, origins[id], to, 300, () => { target.style.visibility = ''; land(); });
-                return;
-            }
             if (!from) return land();
             const ghost = target.cloneNode(true);
             ghost.classList.remove('incoming');
@@ -88,34 +78,6 @@ export const playerPanelRect = (playerId) => document.querySelector(`.player-pan
 const EASE = 'cubic-bezier(.3,.8,.35,1)';
 
 // Öğenin kopyası fromRect'ten toRect'e uçar, sonra silinir (ıstakadan köşeye atılan taş: sunucu cevabını beklemeden)
-// landed(): varış yerindeki gerçek öğe hazır mı; değilse kopya varış yerinde bekler (en çok 1,5 sn), boşluk ya da sıçrama olmaz
-export const flyClone = (srcEl, fromRect, toRect, duration = 260, onDone, landed) => {
-    if (!srcEl || !fromRect || !toRect || reducedMotion()) return onDone?.();
-    const ghost = srcEl.cloneNode(true);
-    ghost.classList.remove('selected');
-    ghost.classList.add('flying-discard');
-    ghost.querySelectorAll('.draw-hint, .remaining-count').forEach(n => n.remove());
-    Object.assign(ghost.style, {
-        position: 'fixed', left: `${toRect.left}px`, top: `${toRect.top}px`, width: `${toRect.width}px`, height: `${toRect.height}px`,
-        margin: '0', zIndex: 500, pointerEvents: 'none', visibility: 'visible', opacity: '1', transformOrigin: '0 0',
-    });
-    document.body.appendChild(ghost);
-    const sc = toRect.width ? fromRect.width / toRect.width : 1;
-    let gone = false;
-    const done = () => { if (!gone) { gone = true; ghost.remove(); onDone?.(); } };
-    const finish = () => {
-        if (!landed || landed()) return done();
-        const t0 = Date.now();
-        const wait = () => (landed() || Date.now() - t0 > 1500 ? done() : requestAnimationFrame(wait));
-        requestAnimationFrame(wait);
-    };
-    ghost.animate([
-        { transform: `translate(${fromRect.left - toRect.left}px, ${fromRect.top - toRect.top}px) scale(${sc})` },
-        { transform: 'none' },
-    ], { duration, easing: EASE, fill: 'forwards' }).finished.catch(() => {}).finally(finish);
-    setTimeout(done, duration + 2000); // arka plan sekmesinde animasyon ilerlemez
-};
-
 // Yerine yeni çizilmiş öğe fromRect'ten kendi yerine kayar (desteden çekilen taş, reddedilip ıstakaya dönen taş)
 export const slideFrom = (el, fromRect, duration = 240) => {
     if (!el?.animate || !fromRect || reducedMotion()) return;
@@ -140,9 +102,4 @@ export const whenRendered = (find, fn, timeout = 2000) => {
     const t = setTimeout(() => obs.disconnect(), timeout);
 };
 
-// Sürüklenip bırakılan taş, atılan taşla aynı ağır süzülüşle yerine oturur (büyüme / gölge yok)
-export const settleFrom = (el, fromRect) => slideFrom(el, fromRect, 300);
-
 export const rackTileEl = (tileId) => document.querySelector(`.tile-holder .tile[data-tile-id="${tileId}"]`);
-// Render sonrası (iki kare) çalıştır: yeni çizilen öğe DOM'da olsun
-export const afterPaint = (fn) => requestAnimationFrame(() => requestAnimationFrame(fn));

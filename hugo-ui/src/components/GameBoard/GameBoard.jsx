@@ -5,7 +5,7 @@ import DiscardAreas from '../DiscardAreas/DiscardAreas';
 import OpenSetsArea from '../OpenSetsArea/OpenSetsArea';
 import useBoardDrag from '../../hooks/useBoardDrag';
 import { fitTable } from '../../utils/tableFit';
-import { flyClone, rackTileEl, slideFrom, tileOrigins, whenRendered } from '../../utils/flyTiles';
+import { rackTileEl, slideFrom, whenRendered } from '../../utils/flyTiles';
 import '../../assets/css/components/GameBoard.css';
 
 /**
@@ -65,10 +65,9 @@ const GameBoard = ({
     const [hiddenIds, setHiddenIds] = useState(() => new Set());
     const hideTimer = useRef(null);
     const outRect = useRef(null); // taşın ıstakadan çıkıp gittiği yer (reddedilince oradan geri kayar)
-    // from: bırakılan yer (tek dikdörtgen ya da taş başına dizi); masaya iniş ve reddedilince geri kayma buradan
+    // from: bırakılan yer (tek dikdörtgen ya da taş başına dizi); reddedilince taş oradan ıstakaya kayar
     const hide = (ids, from) => {
         const rectOf = (i) => (Array.isArray(from) ? from[i] : from);
-        ids.forEach((id, i) => { if (id && rectOf(i)) tileOrigins.set(id, rectOf(i)); });
         outRect.current = rectOf(0) || null;
         setHiddenIds(new Set(ids.filter(Boolean)));
         clearTimeout(hideTimer.current);
@@ -86,24 +85,10 @@ const GameBoard = ({
     }, [rejectId]);
     useEffect(() => () => clearTimeout(hideTimer.current), []);
     const canDiscardNow = isMyTurn && (turnAction === 'discard' || isFirstHandBlock);
-    // Atma: taş beklemeden köşeye uçar (çift tık, seçip köşeye dokunma, sürükleyip bırakma); sunucu cevabı köşeye yerleştirir
-    const discard = (idx, fromRect, srcEl) => {
-        if (canDiscardNow) {
-            const el = srcEl || rackTileEl(tilePositions[idx]);
-            const from = fromRect || el?.getBoundingClientRect();
-            const zone = document.querySelector(`.tile-drop-zone[data-corner="${playerCorner}"]`);
-            const id = tilePositions[idx];
-            // Varış: köşedeki taşın tam yeri (yoksa köşenin ortası); kopya gerçek taş gelene kadar orada bekler (sıçrama / boşluk yok)
-            const top = zone?.querySelector('.tile')?.getBoundingClientRect();
-            const z = zone?.getBoundingClientRect();
-            const to = top || (z && from && { left: z.left + (z.width - from.width) / 2, top: z.top + (z.height - from.height) / 2, width: from.width, height: from.height });
-            if (zone && to && from) {
-                zone.dataset.incoming = '1'; // uçuş bitene kadar köşedeki taş görünmez
-                flyClone(el, from, to, 260, () => delete zone.dataset.incoming,
-                    () => !!zone.querySelector(`.tile[data-tile-id="${id}"]`) || !!rackTileEl(id)); // köşeye geldi ya da reddedildi
-            }
-            hide([id], to);
-        }
+    // Atma: oynayan oyuncu kendi atışında animasyon görmez (diğer oyuncular atanın kartından köşeye uçuşu görür);
+    // taş sunucu cevabına kadar ıstakada gizli kalır
+    const discard = (idx, fromRect) => {
+        if (canDiscardNow) hide([tilePositions[idx]], fromRect || rackTileEl(tilePositions[idx])?.getBoundingClientRect());
         handleTileDoubleClick(idx);
     };
 

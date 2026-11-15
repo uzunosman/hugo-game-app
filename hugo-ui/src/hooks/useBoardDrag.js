@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { perGroupAt } from '../utils/rackDrag';
-import { rackTileEl, settleFrom } from '../utils/flyTiles';
 
 // Masadaki tüm sürükle-bırak: fare, dokunmatik ve kalem aynı Pointer Events yolunu kullanır.
 //  - Istaka taşı: sürükle → ıstakada yer değiştir, köşeye at, masadaki pere işle (son taş ıstaka dışında her yere: at)
@@ -103,7 +102,7 @@ export default function useBoardDrag(props) {
         window.removeEventListener('pointerup', s.h.up);
         window.removeEventListener('pointercancel', s.h.cancel);
         window.removeEventListener('contextmenu', s.h.ctx, true);
-        if (s.ghost) { s.ghostRect = s.ghost.firstChild?.getBoundingClientRect(); s.ghostTile = s.ghost.firstChild; s.ghostRects = [...s.ghost.children].map(c => c.getBoundingClientRect()); } // atma uçuşu / oturma / geri kayma buradan
+        if (s.ghost) { s.ghostRect = s.ghost.firstChild?.getBoundingClientRect(); s.ghostRects = [...s.ghost.children].map(c => c.getBoundingClientRect()); } // reddedilince geri kayma buradan
         s.ghost?.remove();
         if (s.kind === 'discard' && s.el) s.el.style.visibility = '';
         if (s.dragging && s.kind === 'tile') latest.current.actions.dragEnd?.();
@@ -195,10 +194,10 @@ export default function useBoardDrag(props) {
         }
         if (inRack) return;
         // Son taş: ıstaka dışında nereye bırakılırsa atılır, el biter
-        if (tiles.length === 1) return actions.discard(s.srcIdx, s.ghostRect, s.ghostTile);
+        if (tiles.length === 1) return actions.discard(s.srcIdx, s.ghostRect);
         // Yandan alınan taş alındığı köşeye geri bırakıldı: kusulur
         if (overCorner && overCorner === kustuCorner && s.tileId === kustuTileId) return actions.kustu?.();
-        if (overCorner && overCorner === playerCorner) return actions.discard(s.srcIdx, s.ghostRect, s.ghostTile); // köşe, yakındaki perden önce gelir
+        if (overCorner && overCorner === playerCorner) return actions.discard(s.srcIdx, s.ghostRect); // köşe, yakındaki perden önce gelir
         const tileId = s.tileId;
         const slot = el?.closest('.insertion-slot');
         if (slot) return actions.addToSet(tileId, slot.dataset.setId, slot.dataset.position, s.ghostRect);
@@ -252,10 +251,6 @@ export default function useBoardDrag(props) {
             swallowClick();
             end();
             drop(s, hit);
-            // Istakada kalan taş(lar) bırakıldığı yerden yerine ağırca oturur (atılan / işlenen taş gizli olduğundan bulunmaz)
-            const ids = s.kind === 'group' ? s.groupIds : s.kind === 'tile' ? [s.tileId] : [];
-            // Tek kare: React bu olayın güncellemesini kareden önce yazar; animasyon ilk boyamadan önce başlar (taş hedefte bir an belirmez)
-            if (ids.length && s.ghostRects) requestAnimationFrame(() => ids.forEach((id, i) => settleFrom(rackTileEl(id), s.ghostRects[i])));
             return;
         }
         if (s.kind === 'group') swallowClick(); // per seçip bıraktı: taş seçimi açılmasın
