@@ -405,21 +405,21 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     assert.strictEqual(r1.roundTotal, 5, 'açan rakip: taş toplamı 2 + 3');
 }
 
-// Çiftlere çift işleme: sahibine (taşların toplamı × 10) × 2 ceza; kendi çiftine işlemek cezasız
+// Çiftlere çift işleme: sahibine normal işleme gibi taşların toplamı × 10 ceza; kendi çiftine işlemek cezasız
 {
     const { game, p0, p1 } = setup();
     p0.isOpen = true; p0.openedWithPairs = true;
     game.tableSets.push({ id: 'cift0', playerId: p0.id, tiles: [t(RED, 13), t(RED, 13)], value: 26, kind: 'cift' });
 
-    // P1'in sırası: iki 5'i P0'ın çiftlerine işler → ((5 + 5) × 10) × 2 = 200
+    // P1'in sırası: iki 5'i P0'ın çiftlerine işler → (5 + 5) × 10 = 100
     game.currentPlayerIndex = 1; game.players.forEach((p, i) => p.setTurn(i === 1));
     p1.isOpen = true;
     const [f1, f2, other, bad] = give(p1, [t(BLUE, 5), t(BLUE, 5), t(BLACK, 9), t(YELLOW, 5)]);
     assert.strictEqual(game.addPairToSet(p1.id, [f1.id, bad.id], 'cift0').success, false, 'farklı renk çift değil');
     const r = game.addPairToSet(p1.id, [f1.id, f2.id], 'cift0');
     assert.strictEqual(r.success, true, r.error);
-    assert.deepStrictEqual({ to: r.penalty?.targetPlayerId, amount: r.penalty?.amount, tag: r.penalty?.tag }, { to: p0.id, amount: 200, tag: 'çift işleme' });
-    assert.strictEqual(p0.penaltyScore, 200);
+    assert.deepStrictEqual({ to: r.penalty?.targetPlayerId, amount: r.penalty?.amount, tag: r.penalty?.tag }, { to: p0.id, amount: 100, tag: 'çift işleme' });
+    assert.strictEqual(p0.penaltyScore, 100);
     assert.strictEqual(r.newSet?.playerId, p0.id, 'işlenen çift sahibinin alanına konur');
     assert.deepStrictEqual(p1.tiles.map(x => x.id), [other.id, bad.id]);
 
@@ -587,6 +587,17 @@ for (const [round, amount] of [[2, 100], [5, 200]]) {
     assert.ok(p0.tiles.some(x => x.isJoker), 'okey ele geçmeli');
     const [k1] = give(p0, [t(BLACK, 1), t(BLACK, 3)]);
     assert.strictEqual(game.addTileToSet(p0.id, k1.id, 'c1', 'end').success, false, 'okeysiz çifte tek taş işlenmez');
+
+    // Çift açan kendi çiftindeki okeyi alırsa ceza yemez
+    const own = setup();
+    own.p0.isOpen = true; own.p0.openedWithPairs = true;
+    own.game.tableSets.push({ id: 'oc', playerId: own.p0.id, tiles: [t(BLACK, 7), J()], value: 14, kind: 'cift' });
+    const [b7] = give(own.p0, [t(BLACK, 7), t(RED, 1), t(RED, 2)]);
+    const before = own.p0.penaltyScore;
+    const ro = own.game.addTileToSet(own.p0.id, b7.id, 'oc', 'end');
+    assert.ok(ro.success && ro.swappedOkeyTile, ro.error);
+    assert.strictEqual(own.p0.penaltyScore, before, 'kendi çiftinden okey alan ceza yemez');
+    assert.strictEqual(ro.penalty, undefined);
 }
 
 // Atılan taşların atanı tutulur (sayfa yenilenince köşe geçmişi kurulur); yerden alınınca listeden düşer

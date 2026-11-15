@@ -885,9 +885,9 @@ export class Game {
         okeyTile.setStatus(TileStatus.IN_HAND);
         player.addTile(okeyTile);
 
-        // Set sahibine 100 puan ceza
+        // Set sahibine 100 puan ceza (kendi perinden / çiftinden okey alan ceza yemez)
         let penalty: { targetPlayerId: string; amount: number; tag: string; tile: string } | undefined;
-        if (setOwner) {
+        if (setOwner && setOwner.id !== player.id) {
             setOwner.addPenalty(100);
             penalty = { targetPlayerId: setOwner.id, amount: 100, tag: 'okey', tile: tileLabel(tile) };
             this.turnSnapshot?.penalties.push({ playerId: penalty.targetPlayerId, amount: penalty.amount, reason: '', tag: penalty.tag, tile: penalty.tile });
@@ -948,7 +948,7 @@ export class Game {
         let penalty: { targetPlayerId: string; amount: number; tag: string; tile: string } | undefined;
         const owner = this.getPlayerById(target.playerId);
         if (owner && owner.id !== playerId) {
-            const amount = value * 10 * 2;
+            const amount = value * 10; // normal işleme gibi: taşların toplamı × 10 (Hugo çarpanı el sonunda)
             owner.addPenalty(amount);
             penalty = { targetPlayerId: owner.id, amount, tag: 'çift işleme', tile: (tiles as Tile[]).map(tileLabel).join(' + ') };
             this.turnSnapshot?.penalties.push({ playerId: penalty.targetPlayerId, amount: penalty.amount, reason: '', tag: penalty.tag, tile: penalty.tile });

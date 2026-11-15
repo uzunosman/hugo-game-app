@@ -191,7 +191,7 @@ const useGameState = (player, room) => {
                             ];
                             return newDiscardedTiles;
                         });
-                        flyToCorner(corner, playerPanelRect(response.playerId)); // taş atanın kartından köşeye uçar
+                        flyToCorner(corner, playerPanelRect(response.playerId), discardedTile.id); // taş atanın kartından köşeye uçar
                     }
                 }
             }

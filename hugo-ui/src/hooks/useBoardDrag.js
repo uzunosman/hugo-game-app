@@ -173,9 +173,9 @@ export default function useBoardDrag(props) {
             if (overCell != null) return actions.moveGroup(s.group, s.srcIdx, overCell);
             // Çift, başkasının çiftlerinin üstüne bırakıldı: çift işlenir (kendi çiftlerine bırakmak per indirmedir)
             const pairsTo = pairTarget(s, el);
-            if (pairsTo) return actions.addPair?.(s.groupIds, pairsTo, s.ghostRect);
+            if (pairsTo) return actions.addPair?.(s.groupIds, pairsTo, s.ghostRects);
             // Masaya bırakılan per: el açılır ya da per indirilir (köşeye per atılmaz)
-            if (hit.overTable) actions.playGroup?.(s.groupIds, s.ghostRect);
+            if (hit.overTable) actions.playGroup?.(s.groupIds, s.ghostRects);
             return;
         }
         if (s.kind === 'deck') {

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import '../../assets/css/components/Scoreboard.css';
 
 const TOTAL_ROUNDS = 9;
@@ -26,7 +27,8 @@ const Scoreboard = ({ players, playerOpenStates, roundHistory = [] }) => {
                 </svg>
             </button>
 
-            {isOpen && (
+            {/* body'ye çizilir: üst araç çubuğunun katmanında kalıp masadaki / uçan taşların altında kalmasın */}
+            {isOpen && createPortal(
                 <div className="scoreboard-overlay" onClick={close}>
                     <div className="scoreboard-modal scoreboard-kiraathane" onClick={(e) => e.stopPropagation()}>
                         <div className="scoreboard-paper">
@@ -98,7 +100,8 @@ const Scoreboard = ({ players, playerOpenStates, roundHistory = [] }) => {
                         </div>
                         <button className="scoreboard-close" onClick={close} aria-label="Tabelayı kapat">&times;</button>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </>
     );

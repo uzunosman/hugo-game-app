@@ -5,7 +5,7 @@ import DiscardAreas from '../DiscardAreas/DiscardAreas';
 import OpenSetsArea from '../OpenSetsArea/OpenSetsArea';
 import useBoardDrag from '../../hooks/useBoardDrag';
 import { fitTable } from '../../utils/tableFit';
-import { afterPaint, flyClone, rackTileEl, slideFrom } from '../../utils/flyTiles';
+import { flyClone, rackTileEl, slideFrom, tileOrigins, whenRendered } from '../../utils/flyTiles';
 import '../../assets/css/components/GameBoard.css';
 
 /**
@@ -65,8 +65,11 @@ const GameBoard = ({
     const [hiddenIds, setHiddenIds] = useState(() => new Set());
     const hideTimer = useRef(null);
     const outRect = useRef(null); // taşın ıstakadan çıkıp gittiği yer (reddedilince oradan geri kayar)
+    // from: bırakılan yer (tek dikdörtgen ya da taş başına dizi); masaya iniş ve reddedilince geri kayma buradan
     const hide = (ids, from) => {
-        outRect.current = from || null;
+        const rectOf = (i) => (Array.isArray(from) ? from[i] : from);
+        ids.forEach((id, i) => { if (id && rectOf(i)) tileOrigins.set(id, rectOf(i)); });
+        outRect.current = rectOf(0) || null;
         setHiddenIds(new Set(ids.filter(Boolean)));
         clearTimeout(hideTimer.current);
         hideTimer.current = setTimeout(() => setHiddenIds(new Set()), 1500);
@@ -79,7 +82,7 @@ const GameBoard = ({
         if (!rejectId || !ids.length) return;
         const from = outRect.current;
         setHiddenIds(new Set());
-        afterPaint(() => ids.forEach(id => slideFrom(rackTileEl(id), from)));
+        ids.forEach(id => whenRendered(() => rackTileEl(id), el => slideFrom(el, from)));
     }, [rejectId]);
     useEffect(() => () => clearTimeout(hideTimer.current), []);
     const canDiscardNow = isMyTurn && (turnAction === 'discard' || isFirstHandBlock);
@@ -89,14 +92,17 @@ const GameBoard = ({
             const el = srcEl || rackTileEl(tilePositions[idx]);
             const from = fromRect || el?.getBoundingClientRect();
             const zone = document.querySelector(`.tile-drop-zone[data-corner="${playerCorner}"]`);
+            const id = tilePositions[idx];
+            // Varış: köşedeki taşın tam yeri (yoksa köşenin ortası); kopya gerçek taş gelene kadar orada bekler (sıçrama / boşluk yok)
+            const top = zone?.querySelector('.tile')?.getBoundingClientRect();
             const z = zone?.getBoundingClientRect();
-            const to = z && from && { left: z.left + (z.width - from.width) / 2, top: z.top + (z.height - from.height) / 2, width: from.width, height: from.height };
-            if (zone && to) {
-                zone.dataset.incoming = '1'; // uçuş bitene kadar köşedeki taş görünmez (yeni taş erken belirmesin)
-                setTimeout(() => delete zone.dataset.incoming, 270);
-                flyClone(el, from, to);
+            const to = top || (z && from && { left: z.left + (z.width - from.width) / 2, top: z.top + (z.height - from.height) / 2, width: from.width, height: from.height });
+            if (zone && to && from) {
+                zone.dataset.incoming = '1'; // uçuş bitene kadar köşedeki taş görünmez
+                flyClone(el, from, to, 260, () => delete zone.dataset.incoming,
+                    () => !!zone.querySelector(`.tile[data-tile-id="${id}"]`) || !!rackTileEl(id)); // köşeye geldi ya da reddedildi
             }
-            hide([tilePositions[idx]], to);
+            hide([id], to);
         }
         handleTileDoubleClick(idx);
     };

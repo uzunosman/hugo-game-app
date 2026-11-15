@@ -249,8 +249,10 @@
 }
 .tile-drop-zone .tile { border-radius: 4px; }
 .tile-drop-zone.active {
-    width: calc(var(--tile-w, 40px) + 24px);
-    height: calc(var(--tile-h, 60px) + 24px);
+    /* Sıra gelince köşe büyümez: büyüyüp küçülmesi içindeki taşı kaydırıyor, atılan taş inerken titriyordu.
+       Sürüklerken bırakma alanı görünmez bir payla genişler (aşağıda) */
+    width: calc(var(--tile-w, 40px) + 12px);
+    height: calc(var(--tile-h, 60px) + 12px);
 }
 
 /* Çift açan oyuncu: köşeye tıklayınca o köşeye atılmış önceki taşlar masanın içine doğru yana açılır */
@@ -317,3 +319,10 @@
 .tile-drop-zone[data-incoming] .tile { visibility: hidden; }
 /* Çift açan oyuncu: eski taşları olan her köşe tıklanabilir (pasif köşeler normalde tıklamayı geçirir) */
 .tile-drop-zone.has-history { pointer-events: all; cursor: pointer; }
+/* Telefonda dokunulan yerde (ıstakadaki boş hücre vb.) koyu dokunma vurgusu çıkmasın */
+.game-container, .game-container * { -webkit-tap-highlight-color: transparent; }
+/* Küçük düğmeler (cezalar, seri/çift diz, tabela, ayarlar, sohbet): görünüş aynı, dokunma alanı her yönde biraz daha geniş */
+.pl-toggle, .rack-tool-btn, .chat-toggle, .settings-toggle, .top-right-tools .scoreboard-toggle { position: relative; }
+.pl-toggle::after, .rack-tool-btn::after, .chat-toggle::after, .settings-toggle::after, .scoreboard-toggle::after {
+    content: ''; position: absolute; inset: -8px -6px;
+}

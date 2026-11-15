@@ -85,8 +85,7 @@
 
 /* Seçili taş vurgusu (mobil tap-to-select için) */
 .tile.selected {
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9), 0 0 10px rgba(255, 255, 255, 0.4);
-    transform: translateY(-4px) scale(1.05);
+    transform: translateY(-4px) scale(1.05); /* seçili taş yalnızca hafif kalkar, çevresinde gölge / çerçeve yok */
     z-index: 102;
 }
 

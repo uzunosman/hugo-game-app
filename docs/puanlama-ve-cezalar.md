@@ -24,8 +24,8 @@ Az puan iyidir: 9 el sonunda toplam puanı en düşük olan kazanır (eşitlikte
 | **Yandan alınan taşı kullanmadan geri atmak** | Taşı alana | **100** | **100** | Yandan alınan taş kullanılmadıysa yalnızca o taş atılabilir. |
 | **Kusmak**: yandan alınan taşı kullanmadan geri koymak | — | **0** | **0** | Cezasız. Atana yazılan "yerden" cezası **silinir**. Oyuncu desteden çeker, kusulan taş o sırada tekrar alınamaz. Kustu taş atılana kadar basılabilir: o sırada masaya oynandıysa (el açma, per indirme, işleme) önce hepsi ele döner ve **geri alma cezası** yazılır (100, Hugo elinde 200), sonra taş kusulur. |
 | **İşleme**: başkasının serisine/perine taş eklemek | Per **sahibine** | taş değeri × 10 | taş değeri × 10 | Okey işlenirse eklendiği yerdeki değer sayılır (örn. 5-6-7'nin sonuna okey → 8 × 10 = 80). Kendi perine işlemek cezasızdır. |
-| **Okey almak**: perdeki okeyin yerine gerçek taşı koyup okeyi almak | Per **sahibine** | **100** | **100** | Aynı sayılı perde (erkek per) okey ancak per 4 taşa tamamlanınca alınabilir. Aynı sırada okey işleyen tekrar okey alamaz. |
-| **Çift işlemek**: başkasının çiftlerine elindeki çifti eklemek | Çift **sahibine** | (çiftin toplamı × 10) × 2 | aynı | Örn. iki 5: ((5 + 5) × 10) × 2 = **200**. Çift, ıstakada yan yana duran iki taş basılı tutulup çiftlerin üstüne sürüklenerek işlenir. Çiftlere tek taş işlenmez; yalnızca çiftte okey varsa okeyin eşi olan taş işlenip okey alınır (sahibine okey cezası 100). Per açmış oyuncu da çift işleyebilir. Kendi çiftine işlemek cezasızdır. |
+| **Okey almak**: perdeki okeyin yerine gerçek taşı koyup okeyi almak | Per **sahibine** | **100** | **100** | Aynı sayılı perde (erkek per) okey ancak per 4 taşa tamamlanınca alınabilir. Aynı sırada okey işleyen tekrar okey alamaz. Kendi perinden / çiftinden okey alan ceza yemez. |
+| **Çift işlemek**: başkasının çiftlerine elindeki çifti eklemek | Çift **sahibine** | çiftin toplamı × 10 | aynı | Normal işleme gibi; ek çarpan yok. Örn. iki 5: (5 + 5) × 10 = **100**. Çift, ıstakada yan yana duran iki taş basılı tutulup çiftlerin üstüne sürüklenerek işlenir. Çiftlere tek taş işlenmez; yalnızca çiftte okey varsa okeyin eşi olan taş işlenip okey alınır (sahibine okey cezası 100). Per açmış oyuncu da çift işleyebilir. Kendi çiftine işlemek cezasızdır. |
 | **Geri almak**: o sırada masaya oynananları ele döndürmek | Geri alana | **100** | **100** | Açılış, indirilen perler ve işlenen taşlar ele döner. Bu sırada başkalarına yazılan işleme/okey cezaları **silinir**. Taş atıldıktan sonra geri alınamaz. |
 | **Açılış tamamlanmadan süre dolması**: tek tek yere indirilen perler eşiğe ulaşmadı, elde de tamamlayacak per yok | Süresi dolana | **100** | **200** | Yere inen perler ele döner (geri alma gibi), sonra taş otomatik atılır. Eldeki perlerle (okey dahil) eşik tamamlanıyorsa ceza yazılmaz, perler açılır. |
 | Yetersiz değerle el açmayı denemek | — | **0** | **0** | Ceza yazılmaz, el açılmaz (bkz. bölüm 3). |
@@ -139,7 +139,7 @@ Not: kod yalnızca ilk açılışa bakar; aynı elde sonradan indirilen perler b
 - A: 4 yıldız → max(0, 0 − 400) = **0**
 - C eli açmamış: 400 × 2 (okey) × 2 (Hugo) = **1600**
 
-**Çift işleme.** B, A'nın çiftlerine iki 9 işler: A'ya ((9 + 9) × 10) × 2 = **360** ceza yazılır.
+**Çift işleme.** B, A'nın çiftlerine iki 9 işler: A'ya (9 + 9) × 10 = **180** ceza yazılır.
 
 ## 7. Süre dolunca (otomatik oynama)
 

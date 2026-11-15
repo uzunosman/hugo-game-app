@@ -3,6 +3,8 @@
 
 // Yolda olan taş id'leri: OpenSetsArea bunları iniş bitene kadar gizli çizer
 export const incomingTiles = new Set();
+// Kendi taşlarımızın çıkış yeri (sürükleyip bırakılan yer): masaya iniş oradan başlar, ıstakanın ortasından değil
+export const tileOrigins = new Map();
 
 const DURATION = 480;
 const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -19,14 +21,24 @@ export const flyTilesIn = (tileIds, playerId, myId) => {
     if (!tileIds.length) return;
     if (reducedMotion()) return;
     tileIds.forEach(id => incomingTiles.add(id));
+    // Kendi taşı: bırakıldığı yer ya da ıstakadaki yeri (henüz ıstakadan kalkmadıysa) şimdi alınır
+    const mine = playerId === myId;
+    const origins = mine ? Object.fromEntries(tileIds.map(id => [id, tileOrigins.get(id) || rackTileEl(id)?.getBoundingClientRect()])) : {};
+    tileIds.forEach(id => tileOrigins.delete(id));
     requestAnimationFrame(() => requestAnimationFrame(() => {
         const from = sourceRect(playerId, myId);
         const stagger = Math.min(90, 700 / tileIds.length); // çok taşlı açılış da 1 saniyeyi geçmesin
         tileIds.forEach((id, i) => {
             const target = document.querySelector(`.open-set-tile[data-tile-id="${id}"]`);
             const land = () => { incomingTiles.delete(id); target?.classList.remove('incoming'); };
-            if (!target || !from || !target.animate) return land();
+            if (!target || !target.animate) return land();
             const to = target.getBoundingClientRect();
+            if (origins[id]) { // kendi taşı: atma gibi ağır, düz bir süzülüşle yerine iner
+                target.style.visibility = 'hidden';
+                flyClone(target, origins[id], to, 300, () => { target.style.visibility = ''; land(); });
+                return;
+            }
+            if (!from) return land();
             const ghost = target.cloneNode(true);
             ghost.classList.remove('incoming');
             ghost.classList.add('flying-tile');
@@ -48,10 +60,9 @@ export const flyTilesIn = (tileIds, playerId, myId) => {
 
 // Atılan taş: kaynaktan (ıstakadaki taş / bırakıldığı yer / atan oyuncunun kartı) köşeye uçar.
 // Köşedeki yeni taş render sonrası bulunur, uçuş bitene kadar gizli kalır.
-export const flyToCorner = (corner, from) => {
+export const flyToCorner = (corner, from, tileId) => {
     if (!corner || !from || reducedMotion()) return;
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-        const target = document.querySelector(`.tile-drop-zone[data-corner="${corner}"] .tile`);
+    whenRendered(() => document.querySelector(`.tile-drop-zone[data-corner="${corner}"] .tile[data-tile-id="${tileId}"]`), (target) => {
         if (!target?.animate) return;
         const to = target.getBoundingClientRect();
         const ghost = target.cloneNode(true);
@@ -68,7 +79,7 @@ export const flyToCorner = (corner, from) => {
             { transform: 'translate(0, 0) scale(1)' },
         ], { duration: 320, easing: 'cubic-bezier(.3,.8,.35,1)' }).finished.catch(() => {}).finally(done);
         setTimeout(done, 1000); // sekme arka plandaysa animasyon ilerlemez: köşedeki taş gizli kalmasın
-    }));
+    });
 };
 
 // Başka oyuncunun kartının yeri (atılan taş oradan çıkar)
@@ -77,8 +88,9 @@ export const playerPanelRect = (playerId) => document.querySelector(`.player-pan
 const EASE = 'cubic-bezier(.3,.8,.35,1)';
 
 // Öğenin kopyası fromRect'ten toRect'e uçar, sonra silinir (ıstakadan köşeye atılan taş: sunucu cevabını beklemeden)
-export const flyClone = (srcEl, fromRect, toRect, duration = 260) => {
-    if (!srcEl || !fromRect || !toRect || reducedMotion()) return;
+// landed(): varış yerindeki gerçek öğe hazır mı; değilse kopya varış yerinde bekler (en çok 1,5 sn), boşluk ya da sıçrama olmaz
+export const flyClone = (srcEl, fromRect, toRect, duration = 260, onDone, landed) => {
+    if (!srcEl || !fromRect || !toRect || reducedMotion()) return onDone?.();
     const ghost = srcEl.cloneNode(true);
     ghost.classList.remove('selected');
     ghost.classList.add('flying-discard');
@@ -90,36 +102,46 @@ export const flyClone = (srcEl, fromRect, toRect, duration = 260) => {
     document.body.appendChild(ghost);
     const sc = toRect.width ? fromRect.width / toRect.width : 1;
     let gone = false;
-    const done = () => { if (!gone) { gone = true; ghost.remove(); } };
+    const done = () => { if (!gone) { gone = true; ghost.remove(); onDone?.(); } };
+    const finish = () => {
+        if (!landed || landed()) return done();
+        const t0 = Date.now();
+        const wait = () => (landed() || Date.now() - t0 > 1500 ? done() : requestAnimationFrame(wait));
+        requestAnimationFrame(wait);
+    };
     ghost.animate([
         { transform: `translate(${fromRect.left - toRect.left}px, ${fromRect.top - toRect.top}px) scale(${sc})` },
         { transform: 'none' },
-    ], { duration, easing: EASE }).finished.catch(() => {}).finally(done);
-    setTimeout(done, duration + 500); // arka plan sekmesinde animasyon ilerlemez
+    ], { duration, easing: EASE, fill: 'forwards' }).finished.catch(() => {}).finally(finish);
+    setTimeout(done, duration + 2000); // arka plan sekmesinde animasyon ilerlemez
 };
 
 // Yerine yeni çizilmiş öğe fromRect'ten kendi yerine kayar (desteden çekilen taş, reddedilip ıstakaya dönen taş)
 export const slideFrom = (el, fromRect, duration = 240) => {
     if (!el?.animate || !fromRect || reducedMotion()) return;
     const r = el.getBoundingClientRect();
+    // Kayarken tıklanamaz: desteye çift tıklayınca ikinci tık, desteden kayan taşa gidip onu atmasın
+    el.style.pointerEvents = 'none';
     el.animate([
         { transform: `translate(${fromRect.left - r.left}px, ${fromRect.top - r.top}px)` },
         { transform: 'none' },
-    ], { duration, easing: EASE });
+    ], { duration, easing: EASE }).finished.catch(() => {}).finally(() => { el.style.pointerEvents = ''; });
 };
 
-// Sürüklenip bırakılan taş ağır bir kütle gibi yerine oturur: hızlı başlar, sonda iyice yavaşlar, hafifçe basıp oturur
-export const settleFrom = (el, fromRect) => {
-    if (!el?.animate || !fromRect || reducedMotion()) return;
-    const r = el.getBoundingClientRect();
-    const dx = fromRect.left - r.left, dy = fromRect.top - r.top;
-    el.animate([
-        { transform: `translate(${dx}px, ${dy}px) scale(1.06)`, filter: 'drop-shadow(0 8px 12px rgba(0,0,0,.35))' },
-        { transform: `translate(${dx * 0.08}px, ${dy * 0.08}px) scale(1.02)`, filter: 'drop-shadow(0 3px 5px rgba(0,0,0,.25))', offset: 0.7 },
-        { transform: 'translate(0, 0) scale(0.985)', filter: 'drop-shadow(0 1px 1px rgba(0,0,0,.2))', offset: 0.9 },
-        { transform: 'none', filter: 'none' },
-    ], { duration: 520, easing: 'cubic-bezier(.22,.9,.3,1)' });
+// Öğe DOM'a yazıldığı anda (boyamadan önce, MutationObserver) çalıştırır: yerinde bir kare görünüp sonra sıçramasın (titreme)
+export const whenRendered = (find, fn, timeout = 2000) => {
+    const now = find();
+    if (now) return fn(now);
+    const obs = new MutationObserver(() => {
+        const el = find();
+        if (el) { obs.disconnect(); clearTimeout(t); fn(el); }
+    });
+    obs.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-tile-id'] });
+    const t = setTimeout(() => obs.disconnect(), timeout);
 };
+
+// Sürüklenip bırakılan taş, atılan taşla aynı ağır süzülüşle yerine oturur (büyüme / gölge yok)
+export const settleFrom = (el, fromRect) => slideFrom(el, fromRect, 300);
 
 export const rackTileEl = (tileId) => document.querySelector(`.tile-holder .tile[data-tile-id="${tileId}"]`);
 // Render sonrası (iki kare) çalıştır: yeni çizilen öğe DOM'da olsun
