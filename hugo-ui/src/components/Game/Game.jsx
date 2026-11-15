@@ -80,7 +80,7 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
 
     // Reddedilen hamle (işleme, atma, yere açma): GameBoard gizlediği taşı ıstakaya geri kaydırır
     const [rejectId, setRejectId] = useState(0);
-    const reject = (msg) => { setError(msg); setRejectId(n => n + 1); };
+    const reject = (msg) => { if (!msg) return; setError(msg); setRejectId(n => n + 1); }; // boş mesaj (uyarıyı temizleme) ret değildir
 
     // Sürüklenen taş bilgisi (işleme için activeTile hesaplamada kullanılır)
     const [draggingTile, setDraggingTile] = useState(null);
