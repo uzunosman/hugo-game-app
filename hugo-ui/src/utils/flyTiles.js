@@ -73,3 +73,54 @@ export const flyToCorner = (corner, from) => {
 
 // Başka oyuncunun kartının yeri (atılan taş oradan çıkar)
 export const playerPanelRect = (playerId) => document.querySelector(`.player-panel[data-player-id="${playerId}"]`)?.getBoundingClientRect();
+
+const EASE = 'cubic-bezier(.3,.8,.35,1)';
+
+// Öğenin kopyası fromRect'ten toRect'e uçar, sonra silinir (ıstakadan köşeye atılan taş: sunucu cevabını beklemeden)
+export const flyClone = (srcEl, fromRect, toRect, duration = 260) => {
+    if (!srcEl || !fromRect || !toRect || reducedMotion()) return;
+    const ghost = srcEl.cloneNode(true);
+    ghost.classList.remove('selected');
+    ghost.classList.add('flying-discard');
+    ghost.querySelectorAll('.draw-hint, .remaining-count').forEach(n => n.remove());
+    Object.assign(ghost.style, {
+        position: 'fixed', left: `${toRect.left}px`, top: `${toRect.top}px`, width: `${toRect.width}px`, height: `${toRect.height}px`,
+        margin: '0', zIndex: 500, pointerEvents: 'none', visibility: 'visible', opacity: '1', transformOrigin: '0 0',
+    });
+    document.body.appendChild(ghost);
+    const sc = toRect.width ? fromRect.width / toRect.width : 1;
+    let gone = false;
+    const done = () => { if (!gone) { gone = true; ghost.remove(); } };
+    ghost.animate([
+        { transform: `translate(${fromRect.left - toRect.left}px, ${fromRect.top - toRect.top}px) scale(${sc})` },
+        { transform: 'none' },
+    ], { duration, easing: EASE }).finished.catch(() => {}).finally(done);
+    setTimeout(done, duration + 500); // arka plan sekmesinde animasyon ilerlemez
+};
+
+// Yerine yeni çizilmiş öğe fromRect'ten kendi yerine kayar (desteden çekilen taş, reddedilip ıstakaya dönen taş)
+export const slideFrom = (el, fromRect, duration = 240) => {
+    if (!el?.animate || !fromRect || reducedMotion()) return;
+    const r = el.getBoundingClientRect();
+    el.animate([
+        { transform: `translate(${fromRect.left - r.left}px, ${fromRect.top - r.top}px)` },
+        { transform: 'none' },
+    ], { duration, easing: EASE });
+};
+
+// Sürüklenip bırakılan taş ağır bir kütle gibi yerine oturur: hızlı başlar, sonda iyice yavaşlar, hafifçe basıp oturur
+export const settleFrom = (el, fromRect) => {
+    if (!el?.animate || !fromRect || reducedMotion()) return;
+    const r = el.getBoundingClientRect();
+    const dx = fromRect.left - r.left, dy = fromRect.top - r.top;
+    el.animate([
+        { transform: `translate(${dx}px, ${dy}px) scale(1.06)`, filter: 'drop-shadow(0 8px 12px rgba(0,0,0,.35))' },
+        { transform: `translate(${dx * 0.08}px, ${dy * 0.08}px) scale(1.02)`, filter: 'drop-shadow(0 3px 5px rgba(0,0,0,.25))', offset: 0.7 },
+        { transform: 'translate(0, 0) scale(0.985)', filter: 'drop-shadow(0 1px 1px rgba(0,0,0,.2))', offset: 0.9 },
+        { transform: 'none', filter: 'none' },
+    ], { duration: 520, easing: 'cubic-bezier(.22,.9,.3,1)' });
+};
+
+export const rackTileEl = (tileId) => document.querySelector(`.tile-holder .tile[data-tile-id="${tileId}"]`);
+// Render sonrası (iki kare) çalıştır: yeni çizilen öğe DOM'da olsun
+export const afterPaint = (fn) => requestAnimationFrame(() => requestAnimationFrame(fn));

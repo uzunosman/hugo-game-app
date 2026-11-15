@@ -11,6 +11,7 @@ import socketService from '../../services/socketService';
 import { getOrderedPlayers, getPlayerPosition, getPlayerCorner, getCurrentPlayerIndex, calculateHandScore, calculatePairScore, canTakePairOkey, getConsecutiveGroups, validateSet, validatePair, arrangeTiles } from '../../utils/gameUtils';
 import { handleDrawTile, handleTileMove, handleDrawDiscardedTile } from '../../utils/tileHandlers';
 import { moveGroup } from '../../utils/rackDrag';
+import { afterPaint, rackTileEl, slideFrom } from '../../utils/flyTiles';
 import '../../assets/css/components/GameBoard.css';
 import '../../assets/css/layout.css';
 import '../../assets/css/mobile.css';
@@ -55,9 +56,17 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
 
     // Oyun sonu tabelası masa (Room) düzeyinde gösterilir: aynı masada yeni oyun başlasa da açık kalır
     const isGameOver = roundEndResults?.gameStatus === 'finished';
+    // El sonu / oyun sonu ekranı son atılan taşın uçuşu bitince gelir
+    const [summaryReady, setSummaryReady] = useState(false);
     useEffect(() => {
-        if (isGameOver) onGameFinished?.(roundEndResults);
-    }, [isGameOver, roundEndResults, onGameFinished]);
+        setSummaryReady(false);
+        if (!roundEndResults) return;
+        const t = setTimeout(() => setSummaryReady(true), 900);
+        return () => clearTimeout(t);
+    }, [roundEndResults]);
+    useEffect(() => {
+        if (isGameOver && summaryReady) onGameFinished?.(roundEndResults);
+    }, [isGameOver, summaryReady, roundEndResults, onGameFinished]);
 
     // Yandan alınan taş ve alındığı köşe: kullanılmadıkça o köşede "Kustu" görünür
     const [takenInfo, setTakenInfo] = useState(null);
@@ -68,6 +77,10 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
     const positionsBeforePlay = useRef(null);
     const rememberRack = () => { if (!playedThisTurn) positionsBeforePlay.current = tilePositions; };
 
+
+    // Reddedilen hamle (işleme, atma, yere açma): GameBoard gizlediği taşı ıstakaya geri kaydırır
+    const [rejectId, setRejectId] = useState(0);
+    const reject = (msg) => { setError(msg); setRejectId(n => n + 1); };
 
     // Sürüklenen taş bilgisi (işleme için activeTile hesaplamada kullanılır)
     const [draggingTile, setDraggingTile] = useState(null);
@@ -155,7 +168,12 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
             setError,
             fromDiscard,
             setTilePositions,
-            targetIndex
+            targetIndex,
+            // Tıklayarak çekilen taş desteden ıstakadaki yerine kayar (sürükleyerek çekilen zaten yerine bırakıldı)
+            onDrawn: targetIndex == null && !fromDiscard ? (() => {
+                const from = document.querySelector('.deck-tile-wrapper .center-tile')?.getBoundingClientRect();
+                return (tile) => afterPaint(() => slideFrom(rackTileEl(tile.id), from, 320));
+            })() : undefined
         });
     };
 
@@ -236,14 +254,24 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
 
 
     // Taşa çift tıklandığında köşeye at (targetIndex = -1 → sürükle-bırak köşe atma ile aynı mantık)
-    const onTileDoubleClick = (positionIndex, fromRect) => {
-        onTileMove(positionIndex, -1, fromRect);
+    const onTileDoubleClick = (positionIndex) => {
+        onTileMove(positionIndex, -1);
+    };
+
+    // Açmadan bitme: atılacak taş dışında ıstakadaki bütün taşlar yan yana geçerli perler halindeyse perleri döner
+    const closedFinishSets = (discardIdx) => {
+        if (myOpenState.isOpen || tiles.length < 4) return undefined;
+        const rest = tilePositions.map((id, i) => (i === discardIdx ? null : id));
+        const opts = { okeyTile: gameState.okeyTile, isHugo: gameState.isHugoRound };
+        const groups = getConsecutiveGroups(rest, tiles);
+        const ok = groups.flat().length === tiles.length - 1 && groups.every(g => validateSet(g, opts) > 0);
+        return ok ? groups.map(g => g.map(t => t.id)) : undefined;
     };
 
     // Taş taşıma işleyicisi
-    const onTileMove = (sourceIndex, targetIndex, fromRect) => {
+    const onTileMove = (sourceIndex, targetIndex) => {
         handleTileMove({
-            fromRect,
+            finishSets: targetIndex === -1 ? closedFinishSets(sourceIndex) : undefined,
             sourceIndex,
             targetIndex,
             tilePositions,
@@ -255,7 +283,7 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
             setTilePositions,
             setDiscardedTiles,
             setLoading,
-            setError,
+            setError: reject,
             setGameState,
             getPlayerCorner: (index) => getPlayerCorner(index),
             currentPlayerIndex
@@ -341,7 +369,7 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
         const targetSet = tableSets.find(s => s.id === targetSetId);
         const tile = tiles.find(t => t.id === tileId);
         if (targetSet?.kind === 'cift' && !canTakePairOkey(targetSet, tile, gameState.okeyTile, gameState.isHugoRound)) {
-            return setError('Çift işlemek için ıstakada yan yana duran çifti basılı tutup çiftlerin üstüne sürükle');
+            return reject('Çift işlemek için ıstakada yan yana duran çifti basılı tutup çiftlerin üstüne sürükle');
         }
 
         rememberRack();
@@ -368,7 +396,7 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
                 setSelectedTile(null);
                 setDraggingTile(null);
             } else {
-                setError(response.error || 'İşleme yapılamadı');
+                reject(response.error || 'İşleme yapılamadı');
             }
         });
     };
@@ -376,10 +404,10 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
     // Istakadan basılı tutulup başkasının çiftlerine sürüklenen çift
     const onAddPairToSet = (ids, targetSetId) => {
         if (!isMyTurn) return;
-        if (!myOpenState.isOpen) return setError('Çift işlemek için önce elini açmalısın');
+        if (!myOpenState.isOpen) return reject('Çift işlemek için önce elini açmalısın');
         rememberRack();
         socketService.addPairToSet(ids, targetSetId, (response) => {
-            if (!response.success) return setError(response.error || 'Çift işlenemedi');
+            if (!response.success) return reject(response.error || 'Çift işlenemedi');
             setPlayedThisTurn(true);
             setTiles(response.remainingTiles || []);
             setTilePositions(prev => prev.map(id => (ids.includes(id) ? null : id)));
@@ -416,7 +444,7 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
                     id && droppedTileIds.has(id) ? null : id
                 ));
             } else {
-                setError(response.error || 'Per indirilemedi');
+                reject(response.error || 'Per indirilemedi');
             }
         });
     };
@@ -429,7 +457,7 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
         const ids = new Set(sets.flat());
         rememberRack();
         socketService.openHand(sets, (response) => {
-            if (!response.success) return setError(response.error || 'Per yere açılamadı');
+            if (!response.success) return reject(response.error || 'Per yere açılamadı');
             setPlayedThisTurn(true);
             setTiles(response.remainingTiles || []);
             setTilePositions(prev => prev.map(id => (id && ids.has(id) ? null : id)));
@@ -445,17 +473,17 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
         const isPairs = groupTiles.length % 2 === 0 &&
             groupTiles.every((t, i) => i % 2 === 1 || validatePair([t, groupTiles[i + 1]], opts) > 0);
         if (!myOpenState.isOpen) {
-            if (!canAct) return setError('Şu an el açamazsın');
+            if (!canAct) return reject('Şu an el açamazsın');
             const kind = isPairs ? 'cift' : 'seri';
-            if (kind === 'seri' && validateSet(groupTiles, opts) <= 0) return setError('Bu per geçerli değil');
+            if (kind === 'seri' && validateSet(groupTiles, opts) <= 0) return reject('Bu per geçerli değil');
             return stageOpen(kind === 'cift' ? pairsOf(groupTiles) : [ids], kind);
         }
-        if (!canDropPer) return setError('Şu an per indiremezsin');
+        if (!canDropPer) return reject('Şu an per indiremezsin');
         if (myOpenState.openedWithPairs) {
-            if (!isPairs) return setError('Çiftle açtın: yalnızca çift indirebilirsin');
+            if (!isPairs) return reject('Çiftle açtın: yalnızca çift indirebilirsin');
             return onDropPer(pairsOf(groupTiles));
         }
-        if (validateSet(groupTiles, opts) <= 0) return setError('Bu per geçerli değil');
+        if (validateSet(groupTiles, opts) <= 0) return reject('Bu per geçerli değil');
         onDropPer([ids]);
     };
 
@@ -612,10 +640,7 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
                 onWarn={setError}
                 canSeeDiscards={!!(myOpenState.isOpen && myOpenState.openedWithPairs)}
                 canPlaySets={myOpenState.isOpen && isMyTurn}
-                onTapDiscard={() => {
-                    onTileMove(selectedTile, -1, document.querySelector(`.tile-holder .tile-cell[data-cell="${selectedTile}"] .tile`)?.getBoundingClientRect());
-                    setSelectedTile(null);
-                }}
+                onTapDiscard={() => setSelectedTile(null)} // atma GameBoard'da (uçuş animasyonuyla)
                 selectedTile={selectedTile}
                 tableSets={tableSets}
                 orderedPlayers={players}
@@ -624,7 +649,7 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
                 onAddTileToSet={onAddTileToSet}
                 onAddPairToSet={onAddPairToSet}
                 kustuTileId={kustuCorner ? takenInfo?.tileId : null}
-                noticeId={errorId}
+                rejectId={rejectId}
                 onTileDragStart={handleTileDragStart}
                 onTileDragEnd={handleTileDragEnd}
                 flippedTileIds={flippedTileIds}
@@ -650,7 +675,7 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
             </div>
 
             {/* Tur Sonu Ekranı */}
-            {roundEndResults && !isGameOver && (
+            {roundEndResults && summaryReady && !isGameOver && (
                 <RoundSummary
                     roundData={roundEndResults}
                     isLastRound={false}

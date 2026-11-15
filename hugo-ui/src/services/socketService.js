@@ -169,7 +169,7 @@ class SocketService {
         });
     }
 
-    discardTile(tileId, callback) {
+    discardTile(tileId, callback, finishSets) {
         const roomId = this.activeRoomId;
         if (!roomId) {
             console.error('Aktif oda bulunamadı');
@@ -177,7 +177,7 @@ class SocketService {
             return;
         }
 
-        this.socket.emit('game:discardTile', { playerId: this.playerId, roomId, tileId }, callback);
+        this.socket.emit('game:discardTile', { playerId: this.playerId, roomId, tileId, ...(finishSets ? { finishSets } : {}) }, callback);
     }
 
     onPlayerJoined(callback) {

@@ -54,6 +54,7 @@ const Tile = ({ value, color, onClick, onDoubleClick, index, tile, isDiscarded, 
             draggable="false"
             data-index={index}
             data-discarded-from={discardedFrom}
+            data-tile-id={tile?.id}
         >
             {!isFlipped && (tile?.isJoker ? <JokerFace /> : tileValue)}
         </div>

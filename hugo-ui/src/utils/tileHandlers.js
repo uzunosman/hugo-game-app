@@ -1,7 +1,6 @@
 /**
  * Taş işleme fonksiyonları
  */
-import { flyToCorner } from './flyTiles.js';
 
 /**
  * Taş çekme işlemi
@@ -25,7 +24,8 @@ export const handleDrawTile = ({
     setError,
     fromDiscard,
     setTilePositions,
-    targetIndex // Sürükle-bırak ile belirtilen hedef pozisyon (opsiyonel)
+    targetIndex, // Sürükle-bırak ile belirtilen hedef pozisyon (opsiyonel)
+    onDrawn // çekilen taş ıstakaya kondu (animasyon için)
 }) => {
     if (gameState.currentPlayerId !== playerId) {
         setError('Sıra sende değil');
@@ -56,6 +56,7 @@ export const handleDrawTile = ({
                 return newPositions;
             });
 
+            onDrawn?.(response.tile);
             // Oyun durumunu güncelle: discard aşamasına geç, deste sayısını düşür
             setGameState(prevState => ({
                 ...prevState,
@@ -173,7 +174,7 @@ export const handleTileMove = ({
     setGameState,
     getPlayerCorner,
     currentPlayerIndex,
-    fromRect // atılan taşın uçacağı başlangıç (ıstakadaki yeri ya da bırakıldığı yer)
+    finishSets // açmadan bitme: kalan bütün taşların perleri
 }) => {
     console.log(`handleTileMove: ${sourceIndex} -> ${targetIndex}`);
 
@@ -245,7 +246,6 @@ export const handleTileMove = ({
                     console.log('Atılan taş köşeye eklendi:', corner, discardedTile);
                     return newDiscardedTiles;
                 });
-                flyToCorner(corner, fromRect);
 
                 // Sırayı bir sonraki oyuncuya geçir (game:nextTurn event'i de gelecek ama önce yerel güncelle)
                 setGameState(prevState => ({
@@ -273,7 +273,7 @@ export const handleTileMove = ({
                     }, 1000);
                 }
             }
-        });
+        }, finishSets);
 
         return;
     }

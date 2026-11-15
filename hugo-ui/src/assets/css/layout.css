@@ -313,3 +313,5 @@
 @media (prefers-reduced-motion: reduce) { .center-area .center-tile.closed:has(.draw-hint) { animation: none; } }
 /* Gösterge: yeşil çerçeve yok, sıradan taş gibi */
 .center-area .center-tile.indicator { border: 1px solid rgba(0, 0, 0, 0.1); }
+/* Atılan taş köşeye uçarken köşedeki taş görünmez (sunucu cevabı uçuştan önce gelirse yeni taş erken belirmesin) */
+.tile-drop-zone[data-incoming] .tile { visibility: hidden; }

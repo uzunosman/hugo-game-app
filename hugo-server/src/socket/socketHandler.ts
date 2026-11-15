@@ -59,8 +59,8 @@ export const setupSocketHandlers = (io: Server) => {
     };
 
     // Taş atma + tur sonu / sıra geçişi (oyuncu hamlesi ve otomatik hamle aynı yolu kullanır)
-    const discardAndAdvance = (roomId: string, game: Game, playerId: string, tileId: string) => {
-        const { tile, penalties, error } = game.discardTile(playerId, tileId);
+    const discardAndAdvance = (roomId: string, game: Game, playerId: string, tileId: string, finishSets?: string[][]) => {
+        const { tile, penalties, error } = game.discardTile(playerId, tileId, finishSets);
         if (!tile) return { success: false, error: error || 'Taş atılamadı' };
 
         io.to(roomId).emit('game:tileDiscard', { success: true, playerId, deckCount: game.deck.length, tile: { ...tile.toJSON(), playerId, locked: game.lockedDiscardTileId === tile.id } });
@@ -938,7 +938,7 @@ export const setupSocketHandlers = (io: Server) => {
             }
         });
 
-        socket.on('game:discardTile', (data: { playerId: string, tileId: string }, callback) => {
+        socket.on('game:discardTile', (data: { playerId: string, tileId: string, finishSets?: string[][] }, callback) => {
             try {
                 if (!owns(data?.playerId)) return callback(notYours);
                 const { playerId, tileId } = data;
@@ -959,7 +959,10 @@ export const setupSocketHandlers = (io: Server) => {
                     });
                 }
 
-                callback(discardAndAdvance(player.roomId, room.game, playerId, tileId));
+                // Açmadan bitme perleri: yalnızca dizi-dizisi string kabul edilir (doğrulama Game'de)
+                const finishSets = Array.isArray(data.finishSets) && data.finishSets.every(st => Array.isArray(st) && st.every(id => typeof id === 'string'))
+                    ? data.finishSets : undefined;
+                callback(discardAndAdvance(player.roomId, room.game, playerId, tileId, finishSets));
             } catch (error) {
                 console.error('Taş atma hatası:', error);
                 callback({

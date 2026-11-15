@@ -5,6 +5,7 @@ import DiscardAreas from '../DiscardAreas/DiscardAreas';
 import OpenSetsArea from '../OpenSetsArea/OpenSetsArea';
 import useBoardDrag from '../../hooks/useBoardDrag';
 import { fitTable } from '../../utils/tableFit';
+import { afterPaint, flyClone, rackTileEl, slideFrom } from '../../utils/flyTiles';
 import '../../assets/css/components/GameBoard.css';
 
 /**
@@ -53,27 +54,51 @@ const GameBoard = ({
     onWarn,
     canPlaySets,
     canSeeDiscards,
-    noticeId, // yeni uyarı (ör. hamle reddedildi): gizlenen taşlar ıstakaya döner
+    rejectId, // hamle reddedildi: gizlenen taş bırakıldığı yerden ıstakaya kayar
     kustuTileId
 }) => {
     const isFirstHandBlock = tiles.length === 15 && turnAction === 'draw';
     const canDrawFromDeck = isMyTurn && turnAction === 'draw' && !isFirstHandBlock;
 
     // Istakadan çıkan taş (atılan, işlenen, yere açılan) sunucu cevabına kadar ıstakada gizli kalır: eski yerinde yeniden belirmez.
-    // Cevap gelince taş zaten elden çıkar; hamle reddedilirse uyarıyla ya da en geç 1,5 sn sonra geri görünür.
+    // Cevap gelince taş elden çıkar; hamle reddedilirse taş bırakıldığı yerden ıstakadaki yerine kayar (en geç 1,5 sn'de görünür).
     const [hiddenIds, setHiddenIds] = useState(() => new Set());
     const hideTimer = useRef(null);
-    const hide = (ids) => {
+    const outRect = useRef(null); // taşın ıstakadan çıkıp gittiği yer (reddedilince oradan geri kayar)
+    const hide = (ids, from) => {
+        outRect.current = from || null;
         setHiddenIds(new Set(ids.filter(Boolean)));
         clearTimeout(hideTimer.current);
         hideTimer.current = setTimeout(() => setHiddenIds(new Set()), 1500);
     };
-    useEffect(() => { setHiddenIds(prev => (prev.size ? new Set() : prev)); }, [tiles, noticeId]);
+    useEffect(() => { setHiddenIds(prev => (prev.size ? new Set() : prev)); }, [tiles]);
+    const hiddenRef = useRef(hiddenIds);
+    hiddenRef.current = hiddenIds;
+    useEffect(() => {
+        const ids = [...hiddenRef.current];
+        if (!rejectId || !ids.length) return;
+        const from = outRect.current;
+        setHiddenIds(new Set());
+        afterPaint(() => ids.forEach(id => slideFrom(rackTileEl(id), from)));
+    }, [rejectId]);
     useEffect(() => () => clearTimeout(hideTimer.current), []);
     const canDiscardNow = isMyTurn && (turnAction === 'discard' || isFirstHandBlock);
-    const discard = (idx, fromRect) => {
-        if (canDiscardNow) hide([tilePositions[idx]]);
-        handleTileDoubleClick(idx, fromRect);
+    // Atma: taş beklemeden köşeye uçar (çift tık, seçip köşeye dokunma, sürükleyip bırakma); sunucu cevabı köşeye yerleştirir
+    const discard = (idx, fromRect, srcEl) => {
+        if (canDiscardNow) {
+            const el = srcEl || rackTileEl(tilePositions[idx]);
+            const from = fromRect || el?.getBoundingClientRect();
+            const zone = document.querySelector(`.tile-drop-zone[data-corner="${playerCorner}"]`);
+            const z = zone?.getBoundingClientRect();
+            const to = z && from && { left: z.left + (z.width - from.width) / 2, top: z.top + (z.height - from.height) / 2, width: from.width, height: from.height };
+            if (zone && to) {
+                zone.dataset.incoming = '1'; // uçuş bitene kadar köşedeki taş görünmez (yeni taş erken belirmesin)
+                setTimeout(() => delete zone.dataset.incoming, 270);
+                flyClone(el, from, to);
+            }
+            hide([tilePositions[idx]], to);
+        }
+        handleTileDoubleClick(idx);
     };
 
     // Tüm sürükle-bırak (fare + dokunmatik) tek yoldan: useBoardDrag
@@ -88,10 +113,10 @@ const GameBoard = ({
         actions: {
             moveTile: handleTileMove,
             moveGroup: onGroupMove,
-            playGroup: (ids) => { if (canDiscardNow) hide(ids); onPlayGroup(ids); }, // per masaya sürüklendi: el aç / per indir
+            playGroup: (ids, from) => { if (canDiscardNow) hide(ids, from); onPlayGroup(ids); }, // per masaya sürüklendi: el aç / per indir
             discard, // köşeye atma ile aynı yol (sıra / aşama kontrolü orada)
-            addToSet: (tileId, ...rest) => { if (canPlaySets) hide([tileId]); onAddTileToSet(tileId, ...rest); },
-            addPair: (ids, setId) => { if (canPlaySets) hide(ids); onAddPairToSet(ids, setId); },
+            addToSet: (tileId, setId, side, from) => { if (canPlaySets) hide([tileId], from); onAddTileToSet(tileId, setId, side); },
+            addPair: (ids, setId, from) => { if (canPlaySets) hide(ids, from); onAddPairToSet(ids, setId); },
             kustu: onKustu,
             drawDeck: handleDrawFromDeck,
             drawDiscard: handleDrawDiscardedTile,
@@ -152,7 +177,7 @@ const GameBoard = ({
                     tilesLength={tiles.length}
                     lastDiscardCorner={lastDiscardCorner}
                     hasSelection={selectedTile !== null && selectedTile !== undefined}
-                    onTapDiscard={onTapDiscard}
+                    onTapDiscard={() => { discard(selectedTile); onTapDiscard?.(); }}
                     kustuCorner={kustuCorner}
                     canSeeHistory={canSeeDiscards}
                     onKustu={onKustu}
@@ -189,7 +214,7 @@ const GameBoard = ({
                     tiles={tiles}
                     tilePositions={tilePositions}
                     onTileClick={handleTileClick}
-                    onTileDoubleClick={(idx) => discard(idx, document.querySelector(`.tile-holder .tile-cell[data-cell="${idx}"] .tile`)?.getBoundingClientRect())}
+                    onTileDoubleClick={(idx) => discard(idx)}
                     hiddenIds={hiddenIds}
                     selectedTileIndex={selectedTile}
                     dragView={dragView}
