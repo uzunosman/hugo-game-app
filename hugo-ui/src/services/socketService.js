@@ -312,6 +312,11 @@ class SocketService {
         this.socket.off('player:connection');
     }
 
+    // Teşhis: hata / donma bilgisini sunucu günlüğüne gönderir (bağlı değilse atlanır)
+    log(data) {
+        try { this.socket?.emit('client:log', { playerId: this.playerId, ...data }); } catch { /* yok say */ }
+    }
+
     sendChat(text, callback) {
         this.socket.emit('chat:send', { playerId: this.playerId, text }, callback);
     }

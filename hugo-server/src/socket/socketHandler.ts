@@ -194,10 +194,19 @@ export const setupSocketHandlers = (io: Server) => {
 
     // Yapay zekâ hamlesi: desteden çek → açabiliyorsa aç / per indir → masaya işle → per adayı olmayan en küçük taşı at.
     // Tümü sunucuda; istemcilere yalnızca herkesin göreceği masa olayları gider.
-    const botTurn = (roomId: string, game: Game, botId: string) => {
+    const botBusy = new Set<string>(); // adımlar arası beklerken aynı masada ikinci bir yapay zekâ hamlesi başlamasın
+    const botTurn = async (roomId: string, game: Game, botId: string) => {
         turnTimers.delete(roomId);
         const bot = game.getPlayerById(botId);
-        if (!bot || !game.isPlayerTurn(botId)) return;
+        if (!bot || !game.isPlayerTurn(botId) || botBusy.has(roomId)) return;
+        botBusy.add(roomId);
+        // Adımlar arası bekleme: açılış / işleme uçuşu bitmeden sıradaki hamle gelmesin. Beklerken masa kapandıysa ya da sıra
+        // değiştiyse (oyuncu ayrıldı, el bitti) hamle bırakılır
+        const step = config.game.botStepMs;
+        const pause = async (ms: number) => {
+            if (step > 0) await new Promise(r => setTimeout(r, ms));
+            return gameManager.getRoomById(roomId)?.game === game && game.isPlayerTurn(botId);
+        };
         try {
             if (game.turnAction === TurnAction.DRAW && bot.tiles.length !== 15) {
                 const drawn = game.drawTile(botId, false);
@@ -217,12 +226,16 @@ export const setupSocketHandlers = (io: Server) => {
                         isOpen: bot.isOpen, openedWithPairs: bot.openedWithPairs, lastOpenedValue: bot.lastOpenedValue,
                         turnAction: game.turnAction
                     });
+                    if (!await pause(Math.min(1400, step + (r.newSets?.flatMap(st => st.tiles).length || 0) * 60))) return;
                 }
             } else if (!bot.openedWithPairs) {
                 const extra = planSets(game, bot.tiles).filter(st => st.length >= 3);
                 while (extra.length && extra.flat().length >= bot.tiles.length) extra.pop();
                 const r = extra.length ? game.dropPer(botId, extra.map(st => st.map(t => t.id))) : null;
-                if (r?.success) io.to(roomId).emit('game:perDropped', { success: true, playerId: botId, openState: openStateOf(bot), newSets: r.newSets?.map(setJSON) });
+                if (r?.success) {
+                    io.to(roomId).emit('game:perDropped', { success: true, playerId: botId, openState: openStateOf(bot), newSets: r.newSets?.map(setJSON) });
+                    if (!await pause(Math.min(1400, step + (r.newSets?.flatMap(st => st.tiles).length || 0) * 60))) return;
+                }
             }
 
             // Masadaki perlere işle (okeyi işlemez; Game elde en az bir taş bırakır)
@@ -242,6 +255,7 @@ export const setupSocketHandlers = (io: Server) => {
                                     emitPenalty(roomId, game, { playerId: targetPlayerId, amount, tag, tile: label, reason: 'Perine taş işlendi' });
                                 }
                                 moved = true;
+                                if (!await pause(step)) return; // bir işleme bitmeden diğeri gelmez
                                 break;
                             }
                             if (moved) break;
@@ -256,6 +270,8 @@ export const setupSocketHandlers = (io: Server) => {
         } catch (error) {
             console.error('Yapay zekâ hamlesi hatası:', error);
             autoPlay(roomId, game, botId); // güvenli yol: çek ve en küçük taşı at
+        } finally {
+            botBusy.delete(roomId);
         }
     };
 
@@ -364,6 +380,14 @@ export const setupSocketHandlers = (io: Server) => {
 
         // Masa sohbeti: yalnızca o masadaki oyuncular yazar ve okur; son 50 mesaj bellekte tutulur
         let lastChatAt = 0;
+        // İstemci teşhis kaydı (hata / donma): yalnızca sunucu günlüğüne yazılır, soket başına en çok 30
+        let clientLogs = 0;
+        socket.on('client:log', (data: unknown) => {
+            if (++clientLogs > 30) return;
+            const who = gameManager.getPlayerById(String((data as any)?.playerId || ''))?.name || '?';
+            console.warn(`İstemci [${who}]:`, JSON.stringify(data).slice(0, 1500));
+        });
+
         socket.on('chat:send', (data: { playerId: string; text: string }, callback) => {
             try {
                 if (!owns(data?.playerId)) return callback?.(notYours);

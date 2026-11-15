@@ -232,6 +232,7 @@ export default function useBoardDrag(props) {
         const s = session.current;
         if (!s || e.pointerId !== s.pointerId) return;
         s.x = e.clientX; s.y = e.clientY;
+        s.seen = Date.now();
         if (!s.dragging) {
             if (Math.hypot(s.x - s.x0, s.y - s.y0) < THRESHOLD) return;
             startDrag(s);
@@ -273,13 +274,19 @@ export default function useBoardDrag(props) {
     }
 
     const onPointerDown = (e) => {
+        if (window.__diagTouches > 0) { // teşhis: dizmeden sonraki dokunuşlar ıstakaya ulaşıyor mu, eski sürükleme takılı mı
+            window.__diagTouches--;
+            window.__hugoLog?.({ type: 'dokunma', hedef: String(e.target?.className || e.target?.tagName).slice(0, 60), takili: !!session.current, tur: e.pointerType, birincil: e.isPrimary, tus: e.button });
+        }
+        // Takılı kalmış eski oturum (bırakma olayı hiç gelmedi: iOS ana ekran uygulaması) yeni dokunuşu engellemesin
+        if (session.current && Date.now() - session.current.seen > 1500) { window.__hugoLog?.({ type: 'takili-oturum', kind: session.current.kind, dragging: session.current.dragging }); end(); }
         if (session.current || !e.isPrimary || e.button !== 0) return;
         const src = identify(e.target);
         if (!src) return;
         if (e.pointerType === 'mouse') e.preventDefault(); // metin seçimi başlamasın
         const s = {
             ...src, pointerId: e.pointerId, pointerType: e.pointerType, board: e.currentTarget,
-            x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, dragging: false, group: null,
+            x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, dragging: false, group: null, seen: Date.now(),
             shown: src.kind === 'tile' ? src.srcIdx : null,
             tileId: src.kind === 'tile' ? latest.current.positions[src.srcIdx] : null,
         };

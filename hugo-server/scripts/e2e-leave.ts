@@ -14,7 +14,7 @@ const waitFor = (s: Socket, ev: string, pred: (r: Ack) => boolean = () => true) 
 const startServer = () => new Promise<ReturnType<typeof spawn>>((resolve, reject) => {
     const srv = spawn(process.execPath, ['-r', 'ts-node/register', 'src/index.ts'], {
         cwd: path.join(__dirname, '..'),
-        env: { ...process.env, PORT: String(PORT), TEST_MODE: 'false', AUTO_START_GAME: 'false', TURN_TIMEOUT_MS: '300', BOT_THINK_MS: '5', ROUND_BREAK_MS: '200', PERSIST: 'false' },
+        env: { ...process.env, PORT: String(PORT), TEST_MODE: 'false', AUTO_START_GAME: 'false', TURN_TIMEOUT_MS: '300', BOT_THINK_MS: '5', BOT_STEP_MS: '0', ROUND_BREAK_MS: '200', PERSIST: 'false' },
     });
     srv.stdout.on('data', d => { if (String(d).includes('Sunucu çalışıyor')) resolve(srv); });
     srv.on('exit', code => reject(new Error(`sunucu kapandı: ${code}`)));

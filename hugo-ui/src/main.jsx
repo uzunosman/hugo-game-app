@@ -34,3 +34,23 @@ if (import.meta.env.PROD) {
   window.addEventListener('hugo:reconnected', check);
   check(); // açılışta da: ana ekran uygulaması eski sayfayla açıldıysa güncel sürüme geçer
 }
+
+// Teşhis (iPhone ana ekran uygulamasındaki donma için): hatalar ve ana iş parçacığının uzun süre kilitlenmesi
+// sunucu günlüğüne gider. Son kullanıcı hareketi (window.__lastAction) donmanın neyle başladığını gösterir.
+{
+  const ctx = () => ({
+    v: VERSION, standalone: !!(navigator.standalone || window.matchMedia?.('(display-mode: standalone)').matches),
+    vp: `${innerWidth}x${innerHeight}`, ua: navigator.userAgent.slice(0, 160), last: window.__lastAction,
+  });
+  const send = (data) => import('./services/socketService.js').then(m => m.default.log({ ...ctx(), ...data }));
+  window.addEventListener('error', (e) => send({ type: 'error', msg: e.message, at: `${e.filename}:${e.lineno}:${e.colno}`, stack: e.error?.stack?.slice(0, 600) }));
+  window.addEventListener('unhandledrejection', (e) => send({ type: 'rejection', msg: String(e.reason?.message || e.reason), stack: e.reason?.stack?.slice(0, 600) }));
+  let tick = Date.now();
+  setInterval(() => {
+    const gap = Date.now() - tick;
+    if (gap > 2500 && document.visibilityState === 'visible') send({ type: 'donma', ms: gap });
+    tick = Date.now();
+  }, 1000);
+  document.addEventListener('visibilitychange', () => { tick = Date.now(); });
+  window.__hugoLog = send;
+}

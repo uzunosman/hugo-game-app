@@ -632,9 +632,19 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
                     setSelectedTile(null);
                 }}
                 onArrange={(mode) => {
-                    setRackMode(mode);
-                    setTilePositions(arrangeTiles(tiles, mode, gameState.okeyTile, gameState.isHugoRound));
-                    setSelectedTile(null);
+                    // Teşhis: iPhone ana ekran uygulamasında dizmeden sonra donma bildirildi (main.jsx sunucuya yazar)
+                    window.__lastAction = `dizme:${mode}`;
+                    window.__diagTouches = 5; // sonraki 5 dokunuş da günlüğe yazılır
+                    const t0 = performance.now();
+                    try {
+                        const next = arrangeTiles(tiles, mode, gameState.okeyTile, gameState.isHugoRound);
+                        setRackMode(mode);
+                        setTilePositions(next);
+                        setSelectedTile(null);
+                        window.__hugoLog?.({ type: 'dizme', mode, ms: Math.round(performance.now() - t0), n: tiles.length, placed: next.filter(Boolean).length });
+                    } catch (err) {
+                        window.__hugoLog?.({ type: 'dizme-hata', mode, msg: err.message, stack: err.stack?.slice(0, 600) });
+                    }
                 }}
                 kustuCorner={kustuCorner}
                 onKustu={onKustu}
