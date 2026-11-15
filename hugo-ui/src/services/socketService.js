@@ -24,6 +24,8 @@ class SocketService {
             // (kopukken kaçan olaylar böyle telafi edilir); oyuncu sunucuda yoksa girişe dönülür
             let connectedBefore = false;
             this.socket.on('connect', () => {
+                // Yeniden bağlanma çoğunlukla sunucu güncellemesidir: yeni sürüm yayındaysa sayfa yenilenir (main.jsx)
+                if (connectedBefore) window.dispatchEvent(new Event('hugo:reconnected'));
                 if (connectedBefore && this.playerId) {
                     this.socket.emit('player:reconnect', { playerId: this.playerId }, (response) => {
                         if (response?.success) {

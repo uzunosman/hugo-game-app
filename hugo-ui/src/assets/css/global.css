@@ -77,3 +77,15 @@ body {
    Yazı alanları (ad, masa adı, sohbet) seçilebilir kalır */
 body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 input, textarea, [contenteditable="true"] { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
+
+/* Sürüm etiketi: sağ alt köşe, minik ve soluk; tıklamaları engellemez */
+.app-version {
+    position: fixed;
+    right: calc(3px + env(safe-area-inset-right, 0px));
+    bottom: calc(1px + env(safe-area-inset-bottom, 0px));
+    z-index: 5000;
+    font: 9px/1 system-ui, sans-serif;
+    color: rgba(255, 255, 255, 0.55);
+    pointer-events: none;
+    user-select: none;
+}

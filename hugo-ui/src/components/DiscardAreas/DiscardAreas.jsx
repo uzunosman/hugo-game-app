@@ -38,6 +38,7 @@ const DiscardAreas = ({
     }, [historyCorner]);
     useEffect(() => { if (!canSeeHistory) setHistoryCorner(null); }, [canSeeHistory]);
     const toggleHistory = (corner) => {
+        if (corner === kustuCorner) return;
         if (canSeeHistory && (discardedTiles[corner] || []).length > 1) setHistoryCorner(c => (c === corner ? null : corner));
     };
 
@@ -67,7 +68,12 @@ const DiscardAreas = ({
 
     // Atılan taşa tıklama işleyicisi
     const handleDiscardedTileClick = (corner, tileIndex) => {
+        // Çift açan: geçmişi olan köşede ilk dokunuş geçmişi açar (taş alınmaz); geçmiş açıkken üstteki taşa
+        // tekrar dokununca ya da taşı sürükleyince alınır
+        const hasHistory = canSeeHistory && (discardedTiles[corner] || []).length > 1;
+        if (hasHistory && historyCorner !== corner) return setHistoryCorner(corner);
         if (canTakeDiscardedTile(corner, tileIndex)) {
+            setHistoryCorner(null);
             handleDrawDiscardedTile(corner, tileIndex);
         } else {
             toggleHistory(corner);
@@ -83,7 +89,7 @@ const DiscardAreas = ({
 
         return (
             <div
-                className={`tile-drop-zone ${positionClass} ${isCornerActive(corner) ? 'active' : ''} ${canSeeHistory && tiles.length > 1 ? 'has-history' : ''} ${dragOverCorner === corner && (corner === playerCorner || corner === kustuCorner) ? 'drag-over' : ''}`}
+                className={`tile-drop-zone ${positionClass} ${isCornerActive(corner) ? 'active' : ''} ${canSeeHistory && tiles.length > 1 && corner !== kustuCorner ? 'has-history' : ''} ${dragOverCorner === corner && (corner === playerCorner || corner === kustuCorner) ? 'drag-over' : ''}`}
                 data-corner={corner}
                 onClick={(e) => {
                     // Dokunmatik: seçili taş varken kendi köşene dokun → at
@@ -92,7 +98,7 @@ const DiscardAreas = ({
                     else if (!e.target.closest('.tile.can-drag')) toggleHistory(corner); // alınabilen taşın kendi tıklaması var
                 }}
             >
-                {historyCorner === corner && (
+                {historyCorner === corner && corner !== kustuCorner && (
                     // En yeni taş köşeye en yakın; köşedeki üst taş zaten görünüyor
                     <div className="discard-history" aria-label="Bu köşeye atılan önceki taşlar">
                         {tiles.slice(0, -1).reverse().map(t => <Tile key={t.id} tile={t} isDiscarded={true} />)}
@@ -103,7 +109,7 @@ const DiscardAreas = ({
                         type="button"
                         className="kustu-btn"
                         title="Yandan aldığın taşı geri koy, desteden çek (taşı buraya sürükleyerek de kusabilirsin)"
-                        onClick={(e) => { e.stopPropagation(); onKustu?.(); }}
+                        onClick={(e) => { e.stopPropagation(); setHistoryCorner(null); onKustu?.(); }}
                     >
                         Kustu
                         {/* Taş geri konuyor: aşağı inen ok, altında köşe yuvası */}

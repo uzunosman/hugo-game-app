@@ -3,10 +3,14 @@ import { createRoot } from 'react-dom/client'
 import App from './App.jsx'
 import DesignSwitcher from './components/DesignSwitcher/DesignSwitcher.jsx'
 
+// Sağ altta küçük sürüm etiketi: test edilen sürüm buradan doğrulanır (deploy/update.sh verir)
+const VERSION = import.meta.env.VITE_APP_VERSION || 'dev'
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <App />
     <DesignSwitcher />
+    <div className="app-version" aria-hidden="true">{VERSION}</div>
   </StrictMode>,
 )
 
@@ -22,5 +26,7 @@ if (import.meta.env.PROD) {
       if (live && current() && live !== current()) location.reload();
     } catch { /* çevrimdışı: sonra yeniden denenir */ }
   };
-  document.addEventListener('visibilitychange', check); // yalnızca uygulamaya dönünce: oyun ortasında kendiliğinden yenilenmez
+  // Uygulamaya dönünce ve sunucu yeniden başlayıp bağlantı geri gelince (güncelleme) kontrol edilir
+  document.addEventListener('visibilitychange', check);
+  window.addEventListener('hugo:reconnected', check);
 }
