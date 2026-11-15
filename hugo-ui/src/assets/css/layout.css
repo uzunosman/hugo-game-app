@@ -310,9 +310,7 @@
     color: #0b6e7f;
     width: min-content; /* "Taş çek" dar taşta iki satıra iner */
 }
-.center-area .center-tile.closed:has(.draw-hint) { box-shadow: 0 0 0 2px #fff, 0 0 12px rgba(255, 255, 255, 0.7); animation: deck-call 1.2s ease-in-out infinite alternate; }
-@keyframes deck-call { to { box-shadow: 0 0 0 2px #fff, 0 0 18px rgba(255, 255, 255, 1); } }
-@media (prefers-reduced-motion: reduce) { .center-area .center-tile.closed:has(.draw-hint) { animation: none; } }
+/* Çekilecek deste: gölge / parlama yok, yalnızca "Taş çek" yazısı */
 /* Gösterge: yeşil çerçeve yok, sıradan taş gibi */
 .center-area .center-tile.indicator { border: 1px solid rgba(0, 0, 0, 0.1); }
 /* Çift açan oyuncu: eski taşları olan her köşe tıklanabilir (pasif köşeler normalde tıklamayı geçirir) */
@@ -326,7 +324,7 @@
 /* iPhone ana ekran uygulamasında hızlı iki dokunuş sayfayı yakınlaştırmasın (oyun donmuş gibi görünüyordu) */
 .game-container, .game-container button { touch-action: manipulation; }
 .pl-toggle::after, .rack-tool-btn::after, .chat-toggle::after, .settings-toggle::after, .scoreboard-toggle::after {
-    content: ''; position: absolute; inset: -8px -6px;
+    content: ''; position: absolute; inset: -12px -10px;
 }
 /* Dizme düğmeleri köşe bırakma alanlarının (300-400) üstünde: dokunuş başka katmana gitmesin */
 .tile-holder-container .rack-tools { z-index: 450; }
