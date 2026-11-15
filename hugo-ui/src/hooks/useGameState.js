@@ -228,10 +228,15 @@ const useGameState = (player, room) => {
 
         // İşleme işlemini dinle — masadaki set güncellenir, ceza yazılır
         // Masada henüz çizilmemiş taşlar yeni işlenendir (animasyonla gelir)
+        // Açılış değeri aynı sırada indirilen per / kendi perine işlenen taşla artar
+        const applyOpenState = (r) => {
+            if (r.openState) setPlayerOpenStates(prev => ({ ...prev, [r.playerId]: { ...prev[r.playerId], ...r.openState } }));
+        };
         const notOnTable = (tiles) => tiles.map(t => t.id).filter(id => !document.querySelector(`.open-set-tile[data-tile-id="${id}"]`));
 
         socketService.onTileAddedToSet((response) => {
             if (response.success && response.updatedSet) {
+                applyOpenState(response);
                 flyTilesIn(notOnTable(response.updatedSet.tiles), response.playerId, player.id);
                 setTableSets(prev => prev.map(s =>
                     s.id === response.updatedSet.id ? response.updatedSet : s
@@ -243,6 +248,7 @@ const useGameState = (player, room) => {
         // Per indirme işlemini dinle — sadece masaya set eklenir, skor değişmez
         socketService.onPerDropped((response) => {
             if (response.success && response.newSets) {
+                applyOpenState(response);
                 // İndirilen per de, başkasının çiftlerine işlenen çift de indirenin yerinden uçarak gelir
                 flyTilesIn(notOnTable(response.newSets.flatMap(st => st.tiles)), response.playerId, player.id);
                 setTableSets(prev => [...prev, ...response.newSets]);

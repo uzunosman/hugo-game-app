@@ -7,7 +7,7 @@ Az puan iyidir: 9 el sonunda toplam puanı en düşük olan kazanır (eşitlikte
 
 | Kavram | Anlamı |
 |---|---|
-| Taş değeri | Taşın üzerindeki sayı (1–13). Cezalarda genelde **sayı × 10** olarak geçer; el sonunda elde kalan taşlar düz değerleriyle toplanır. |
+| Taş değeri | Taşın üzerindeki sayı (1–13). Cezalarda genelde **sayı × 10** olarak geçer; el sonunda elde kalan taşların toplamı × 2 sayılır. |
 | Okey | Normal elde göstergenin bir üstü (gösterge 13 ise 1). Hugo elinde sahte okeyler (jokerler) okeydir. |
 | Sahte okey (normal el) | Okeyin rengi ve sayısıyla sıradan taş gibi oynanır; joker gibi davranmaz. Ceza hesabında da okeyin değerini taşır. |
 | Hugo eli | 1., 5. ve 9. eller. Gösterge sahte okey çıkarsa o el de Hugo elidir. |
@@ -43,6 +43,7 @@ Az puan iyidir: 9 el sonunda toplam puanı en düşük olan kazanır (eşitlikte
 | Çiftle açan | Sonra yalnızca çift indirir |
 | Çiftle açan | Köşelere atılmış eski taşları görebilir: köşeye tıklayınca yana açılır, başka yere tıklayınca kapanır |
 | Masaya her oynayışta | Elde en az bir taş kalmalı; el son taş atılarak biter |
+| Açtığı sırada ekleme | Açan oyuncu taş atmadan (sırası geçmeden) yeni per indirir ya da kendi perine taş işlerse açılış değerine eklenir. Örn. 65 açıp aynı sırada 10 eklerse açılışı 75 olur (sonraki oyuncular 75'i geçmeli; 100+ yıldızı da buna bakar). |
 | Per per açma | Per ıstakadan masaya sürüklenince yalnızca o per yere iner. Eşik dolana kadar perler yerde bekler (kesik çerçeve) ve taş atılamaz. "Tümünü aç" ıstakadaki tüm geçerli perleri açar. |
 
 ## 4. El sonu puanı
@@ -53,7 +54,7 @@ El iki şekilde biter: bir oyuncu son taşını atar (**bitiren**), ya da deste 
 
 | Oyuncunun durumu | Elde kalan puan |
 |---|---|
-| Eli **açmış** | Elde kalan taşların değer toplamı (× 10 yok), bitme çarpanlarıyla katlanır. Okey 0 sayılır, sahte okey okeyin değeriyle sayılır. |
+| Eli **açmış** | Elde kalan taşların değer toplamı **× 2**, bitme çarpanlarıyla katlanır. Okey 0 sayılır, sahte okey okeyin değeriyle sayılır. |
 | Eli **açmamış** | **400** |
 | Eli açmamış ve **bitiren dışında kimse açmamış** | **800** |
 | Bitiren | 0 |
@@ -70,12 +71,12 @@ Her özel durum **× 2**'dir ve çarpanlar birbiriyle çarpılır.
 | **Elden bitme** | Bitiren aynı sırada hem açıp hem bitirdi ya da hiç açmadan bitirdi (bkz. 4.4), **ve bitiren dışında kimse açmamış** | Yalnızca rakiplerin **elde kalan** puanını. Masada açan varsa çarpan eklenmez. |
 
 Örnek: Hugo elinde okeyle bitişte rakibin elde kalanı × 4 olur, cezaları × 2 olur.
-Örnek: eli açmış rakibin elinde 3 ve 7 kaldıysa normal bitişte 10, okeyle bitişte 20 yazılır.
+Örnek: eli açmış rakibin elinde 3 ve 7 kaldıysa normal bitişte (3 + 7) × 2 = 20, okeyle bitişte 40 yazılır.
 
 ### 4.3 Kullanılmayan okey
 
-Eli **açmış** bir oyuncunun elinde el sonunda kalan **her okey için +100**. Eli açmamış oyuncuya yazılmaz (zaten 400/800 alır).
-Bu ceza yalnızca Hugo çarpanıyla katlanır.
+Eli **açmış** bir oyuncunun elinde el sonunda kalan **her okey için 100**. Okeyle, çiftten ya da elden bitmede bu ceza o çarpanla katlanır (örn. okeyle bitişte 200); Hugo elinde ayrıca × 2.
+Eli açmamış oyuncuya yazılmaz (zaten 400/800 alır).
 
 ### 4.4 Açmadan bitme
 
@@ -87,8 +88,9 @@ Eli açmamış oyuncunun, atacağı son taş dışındaki **bütün taşları ge
 ### 4.5 Formül
 
 ```
-elde kalan  = (bölüm 4.1: açmışsa taş toplamı, açmamışsa 400/800) × okeyle bitme × çiftten bitme × elden bitme
-ham toplam  = elde kalan + o elin anlık cezaları + kullanılmayan okey
+elde kalan  = (bölüm 4.1: açmışsa taş toplamı × 2, açmamışsa 400/800) × okeyle bitme × çiftten bitme × elden bitme
+okey cezası = elde kalan okey × 100 × okeyle bitme × çiftten bitme × elden bitme
+ham toplam  = elde kalan + o elin anlık cezaları + okey cezası
 el puanı    = max(0, ham toplam × Hugo − yıldız × 100)
 toplam puan = bütün ellerin el puanlarının toplamı
 ```
@@ -130,12 +132,12 @@ Not: kod yalnızca ilk açılışa bakar; aynı elde sonradan indirilen perler b
 ## 6. Örnekler
 
 **Normal el.** A normal bitirir. B eli açmış, elinde 3 ve 7 kalmış, o elde 140 ceza yemiş, ilk açılışı 104.
-- B: elde kalan 3 + 7 = 10 → ham 10 + 140 = 150 → 150 − 1 yıldız × 100 = **50**
+- B: elde kalan (3 + 7) × 2 = 20 → ham 20 + 140 = 160 → 160 − 1 yıldız × 100 = **60**
 - A: ceza yoksa max(0, 0 − 100) = **0**
 - C eli açmamış: **400**
 
 **Hugo elinde okeyle bitiş.** A Hugo elinde okeyle bitirir. B açmış, elinde 5 ve 8 kalmış, bir işlek atmış (200).
-- B: elde kalan 5 + 8 = 13 × 2 (okey) = 26 → ham 26 + 200 = 226 → × 2 (Hugo) = **452**
+- B: elde kalan (5 + 8) × 2 = 26 × 2 (okey) = 52 → ham 52 + 200 = 252 → × 2 (Hugo) = **504**
 - A: 4 yıldız → max(0, 0 − 400) = **0**
 - C eli açmamış: 400 × 2 (okey) × 2 (Hugo) = **1600**
 

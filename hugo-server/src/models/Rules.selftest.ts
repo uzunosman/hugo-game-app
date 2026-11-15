@@ -280,7 +280,7 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     assert.strictEqual(game.addTileToSet(p1.id, r7.id, pairSet.id, 'end').success, false, 'çiftlere tek taş işlenmez');
 }
 
-// El sonu: elde kalan taş değerleri toplamı, her özel durum × 2 (elden bitme yalnızca başka açan yoksa), kullanılmayan okey + 100
+// El sonu: elde kalan taş değerleri toplamı × 2, her özel durum × 2 (elden bitme yalnızca başka açan yoksa), kullanılmayan okey 100 × özel durum
 {
     const { game, p0, p1 } = setup();
     const [, , p2, p3] = game.players;
@@ -296,9 +296,9 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     assert.ok(fin.tile && p0.tiles.length === 0);
     assert.deepStrictEqual(fin.penalties, [], 'bitiren son taş işlek cezası almaz');
 
-    p1.isOpen = true; give(p1, [t(RED, 5)]);                 // 5 → × 2 = 10
+    p1.isOpen = true; give(p1, [t(RED, 5)]);                 // 5 × 2 = 10 → çiftten × 2 = 20
     give(p2, [t(YELLOW, 9), t(RED, 6)]);                      // açmadı → 400 × 2 = 800; okey cezası yok
-    p3.isOpen = true; give(p3, [t(RED, 6), t(BLUE, 2)]);      // okey 0 + 2 = 2 → 4, + 100 okey
+    p3.isOpen = true; give(p3, [t(RED, 6), t(BLUE, 2)]);      // okey 0 + 2 × 2 = 4 → 8, + okey 100 × 2 = 200
     const res = Object.fromEntries(game.endRound(p0.id).map(r => [r.playerName, r]));
 
     assert.strictEqual(res.P0.isFinisher, true);
@@ -307,11 +307,11 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     assert.strictEqual(res.P0.stars, 1, 'çiftten bitiren 1 yıldız');
     assert.strictEqual(res.P0.roundTotal, 0);
     assert.strictEqual(res.P1.multiplier, 2);
-    assert.strictEqual(res.P1.roundTotal, 10);
+    assert.strictEqual(res.P1.roundTotal, 20);
     assert.strictEqual(res.P2.roundTotal, 800);
-    assert.strictEqual(res.P3.unusedOkeyPenalty, 100);
+    assert.strictEqual(res.P3.unusedOkeyPenalty, 200, 'okey cezası özel durum çarpanıyla');
     assert.strictEqual(res.P2.unusedOkeyPenalty, 0, 'eli açmamış oyuncuya kullanılmayan okey cezası yazılmaz');
-    assert.strictEqual(res.P3.roundTotal, 104);
+    assert.strictEqual(res.P3.roundTotal, 208);
     assert.strictEqual(res.P1.stars, 0, '100 altı açılış yıldız almaz');
 }
 
@@ -329,7 +329,7 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     const real = finish(t(RED, 6));
     assert.strictEqual(real.P0.finishedWithJoker, true, 'gerçek okeyle bitti');
     assert.strictEqual(real.P0.stars, 2, 'okeyle bitiren 2 yıldız');
-    assert.strictEqual(real.P1.roundTotal, 3 * 2, 'rakibin elde kalanı ×2');
+    assert.strictEqual(real.P1.roundTotal, 3 * 2 * 2, 'rakibin elde kalanı (× 2) okeyle bitişte × 2');
     const fake = finish(new Tile(TileColor.PURPLE, 'H', true));
     assert.strictEqual(fake.P0.finishedWithJoker, false, 'normal elde sahte okey okey sayılmaz');
     assert.strictEqual(fake.P0.stars, 1);
@@ -369,7 +369,7 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     p1.isOpen = true; give(p1, [t(RED, 5)]);
     const r1 = game.endRound(p0.id).find(r => r.playerId === p1.id)!;
     assert.strictEqual(r1.multiplier, 2 * 2, 'Hugo (1. el) × çiftten bitme');
-    assert.strictEqual(r1.roundTotal, 5 * 4);
+    assert.strictEqual(r1.roundTotal, 5 * 2 * 4);
 }
 
 // Elden bitme: kimse açmamışken aynı sırada açıp biten → × 2 (ve kimse açmamış: rakiplere 800)
@@ -402,7 +402,30 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     assert.ok(game.discardTile(p0.id, g[3].id, [ids(g.slice(0, 3))]).tile);
     const r1 = game.endRound(p0.id).find(r => r.playerId === p1.id)!;
     assert.strictEqual(r1.multiplier, 1);
-    assert.strictEqual(r1.roundTotal, 5, 'açan rakip: taş toplamı 2 + 3');
+    assert.strictEqual(r1.roundTotal, 10, 'açan rakip: (2 + 3) × 2');
+}
+
+// Açtığı sırada taş atmadan indirilen per ve kendi perine işlenen taş açılış değerine eklenir
+{
+    const { game, p0 } = setup();
+    game.round = 2; game.indicatorTile = t(RED, 5); game.okeyTile = t(RED, 6);
+    const h = give(p0, [t(BLUE, 10), t(BLUE, 11), t(BLUE, 12), t(BLACK, 10), t(YELLOW, 10), t(RED, 10), t(BLACK, 3), t(BLACK, 4), t(BLACK, 5), t(BLUE, 13), t(RED, 1)]);
+    const r = game.openHand(p0.id, [ids(h.slice(0, 3)), ids(h.slice(3, 6))]);
+    assert.ok(r.success, r.error);
+    const opened = p0.lastOpenedValue;
+    assert.strictEqual(opened, 63);
+    assert.ok(game.dropPer(p0.id, [ids(h.slice(6, 9))]).success);
+    assert.strictEqual(p0.lastOpenedValue, 63 + 12, 'aynı sırada indirilen per eklenir');
+    const seri = game.tableSets.find(x => x.playerId === p0.id && x.tiles.some(y => y.id === h[0].id))!;
+    assert.ok(game.addTileToSet(p0.id, h[9].id, seri.id, 'end').success);
+    assert.strictEqual(p0.lastOpenedValue, 75 + 13, 'kendi perine işlenen taş eklenir');
+    assert.strictEqual(p0.openedTotal, 88);
+    // Sıra geçince (sonraki sıralarda) eklenmez
+    game.turnCounter += 4;
+    const [b9, b8] = give(p0, [t(BLUE, 9), t(RED, 2)]);
+    assert.ok(game.addTileToSet(p0.id, b9.id, seri.id, 'start').success);
+    assert.strictEqual(p0.lastOpenedValue, 88, 'sonraki sırada eklenmez');
+    void b8;
 }
 
 // Çiftlere çift işleme: sahibine normal işleme gibi taşların toplamı × 10 ceza; kendi çiftine işlemek cezasız

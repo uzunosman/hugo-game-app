@@ -443,6 +443,14 @@ export class Game {
     }
 
     // Bu sıradaki ilk masaya oynamadan önce durumu sakla
+    // Açtığı sırada (taş atmadan) indirdiği perler ve kendi perine işlediği taşlar açılış değerine eklenir (örn. 65 + 10 = 75)
+    private addToOpening(player: Player, amount: number): void {
+        if (amount <= 0 || !player.isOpen || player.openedAtTurn !== this.turnCounter) return;
+        player.lastOpenedValue += amount;
+        player.openedTotal += amount;
+        player.openingScore += amount;
+    }
+
     private beginTablePlay(player: Player): void {
         if (this.turnSnapshot) return;
         this.turnSnapshot = {
@@ -824,6 +832,7 @@ export class Game {
         }
 
         this.beginTablePlay(player);
+        if (targetSet.playerId === playerId) this.addToOpening(player, newValue - targetSet.value);
         player.removeTile(tileId);
         tile.setStatus(TileStatus.ON_TABLE);
         tile.setVisible(true);
@@ -944,6 +953,7 @@ export class Game {
         }
         const newSet: TableSet = { id: uuidv4(), playerId: target.playerId, tiles: tiles as Tile[], value, kind: 'cift' };
         this.tableSets.push(newSet);
+        if (target.playerId === playerId) this.addToOpening(player, value);
 
         let penalty: { targetPlayerId: string; amount: number; tag: string; tile: string } | undefined;
         const owner = this.getPlayerById(target.playerId);
@@ -1060,6 +1070,7 @@ export class Game {
             this.tableSets.push(tableSet);
             newSets.push(tableSet);
         }
+        this.addToOpening(player, validatedSets.reduce((sum, st) => sum + st.value, 0));
 
         this.playedToTableThisTurn = true;
         this.lastActionTime = new Date();
@@ -1214,13 +1225,13 @@ export class Game {
 
     /**
      * El sonu puanı (kural: kullanıcı kararı 2026-11-11):
-     *   elde kalan     = açmışsa taş değerleri toplamı (2026-11-15: × 10 yok; sahte okey okeyin değeriyle; okey 0)
+     *   elde kalan     = açmışsa taş değerleri toplamı × 2 (2026-11-15; sahte okey okeyin değeriyle; okey 0)
      *                    açmamışsa 400 (kimse açmadıysa 800)
      *   özel durumlar  = Hugo, okeyle bitme, çiftten bitme, elden bitme — her biri ×2
      *                    elden bitme yalnızca bitirenden başka açan yoksa sayılır
      *                    (örn. tek özel durum: toplam × 2, Hugo + okeyle bitme: toplam × 4)
      *   Hugo dışındaki özel durumlar yalnızca elde kalana; Hugo ×2 cezalar dahil her şeye uygulanır
-     *   kullanılmayan okey = elde kalan her okey için +100 ceza
+     *   kullanılmayan okey = elde kalan her okey için +100 ceza (okeyle / çiftten / elden bitme çarpanıyla katlanır)
      *   roundTotal     = max(0, (elde kalan × özel + cezalar + okey cezası) × Hugo − yıldız × 100)
      */
     endRound(finisherPlayerId?: string): RoundResult[] {
@@ -1252,12 +1263,13 @@ export class Game {
                     handScore = player.tiles.reduce((sum, tile) => {
                         const played = this.asPlayed(tile);
                         if (this.isOkeyTile(played) || typeof played.value !== 'number') return sum;
-                        return sum + played.value; // taş değerleri toplamı (× 10 yok), bitme çarpanlarıyla katlanır
+                        return sum + played.value * 2; // taş değerleri toplamı × 2, bitme çarpanlarıyla katlanır
                     }, 0);
                 }
                 effectiveHandScore = handScore * handMult;
                 // Kullanılmayan okey cezası yalnızca eli açmış oyuncuya yazılır
-                if (player.isOpen) unusedOkeyPenalty = player.tiles.filter(t => this.isOkeyTile(t)).length * 100;
+                // Elde kalan okey: her biri 100, özel durumlarda (okeyle / çiftten / elden bitme) çarpanla katlanır
+                if (player.isOpen) unusedOkeyPenalty = player.tiles.filter(t => this.isOkeyTile(t)).length * 100 * handMult;
             }
 
             const openBonus = 0;   // reserved for future use

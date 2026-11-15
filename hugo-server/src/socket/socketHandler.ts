@@ -58,6 +58,9 @@ export const setupSocketHandlers = (io: Server) => {
         io.to(roomId).emit('game:turnExtended', { playerId, seconds: EXTEND_MS / 1000 });
     };
 
+    // Açılış değeri (aynı sırada indirilen / kendi perine işlenen taşlarla artar): istemcideki rozet güncellenir
+    const openStateOf = (p?: Player) => p && { openedTotal: p.openedTotal, lastOpenedValue: p.lastOpenedValue };
+
     // Taş atma + tur sonu / sıra geçişi (oyuncu hamlesi ve otomatik hamle aynı yolu kullanır)
     const discardAndAdvance = (roomId: string, game: Game, playerId: string, tileId: string, finishSets?: string[][]) => {
         const { tile, penalties, error } = game.discardTile(playerId, tileId, finishSets);
@@ -219,7 +222,7 @@ export const setupSocketHandlers = (io: Server) => {
                 const extra = planSets(game, bot.tiles).filter(st => st.length >= 3);
                 while (extra.length && extra.flat().length >= bot.tiles.length) extra.pop();
                 const r = extra.length ? game.dropPer(botId, extra.map(st => st.map(t => t.id))) : null;
-                if (r?.success) io.to(roomId).emit('game:perDropped', { success: true, playerId: botId, newSets: r.newSets?.map(setJSON) });
+                if (r?.success) io.to(roomId).emit('game:perDropped', { success: true, playerId: botId, openState: openStateOf(bot), newSets: r.newSets?.map(setJSON) });
             }
 
             // Masadaki perlere işle (okeyi işlemez; Game elde en az bir taş bırakır)
@@ -1092,6 +1095,7 @@ export const setupSocketHandlers = (io: Server) => {
                 io.to(player.roomId).emit('game:tileAddedToSet', {
                     success: true,
                     playerId,
+                    openState: openStateOf(room.game.getPlayerById(playerId)),
                     updatedSet: result.updatedSet,
                     swappedOkey: !!result.swappedOkeyTile
                 });
@@ -1133,6 +1137,7 @@ export const setupSocketHandlers = (io: Server) => {
                 io.to(room.id).emit('game:perDropped', {
                     success: true,
                     playerId: player.id,
+                    openState: openStateOf(room.game.getPlayerById(player.id)),
                     newSets: [{
                         id: result.newSet.id,
                         playerId: result.newSet.playerId,
@@ -1192,6 +1197,7 @@ export const setupSocketHandlers = (io: Server) => {
                 io.to(player.roomId).emit('game:perDropped', {
                     success: true,
                     playerId,
+                    openState: openStateOf(room.game.getPlayerById(playerId)),
                     newSets: result.newSets?.map(s => ({
                         id: s.id,
                         playerId: s.playerId,
