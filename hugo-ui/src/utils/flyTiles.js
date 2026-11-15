@@ -75,7 +75,41 @@ export const flyToCorner = (corner, from, tileId) => {
 // Başka oyuncunun kartının yeri (atılan taş oradan çıkar)
 export const playerPanelRect = (playerId) => document.querySelector(`.player-panel[data-player-id="${playerId}"]`)?.getBoundingClientRect();
 
-const EASE = 'cubic-bezier(.3,.8,.35,1)';
+// Taşın yerine yerleşmesi: gerçek taş gibi yavaşlayarak oturur (mıknatıs gibi çekilmez); hız tek yerden ayarlanır
+const EASE = 'cubic-bezier(.22,.61,.36,1)';
+export const PLACE_MS = 420;
+
+// landed(): varış yerindeki gerçek öğe hazır mı; değilse kopya varış yerinde bekler (en çok 1,5 sn), boşluk ya da sıçrama olmaz
+export const flyClone = (srcEl, fromRect, toRect, duration = PLACE_MS, onDone, landed) => {
+    if (!srcEl || !fromRect || !toRect || reducedMotion()) return onDone?.();
+    const ghost = srcEl.cloneNode(true);
+    ghost.classList.remove('selected');
+    ghost.classList.add('flying-discard');
+    ghost.querySelectorAll('.draw-hint, .remaining-count').forEach(n => n.remove());
+    Object.assign(ghost.style, {
+        position: 'fixed', left: `${toRect.left}px`, top: `${toRect.top}px`, width: `${toRect.width}px`, height: `${toRect.height}px`,
+        margin: '0', zIndex: 500, pointerEvents: 'none', visibility: 'visible', opacity: '1', transformOrigin: '0 0',
+    });
+    document.body.appendChild(ghost);
+    const sc = toRect.width ? fromRect.width / toRect.width : 1;
+    let gone = false;
+    const done = () => { if (!gone) { gone = true; ghost.remove(); onDone?.(); } };
+    const finish = () => {
+        if (!landed || landed()) return done();
+        const t0 = Date.now();
+        const wait = () => (landed() || Date.now() - t0 > 1500 ? done() : requestAnimationFrame(wait));
+        requestAnimationFrame(wait);
+    };
+    ghost.animate([
+        { transform: `translate(${fromRect.left - toRect.left}px, ${fromRect.top - toRect.top}px) scale(${sc})` },
+        { transform: 'none' },
+    ], { duration, easing: EASE, fill: 'forwards' }).finished.catch(() => {}).finally(finish);
+    setTimeout(done, duration + 2000); // arka plan sekmesinde animasyon ilerlemez
+};
+
+// Sürüklenip ıstakaya bırakılan taş bıraktığın yerden yerine yavaşça oturur
+export const settleFrom = (el, fromRect) => slideFrom(el, fromRect, PLACE_MS);
+
 
 // Öğenin kopyası fromRect'ten toRect'e uçar, sonra silinir (ıstakadan köşeye atılan taş: sunucu cevabını beklemeden)
 // Yerine yeni çizilmiş öğe fromRect'ten kendi yerine kayar (desteden çekilen taş, reddedilip ıstakaya dönen taş)

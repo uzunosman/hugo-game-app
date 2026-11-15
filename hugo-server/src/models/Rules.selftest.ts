@@ -298,20 +298,20 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
 
     p1.isOpen = true; give(p1, [t(RED, 5)]);                 // 5 × 2 = 10 → çiftten × 2 = 20
     give(p2, [t(YELLOW, 9), t(RED, 6)]);                      // açmadı → 400 × 2 = 800; okey cezası yok
-    p3.isOpen = true; give(p3, [t(RED, 6), t(BLUE, 2)]);      // okey 0 + 2 × 2 = 4 → 8, + okey 100 × 2 = 200 → 208 → yuvarlama 210
+    p3.isOpen = true; give(p3, [t(RED, 6), t(BLUE, 2)]);      // okey 0 + 2 × 2 = 4 → 8, + okey 100 × 2 = 200 → 208 (yuvarlama yok)
     const res = Object.fromEntries(game.endRound(p0.id).map(r => [r.playerName, r]));
 
     assert.strictEqual(res.P0.isFinisher, true);
     assert.strictEqual(res.P0.finishedWithPairs, true);
     assert.strictEqual(res.P0.finishedElden, false, 'masada açan varken elden bitme çarpanı yok');
     assert.strictEqual(res.P0.stars, 2, 'çiftle bitirme yıldızı ikiye katlar');
-    assert.strictEqual(res.P0.roundTotal, 0);
+    assert.strictEqual(res.P0.roundTotal, -200, 'puan eksiye düşebilir: 0 − 2 yıldız');
     assert.strictEqual(res.P1.multiplier, 2);
     assert.strictEqual(res.P1.roundTotal, 20);
     assert.strictEqual(res.P2.roundTotal, 800);
     assert.strictEqual(res.P3.unusedOkeyPenalty, 200, 'okey cezası özel durum çarpanıyla');
     assert.strictEqual(res.P2.unusedOkeyPenalty, 0, 'eli açmamış oyuncuya kullanılmayan okey cezası yazılmaz');
-    assert.strictEqual(res.P3.roundTotal, 210, 'en yakın 10a yuvarlanır');
+    assert.strictEqual(res.P3.roundTotal, 208, 'yuvarlama yok');
     assert.strictEqual(res.P1.stars, 0, '100 altı açılış yıldız almaz');
 }
 
@@ -330,7 +330,7 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     assert.strictEqual(real.P0.finishedWithJoker, true, 'gerçek okeyle bitti');
     assert.strictEqual(real.P0.stars, 2, 'okeyle bitiren 2 yıldız');
     assert.strictEqual(real.P1.multiplier, 2, 'okeyle bitiş rakibin elde kalanını × 2');
-    assert.strictEqual(real.P1.roundTotal, 10, '3 × 2 × 2 = 12 → yuvarlama 10');
+    assert.strictEqual(real.P1.roundTotal, 12, '3 × 2 × 2 = 12');
     const fake = finish(new Tile(TileColor.PURPLE, 'H', true));
     assert.strictEqual(fake.P0.finishedWithJoker, false, 'normal elde sahte okey okey sayılmaz');
     assert.strictEqual(fake.P0.stars, 1);
@@ -495,8 +495,8 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     assert.strictEqual(game.drawTile(p1.id, true), null, 'işlek taş alınamaz');
 }
 
-// Yuvarlama bütün çarpanlardan sonra: 43 taş × 2 = 86 → 90; Hugo elinde 172 → 170
-for (const [round, total] of [[2, 90], [5, 170]]) {
+// Yuvarlama yok: 43 taş × 2 = 86; Hugo elinde 172
+for (const [round, total] of [[2, 86], [5, 172]]) {
     const { game, p0, p1 } = setup();
     game.round = round; game.indicatorTile = t(RED, 5); game.okeyTile = t(RED, 6);
     p0.isOpen = true; p0.openedAtTurn = -5; const [last] = give(p0, [t(BLUE, 1)]);
@@ -505,6 +505,18 @@ for (const [round, total] of [[2, 90], [5, 170]]) {
     assert.ok(game.discardTile(p0.id, last.id).tile);
     const r1 = game.endRound(p0.id).find(r => r.playerId === p1.id)!;
     assert.strictEqual(r1.roundTotal, total, `${round}. el: ${total}`);
+}
+
+// Çiftle açmış (bitirmeyen) oyuncunun elde kalanı ayrıca × 2
+{
+    const { game, p0, p1 } = setup();
+    game.round = 2; game.indicatorTile = t(RED, 5); game.okeyTile = t(RED, 6);
+    p0.isOpen = true; p0.openedAtTurn = -5; const [last] = give(p0, [t(BLUE, 1)]);
+    p1.isOpen = true; p1.openedWithPairs = true; give(p1, [t(BLACK, 5)]);
+    game.players.slice(2).forEach(p => { p.isOpen = true; p.tiles = []; });
+    assert.ok(game.discardTile(p0.id, last.id).tile);
+    const r1 = game.endRound(p0.id).find(r => r.playerId === p1.id)!;
+    assert.strictEqual(r1.roundTotal, 5 * 2 * 2, 'çift açan: 5 × 2 × 2');
 }
 
 // İşlek cezası taşın değerinden bağımsız: Hugo elinde de 100 yazılır (Hugo × 2 el sonunda)

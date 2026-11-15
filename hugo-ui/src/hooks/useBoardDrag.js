@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { perGroupAt } from '../utils/rackDrag';
+import { rackTileEl, settleFrom } from '../utils/flyTiles';
 
 // Masadaki tüm sürükle-bırak: fare, dokunmatik ve kalem aynı Pointer Events yolunu kullanır.
 //  - Istaka taşı: sürükle → ıstakada yer değiştir, köşeye at, masadaki pere işle (son taş ıstaka dışında her yere: at)
@@ -251,6 +252,10 @@ export default function useBoardDrag(props) {
             swallowClick();
             end();
             drop(s, hit);
+            // Istakada kalan taş(lar) bırakıldığı yerden yerine yavaşça oturur (atılan / işlenen taş gizli olduğundan bulunmaz).
+            // Tek kare: React bu olayın güncellemesini kareden önce yazar; animasyon ilk boyamadan önce başlar
+            const ids = s.kind === 'group' ? s.groupIds : s.kind === 'tile' ? [s.tileId] : [];
+            if (ids.length && s.ghostRects) requestAnimationFrame(() => ids.forEach((id, i) => settleFrom(rackTileEl(id), s.ghostRects[i])));
             return;
         }
         if (s.kind === 'group') swallowClick(); // per seçip bıraktı: taş seçimi açılmasın

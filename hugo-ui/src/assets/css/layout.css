@@ -330,3 +330,5 @@
 }
 /* Dizme düğmeleri köşe bırakma alanlarının (300-400) üstünde: dokunuş başka katmana gitmesin */
 .tile-holder-container .rack-tools { z-index: 450; }
+/* Çift tıkla atılan taş köşeye uçarken köşedeki taş görünmez (yeni taş erken belirmesin) */
+.tile-drop-zone[data-incoming] .tile { visibility: hidden; }

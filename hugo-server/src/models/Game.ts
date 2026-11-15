@@ -1232,7 +1232,7 @@ export class Game {
      *                    (örn. tek özel durum: toplam × 2, Hugo + okeyle bitme: toplam × 4)
      *   Hugo dışındaki özel durumlar yalnızca elde kalana; Hugo ×2 cezalar dahil her şeye uygulanır
      *   kullanılmayan okey = elde kalan her okey için +100 ceza (okeyle / çiftten / elden bitme çarpanıyla katlanır)
-     *   roundTotal     = max(0, (elde kalan × özel + cezalar + okey cezası) × Hugo − yıldız × 100)
+     *   roundTotal     = (elde kalan × özel + cezalar + okey cezası) × Hugo − yıldız × 100 (eksiye düşebilir, yuvarlama yok; çiftle açanın elde kalanı ayrıca × 2)
      */
     endRound(finisherPlayerId?: string): RoundResult[] {
         // Resolve finisher: prefer explicit argument, fall back to game state
@@ -1266,6 +1266,7 @@ export class Game {
                         if (this.isOkeyTile(played) || typeof played.value !== 'number') return sum;
                         return sum + played.value * 2; // taş değerleri toplamı × 2, bitme çarpanlarıyla katlanır
                     }, 0);
+                    if (player.openedWithPairs) handScore *= 2; // çiftle açanın elde kalanı ayrıca × 2
                 }
                 effectiveHandScore = handScore * handMult;
                 // Kullanılmayan okey cezası yalnızca eli açmış oyuncuya yazılır
@@ -1277,8 +1278,7 @@ export class Game {
             const finishBonus = 0; // reserved for future use
 
             const rawTotal = effectiveHandScore + player.penaltyScore + unusedOkeyPenalty + openBonus + finishBonus;
-            // Bütün çarpanlardan sonra, yıldızlardan önce en yakın 10'a (5 yukarı) yuvarlanır: 86 → 90, 172 → 170
-            const preMult = Math.floor((rawTotal * hugoMult + 5) / 10) * 10;
+            const preMult = rawTotal * hugoMult; // yuvarlama yok
             const multiplier = hugoMult * handMult;
 
             // Yıldız hesabı — finisher ve diğer oyuncular için ayrı kural
@@ -1298,8 +1298,8 @@ export class Game {
             // Yere açılan taşların değeri 100 ve üzeriyse (bitiren dahil) 1 yıldız
             if (player.openingScore >= 100) stars += 1;
 
-            // roundTotal: hugoMult uygulandıktan sonra yıldız düşümü yapılır, minimum 0
-            const roundTotal = Math.max(0, preMult - (stars * 100));
+            // roundTotal: hugoMult uygulandıktan sonra yıldızlar düşülür; puan eksiye düşebilir
+            const roundTotal = preMult - (stars * 100);
 
             player.addRoundScore(roundTotal, stars);
 

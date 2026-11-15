@@ -5,7 +5,7 @@ import DiscardAreas from '../DiscardAreas/DiscardAreas';
 import OpenSetsArea from '../OpenSetsArea/OpenSetsArea';
 import useBoardDrag from '../../hooks/useBoardDrag';
 import { fitTable } from '../../utils/tableFit';
-import { rackTileEl, slideFrom, whenRendered } from '../../utils/flyTiles';
+import { flyClone, PLACE_MS, rackTileEl, slideFrom, whenRendered } from '../../utils/flyTiles';
 import '../../assets/css/components/GameBoard.css';
 
 /**
@@ -85,10 +85,26 @@ const GameBoard = ({
     }, [rejectId]);
     useEffect(() => () => clearTimeout(hideTimer.current), []);
     const canDiscardNow = isMyTurn && (turnAction === 'discard' || isFirstHandBlock);
-    // Atma: oynayan oyuncu kendi atışında animasyon görmez (diğer oyuncular atanın kartından köşeye uçuşu görür);
-    // taş sunucu cevabına kadar ıstakada gizli kalır
-    const discard = (idx, fromRect) => {
-        if (canDiscardNow) hide([tilePositions[idx]], fromRect || rackTileEl(tilePositions[idx])?.getBoundingClientRect());
+    // Atma: çift tık / seçip köşeye dokununca taş köşeye yavaşça uçar; sürükleyip bırakınca atan oyuncu animasyon görmez
+    // (diğer oyuncular atanın kartından köşeye uçuşu görür). Taş sunucu cevabına kadar ıstakada gizli kalır.
+    const discard = (idx, dropRect) => {
+        if (canDiscardNow) {
+            const id = tilePositions[idx];
+            const el = rackTileEl(id);
+            const from = el?.getBoundingClientRect();
+            if (!dropRect && el && from) {
+                const zone = document.querySelector(`.tile-drop-zone[data-corner="${playerCorner}"]`);
+                const top = zone?.querySelector('.tile')?.getBoundingClientRect();
+                const z = zone?.getBoundingClientRect();
+                const to = top || (z && { left: z.left + (z.width - from.width) / 2, top: z.top + (z.height - from.height) / 2, width: from.width, height: from.height });
+                if (zone && to) {
+                    zone.dataset.incoming = '1'; // uçuş bitene kadar köşedeki taş görünmez
+                    flyClone(el, from, to, PLACE_MS, () => delete zone.dataset.incoming,
+                        () => !!zone.querySelector(`.tile[data-tile-id="${id}"]`) || !!rackTileEl(id)); // köşeye geldi ya da reddedildi
+                }
+            }
+            hide([id], dropRect || from);
+        }
         handleTileDoubleClick(idx);
     };
 

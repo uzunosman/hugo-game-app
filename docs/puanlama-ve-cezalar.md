@@ -14,7 +14,7 @@ Az puan iyidir: 9 el sonunda toplam puanı en düşük olan kazanır (eşitlikte
 | Hugo eli | 1., 5. ve 9. eller. Gösterge sahte okey çıkarsa o el de Hugo elidir. |
 | Anlık ceza | Oyun sırasında yazılan ceza. Masadaki herkes sağ alttaki ceza kaydında görür. |
 | El sonu puanı | El bitince her oyuncuya yazılan puan (elde kalan + cezalar, çarpanlar ve yıldızlarla). |
-| Yıldız (silici) | Her yıldız o elin puanından **100 düşer**. Puan 0'ın altına inmez. |
+| Yıldız (silici) | Her yıldız o elin puanından **100 düşer**. Puan eksiye düşebilir. |
 | Elden bitme | Kimse açmamışken bir oyuncunun yere açmadan (ya da açtığı sırada) bitirmesi. Rakiplerin elde kalan puanı × 2 olur; çiftle elden biterse bir × 2 daha eklenir. |
 
 ## 2. Anlık cezalar (oyun sırasında)
@@ -56,7 +56,8 @@ El iki şekilde biter: bir oyuncu son taşını atar (**bitiren**), ya da deste 
 
 | Oyuncunun durumu | Elde kalan puan |
 |---|---|
-| Eli **açmış** | Elde kalan taşların değer toplamı **× 2**. Okey 0 sayılır, sahte okey okeyin değeriyle sayılır. Yuvarlama burada yapılmaz; bütün çarpanlar (okey, çift, elden, Hugo) uygulandıktan sonra en yakın 10'a yuvarlanır (bkz. 4.5). |
+| Eli **açmış** | Elde kalan taşların değer toplamı **× 2**. Okey 0 sayılır, sahte okey okeyin değeriyle sayılır. Yuvarlama yapılmaz. |
+| Eli **çiftle açmış** | Elde kalan taşların değer toplamı × 2, **ayrıca × 2** (toplam × 4), sonra bitme çarpanları. |
 | Eli **açmamış** | **400** (kimse açmamışken elden bitişte elden çarpanıyla 800) |
 | Bitiren | 0 |
 
@@ -92,9 +93,7 @@ Eli açmamış oyuncunun, atacağı son taş dışındaki **bütün taşları ge
 elde kalan  = (bölüm 4.1: açmışsa taş toplamı × 2, açmamışsa 400) × okeyle bitme × çiftten bitme × elden bitme
 okey cezası = elde kalan okey × 100 × okeyle bitme × çiftten bitme × elden bitme
 ham toplam  = elde kalan + o elin anlık cezaları + okey cezası
-el puanı    = max(0, yuvarla10(ham toplam × Hugo) − yıldız × 100)
-yuvarla10   = en yakın 10'a; birler basamağı 5 ve üzeriyse yukarı, 4 ve altıysa aşağı.
-              Bütün çarpanlardan sonra, yıldızlardan önce. Örn. 43 taş: normal el 86 → 90; Hugo eli 172 → 170.
+el puanı    = ham toplam × Hugo − yıldız × 100   (eksiye düşebilir, yuvarlama yok)
 toplam puan = bütün ellerin el puanlarının toplamı
 ```
 
@@ -103,7 +102,7 @@ Kimse açmadıysa herkes 800 alır.
 
 ## 5. Yıldızlar (siliciler)
 
-Her yıldız o elin puanından **100 siler**. Silme işlemi Hugo çarpanından **sonra** yapılır ve puan 0'ın altına inmez
+Her yıldız o elin puanından **100 siler**. Silme işlemi Hugo çarpanından **sonra** yapılır ve puan eksiye düşebilir
 (kullanılmayan yıldız bir sonraki ele devretmez). Tabeladaki ★ sayısı oyun boyunca kazanılan toplam yıldızdır.
 
 ### 5.1 Bitirenin yıldızı
@@ -138,24 +137,17 @@ Açtığı sırada (taş atmadan) eklenen perler ve kendi perine işlenen taşla
 
 **Normal el.** A normal bitirir. B eli açmış, elinde 3 ve 7 kalmış, o elde 140 ceza yemiş, ilk açılışı 104.
 - B: elde kalan (3 + 7) × 2 = 20 → ham 20 + 140 = 160 → 160 − 1 yıldız × 100 = **60**
-- A: ceza yoksa max(0, 0 − 100) = **0**
+- A: ceza yoksa 0 − 100 = **−100**
 - C eli açmamış: **400**
 
 **Hugo elinde okeyle bitiş.** A Hugo elinde okeyle bitirir. B açmış, elinde 5 ve 8 kalmış, bir işlek atmış (tabelada 100).
-- B: elde kalan (5 + 8) × 2 = 26 × 2 (okey) = 52 → ham 52 + 100 = 152 → × 2 (Hugo) = 304 → yuvarlama **300**
-- A: 4 yıldız → max(0, 0 − 400) = **0**
+- B: elde kalan (5 + 8) × 2 = 26 × 2 (okey) = 52 → ham 52 + 100 = 152 → × 2 (Hugo) = **304**
+- A: 4 yıldız → 0 − 400 = **−400**
 - C eli açmamış: 400 × 2 (okey) × 2 (Hugo) = **1600**
 
 **Çift işleme.** B, A'nın çiftlerine iki 9 işler: A'ya (9 + 9) × 10 = **180** ceza yazılır.
 
-**Yuvarlama.** Normal el, normal bitiş. B açmış, elinde 23 sayı ve bir okey kalmış; C açmış, elinde 40 sayı kalmış; D açmamış.
-- B: 23 × 2 = 46 → ham 46 + 100 (kullanılmayan okey) = 146 → yuvarlama **150**
-- C: 40 × 2 = **80**
-- D eli açmamış: **400**
-
-**Yuvarlama sırası.** Açmış bir oyuncunun elinde 43 sayı kalmış, normal bitiş.
-- Normal el: 43 × 2 = 86 → yuvarlama **90**
-- Hugo eli: 43 × 2 × 2 (Hugo) = 172 → yuvarlama **170** (önce yuvarlayıp sonra katlansaydı 180 çıkardı; bu yanlış)
+**Çiftle açan.** Normal bitiş. B çiftle açmış, elinde 5 ve 8 kalmış: (5 + 8) × 2 × 2 = **52**.
 
 ## 7. Süre dolunca (otomatik oynama)
 
@@ -177,6 +169,6 @@ Elde yalnızca işlek taş kaldıysa işlek kuralı bu atışta da geçerlidir.
 | Oyunu bitirme −100, joker ile bitirme −200 | Ayrı bir eksi puan yok; yerine bitiş **yıldızları** var (1 yıldız = 100 siler) |
 | Yetersiz değerde el açma 100 ceza | Ceza yok, el açılmaz |
 | İşlenebilir taş atma = taş × 10 | Sabit **100** (Hugo elinde **200**) |
-| Elde kalan taşlar × 2 / deste bitince × 2 | Elde kalan taş × 2; bütün çarpanlardan sonra en yakın 10'a yuvarlanır; deste bitince ek çarpan yok |
+| Elde kalan taşlar × 2 / deste bitince × 2 | Elde kalan taş × 2 (çiftle açan ayrıca × 2); yuvarlama yok, puan eksiye düşebilir; deste bitince ek çarpan yok |
 | Joker ile bitiş ceza puanlarını × 2 yapar | Yalnızca rakiplerin elde kalanını × 2 yapar; cezaları yalnızca Hugo katlar |
 | Çift açma min 52 | 51 |

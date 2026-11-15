@@ -11,7 +11,7 @@ import socketService from '../../services/socketService';
 import { getOrderedPlayers, getPlayerPosition, getPlayerCorner, getCurrentPlayerIndex, calculateHandScore, calculatePairScore, canTakePairOkey, getConsecutiveGroups, validateSet, validatePair, arrangeTiles } from '../../utils/gameUtils';
 import { handleDrawTile, handleTileMove, handleDrawDiscardedTile } from '../../utils/tileHandlers';
 import { moveGroup } from '../../utils/rackDrag';
-import { rackTileEl, slideFrom, whenRendered } from '../../utils/flyTiles';
+import { PLACE_MS, rackTileEl, slideFrom, whenRendered } from '../../utils/flyTiles';
 import '../../assets/css/components/GameBoard.css';
 import '../../assets/css/layout.css';
 import '../../assets/css/mobile.css';
@@ -172,7 +172,7 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
             // Tıklayarak çekilen taş desteden ıstakadaki yerine kayar (sürükleyerek çekilen zaten yerine bırakıldı)
             onDrawn: targetIndex == null && !fromDiscard ? (() => {
                 const from = document.querySelector('.deck-tile-wrapper .center-tile')?.getBoundingClientRect();
-                return (tile) => whenRendered(() => rackTileEl(tile.id), el => slideFrom(el, from, 320));
+                return (tile) => whenRendered(() => rackTileEl(tile.id), el => slideFrom(el, from, PLACE_MS));
             })() : undefined
         });
     };
