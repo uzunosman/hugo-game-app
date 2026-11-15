@@ -23,10 +23,14 @@ if (import.meta.env.PROD) {
     try {
       const html = await (await fetch('/', { cache: 'no-store' })).text();
       const live = html.match(/src="(\/assets\/[^"]+\.js)"/)?.[1];
-      if (live && current() && live !== current()) location.reload();
+      if (!live || !current() || live === current()) return;
+      // Aynı yeni sürüm için bir kez yenile (önbellek eskiyi verirse döngüye girmesin)
+      try { if (sessionStorage.getItem('hugo-reloaded-for') === live) return; sessionStorage.setItem('hugo-reloaded-for', live); } catch { /* özel pencere */ }
+      location.replace(`/?v=${Date.now()}`); // yeni adres: telefon önbelleğindeki eski sayfa kullanılamaz
     } catch { /* çevrimdışı: sonra yeniden denenir */ }
   };
   // Uygulamaya dönünce ve sunucu yeniden başlayıp bağlantı geri gelince (güncelleme) kontrol edilir
   document.addEventListener('visibilitychange', check);
   window.addEventListener('hugo:reconnected', check);
+  check(); // açılışta da: ana ekran uygulaması eski sayfayla açıldıysa güncel sürüme geçer
 }

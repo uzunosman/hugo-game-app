@@ -321,6 +321,12 @@
 .game-container, .game-container * { -webkit-tap-highlight-color: transparent; }
 /* Küçük düğmeler (cezalar, seri/çift diz, tabela, ayarlar, sohbet): görünüş aynı, dokunma alanı her yönde biraz daha geniş */
 .pl-toggle, .rack-tool-btn, .chat-toggle, .settings-toggle, .top-right-tools .scoreboard-toggle { position: relative; }
+/* Tabela / masadan kalk düğmesinin sabit konum boşlukları (top/right: 12px) göreli konumda kaydırmasın */
+.top-right-tools .scoreboard-toggle { top: auto; right: auto; }
+/* iPhone ana ekran uygulamasında hızlı iki dokunuş sayfayı yakınlaştırmasın (oyun donmuş gibi görünüyordu) */
+.game-container, .game-container button { touch-action: manipulation; }
 .pl-toggle::after, .rack-tool-btn::after, .chat-toggle::after, .settings-toggle::after, .scoreboard-toggle::after {
     content: ''; position: absolute; inset: -8px -6px;
 }
+/* Dizme düğmeleri köşe bırakma alanlarının (300-400) üstünde: dokunuş başka katmana gitmesin */
+.tile-holder-container .rack-tools { z-index: 450; }
