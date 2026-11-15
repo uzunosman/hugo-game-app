@@ -7,32 +7,34 @@ Az puan iyidir: 9 el sonunda toplam puanı en düşük olan kazanır (eşitlikte
 
 | Kavram | Anlamı |
 |---|---|
-| Taş değeri | Taşın üzerindeki sayı (1–13). Cezalarda genelde **sayı × 10** olarak geçer; el sonunda elde kalan taşların toplamı × 2 sayılır. |
-| Okey | Normal elde göstergenin bir üstü (gösterge 13 ise 1). Hugo elinde sahte okeyler (jokerler) okeydir. |
+| Taş değeri | Taşın üzerindeki sayı (1–13). |
+| Çarpan | Anlık cezalarda taş değeri × 10 yazılır; Hugo elinde el sonunda × 2 ile toplam × 20 sayılır. |
+| Okey | Normal elde göstergenin bir üstü (gösterge 13 ise 1). Hugo elinde sahte okeyler (jokerler) okeydir. Hugo eli dışında gösterge sahte okey çıkarsa yine Hugo eli gibi oynanır. |
 | Sahte okey (normal el) | Okeyin rengi ve sayısıyla sıradan taş gibi oynanır; joker gibi davranmaz. Ceza hesabında da okeyin değerini taşır. |
 | Hugo eli | 1., 5. ve 9. eller. Gösterge sahte okey çıkarsa o el de Hugo elidir. |
 | Anlık ceza | Oyun sırasında yazılan ceza. Masadaki herkes sağ alttaki ceza kaydında görür. |
 | El sonu puanı | El bitince her oyuncuya yazılan puan (elde kalan + cezalar, çarpanlar ve yıldızlarla). |
 | Yıldız (silici) | Her yıldız o elin puanından **100 düşer**. Puan 0'ın altına inmez. |
+| Elden bitme | Kimse açmamışken bir oyuncunun yere açmadan (ya da açtığı sırada) bitirmesi. Rakiplerin elde kalan puanı × 2 olur; çiftle elden biterse bir × 2 daha eklenir. |
 
 ## 2. Anlık cezalar (oyun sırasında)
 
 | Durum | Kime yazılır | Normal el | Hugo eli | Not |
 |---|---|---|---|---|
-| **İşlek taş atmak**: atılan taş masadaki bir seriye/pere baştan ya da sondan eklenebiliyor | Taşı atana | **100** | **200** | Eli bitiren son taş için yazılmaz. Okey atmak işlek sayılmaz. Çiftler kontrol edilmez. İşlek atılan taş sıradaki oyuncu tarafından **yerden alınamaz** (ikinci ceza yazdırılamaz). Süre dolup taş otomatik atılırsa da uygulanır. |
-| **Yerden (yandan) taş almak** | Taşı **atana** | taş değeri × 10 | taş değeri × 20 | Sahte okey, okeyin değeriyle hesaplanır. Kendi attığın taş için yazılmaz. |
+| **İşlek taş atmak**: atılan taş masadaki bir seriye/pere baştan ya da sondan eklenebiliyor | Taşı atana | **100** | **100** | Eli bitiren son taş için yazılmaz. Okey atmak işlek sayılmaz. Çiftler kontrol edilmez. İşlek atılan taş sıradaki oyuncu tarafından **yerden alınamaz** (ikinci ceza yazdırılamaz). Süre dolup taş otomatik atılırsa da uygulanır. |
+| **Yerden (yandan) taş almak** | Taşı **atana** | taş değeri × 10 | taş değeri × 10 | Sahte okey, okeyin değeriyle hesaplanır. Kendi attığın taş için yazılmaz. |
 | **Yandan alınan taşı kullanmadan geri atmak** | Taşı alana | **100** | **100** | Yandan alınan taş kullanılmadıysa yalnızca o taş atılabilir. |
-| **Kusmak**: yandan alınan taşı kullanmadan geri koymak | — | **0** | **0** | Cezasız. Atana yazılan "yerden" cezası **silinir**. Oyuncu desteden çeker, kusulan taş o sırada tekrar alınamaz. Kustu taş atılana kadar basılabilir: o sırada masaya oynandıysa (el açma, per indirme, işleme) önce hepsi ele döner ve **geri alma cezası** yazılır (100, Hugo elinde 200), sonra taş kusulur. |
+| **Kusmak**: yandan alınan taşı kullanmadan geri koymak | — | **0** | **0** | Cezasız. Atana yazılan "yerden" cezası **silinir**. Oyuncu desteden çeker, kusulan taş o sırada tekrar alınamaz. Kustu taş atılana kadar basılabilir: o sırada masaya oynandıysa (el açma, per indirme, işleme) önce hepsi ele döner ve **geri alma cezası** yazılır (100; Hugo elinde el sonunda 200 sayılır), sonra taş kusulur. |
 | **İşleme**: başkasının serisine/perine taş eklemek | Per **sahibine** | taş değeri × 10 | taş değeri × 10 | Okey işlenirse eklendiği yerdeki değer sayılır (örn. 5-6-7'nin sonuna okey → 8 × 10 = 80). Kendi perine işlemek cezasızdır. |
 | **Okey almak**: perdeki okeyin yerine gerçek taşı koyup okeyi almak | Per **sahibine** | **100** | **100** | Aynı sayılı perde (erkek per) okey ancak per 4 taşa tamamlanınca alınabilir. Aynı sırada okey işleyen tekrar okey alamaz. Kendi perinden / çiftinden okey alan ceza yemez. |
 | **Çift işlemek**: başkasının çiftlerine elindeki çifti eklemek | Çift **sahibine** | çiftin toplamı × 10 | aynı | Normal işleme gibi; ek çarpan yok. Örn. iki 5: (5 + 5) × 10 = **100**. Çift, ıstakada yan yana duran iki taş basılı tutulup çiftlerin üstüne sürüklenerek işlenir. Çiftlere tek taş işlenmez; yalnızca çiftte okey varsa okeyin eşi olan taş işlenip okey alınır (sahibine okey cezası 100). Per açmış oyuncu da çift işleyebilir. Kendi çiftine işlemek cezasızdır. |
 | **Geri almak**: o sırada masaya oynananları ele döndürmek | Geri alana | **100** | **100** | Açılış, indirilen perler ve işlenen taşlar ele döner. Bu sırada başkalarına yazılan işleme/okey cezaları **silinir**. Taş atıldıktan sonra geri alınamaz. |
-| **Açılış tamamlanmadan süre dolması**: tek tek yere indirilen perler eşiğe ulaşmadı, elde de tamamlayacak per yok | Süresi dolana | **100** | **200** | Yere inen perler ele döner (geri alma gibi), sonra taş otomatik atılır. Eldeki perlerle (okey dahil) eşik tamamlanıyorsa ceza yazılmaz, perler açılır. |
+| **Açılış tamamlanmadan süre dolması**: tek tek yere indirilen perler eşiğe ulaşmadı, elde de tamamlayacak per yok | Süresi dolana | **100** | **100** | Yere inen perler ele döner (geri alma gibi), sonra taş otomatik atılır. Eldeki perlerle (okey dahil) eşik tamamlanıyorsa ceza yazılmaz, perler açılır. |
 | Yetersiz değerle el açmayı denemek | — | **0** | **0** | Ceza yazılmaz, el açılmaz (bkz. bölüm 3). |
 
-> **Önemli:** Hugo elinde, el sonunda **bütün cezalar ayrıca × 2** olur (bkz. bölüm 4).
-> Bu yüzden Hugo elinde atılan bir işlek taş tabelaya 200 olarak yazılır, el sonunda 400 sayılır.
-> Yerden alma cezası da Hugo elinde taş × 20 yazılır, el sonunda taş × 40 sayılır.
+> **Önemli:** Anlık cezalar Hugo elinde de normal el değeriyle yazılır; el sonunda **bütün cezalar × 2** olur (bkz. bölüm 4).
+> Bu yüzden Hugo elinde atılan bir işlek taş tabelaya 100 olarak yazılır, el sonunda 200 sayılır.
+> Yerden alma cezası da Hugo elinde taş × 10 yazılır, el sonunda taş × 20 sayılır.
 
 ## 3. El açma eşikleri (ceza değil, kural)
 
@@ -54,9 +56,8 @@ El iki şekilde biter: bir oyuncu son taşını atar (**bitiren**), ya da deste 
 
 | Oyuncunun durumu | Elde kalan puan |
 |---|---|
-| Eli **açmış** | Elde kalan taşların değer toplamı **× 2**, bitme çarpanlarıyla katlanır. Okey 0 sayılır, sahte okey okeyin değeriyle sayılır. |
-| Eli **açmamış** | **400** |
-| Eli açmamış ve **bitiren dışında kimse açmamış** | **800** |
+| Eli **açmış** | Elde kalan taşların değer toplamı **× 2**. Okey 0 sayılır, sahte okey okeyin değeriyle sayılır. Yuvarlama burada yapılmaz; bütün çarpanlar (okey, çift, elden, Hugo) uygulandıktan sonra en yakın 10'a yuvarlanır (bkz. 4.5). |
+| Eli **açmamış** | **400** (kimse açmamışken elden bitişte elden çarpanıyla 800) |
 | Bitiren | 0 |
 
 ### 4.2 Özel durum çarpanları
@@ -70,13 +71,13 @@ Her özel durum **× 2**'dir ve çarpanlar birbiriyle çarpılır.
 | **Çiftten bitme** | Bitiren eli çiftle açmış | Yalnızca rakiplerin **elde kalan** puanını |
 | **Elden bitme** | Bitiren aynı sırada hem açıp hem bitirdi ya da hiç açmadan bitirdi (bkz. 4.4), **ve bitiren dışında kimse açmamış** | Yalnızca rakiplerin **elde kalan** puanını. Masada açan varsa çarpan eklenmez. |
 
-Örnek: Hugo elinde okeyle bitişte rakibin elde kalanı × 4 olur, cezaları × 2 olur.
+Örnek: Hugo elinde okeyle bitişte rakibin elde kalanı × 4 olur, cezaları Hugo eli olduğu için × 2 olur.
 Örnek: eli açmış rakibin elinde 3 ve 7 kaldıysa normal bitişte (3 + 7) × 2 = 20, okeyle bitişte 40 yazılır.
 
 ### 4.3 Kullanılmayan okey
 
 Eli **açmış** bir oyuncunun elinde el sonunda kalan **her okey için 100**. Okeyle, çiftten ya da elden bitmede bu ceza o çarpanla katlanır (örn. okeyle bitişte 200); Hugo elinde ayrıca × 2.
-Eli açmamış oyuncuya yazılmaz (zaten 400/800 alır).
+Eli açmamış oyuncuya yazılmaz (zaten 400 alır).
 
 ### 4.4 Açmadan bitme
 
@@ -88,10 +89,12 @@ Eli açmamış oyuncunun, atacağı son taş dışındaki **bütün taşları ge
 ### 4.5 Formül
 
 ```
-elde kalan  = (bölüm 4.1: açmışsa taş toplamı × 2, açmamışsa 400/800) × okeyle bitme × çiftten bitme × elden bitme
+elde kalan  = (bölüm 4.1: açmışsa taş toplamı × 2, açmamışsa 400) × okeyle bitme × çiftten bitme × elden bitme
 okey cezası = elde kalan okey × 100 × okeyle bitme × çiftten bitme × elden bitme
 ham toplam  = elde kalan + o elin anlık cezaları + okey cezası
-el puanı    = max(0, ham toplam × Hugo − yıldız × 100)
+el puanı    = max(0, yuvarla10(ham toplam × Hugo) − yıldız × 100)
+yuvarla10   = en yakın 10'a; birler basamağı 5 ve üzeriyse yukarı, 4 ve altıysa aşağı.
+              Bütün çarpanlardan sonra, yıldızlardan önce. Örn. 43 taş: normal el 86 → 90; Hugo eli 172 → 170.
 toplam puan = bütün ellerin el puanlarının toplamı
 ```
 
@@ -112,8 +115,9 @@ Temel **1 yıldız** alınır, aşağıdaki her koşul bunu **× 2** yapar:
 | Okeyle bitirdi | × 2 |
 | Hugo eli | × 2 |
 | Bitiren dışında kimse eli açmamış | × 2 |
+| Çiftle bitirdi | × 2 |
 
-Çiftten bitirmek ve elden bitirmek yıldızı artırmaz; çiftten biten de 1 yıldız alır.
+Örneğin kimse açmamışken çiftle biten 1 × 2 × 2 = **4 yıldız** alır.
 
 | Bitiş | Yıldız | Silinen |
 |---|---|---|
@@ -123,11 +127,12 @@ Temel **1 yıldız** alınır, aşağıdaki her koşul bunu **× 2** yapar:
 | Hugo elinde okeyle bitiş | 4 | 400 |
 | Kimse açmamışken bitiş | 2 | 200 |
 | Hugo + okey + kimse açmamış | 8 | 800 |
+| Kimse açmamışken çiftle bitiş | 4 | 400 |
 
 ### 5.2 100+ açılış yıldızı
 
 Oyuncunun o eldeki **ilk açılışının** toplam değeri **100 veya üzeriyse** +1 yıldız alır. Bitiren de alır; bitiş yıldızına eklenir.
-Not: kod yalnızca ilk açılışa bakar; aynı elde sonradan indirilen perler bu toplama eklenmez.
+Açtığı sırada (taş atmadan) eklenen perler ve kendi perine işlenen taşlar açılışa eklenir; sonraki sıralarda eklenenler sayılmaz.
 
 ## 6. Örnekler
 
@@ -136,12 +141,21 @@ Not: kod yalnızca ilk açılışa bakar; aynı elde sonradan indirilen perler b
 - A: ceza yoksa max(0, 0 − 100) = **0**
 - C eli açmamış: **400**
 
-**Hugo elinde okeyle bitiş.** A Hugo elinde okeyle bitirir. B açmış, elinde 5 ve 8 kalmış, bir işlek atmış (200).
-- B: elde kalan (5 + 8) × 2 = 26 × 2 (okey) = 52 → ham 52 + 200 = 252 → × 2 (Hugo) = **504**
+**Hugo elinde okeyle bitiş.** A Hugo elinde okeyle bitirir. B açmış, elinde 5 ve 8 kalmış, bir işlek atmış (tabelada 100).
+- B: elde kalan (5 + 8) × 2 = 26 × 2 (okey) = 52 → ham 52 + 100 = 152 → × 2 (Hugo) = 304 → yuvarlama **300**
 - A: 4 yıldız → max(0, 0 − 400) = **0**
 - C eli açmamış: 400 × 2 (okey) × 2 (Hugo) = **1600**
 
 **Çift işleme.** B, A'nın çiftlerine iki 9 işler: A'ya (9 + 9) × 10 = **180** ceza yazılır.
+
+**Yuvarlama.** Normal el, normal bitiş. B açmış, elinde 23 sayı ve bir okey kalmış; C açmış, elinde 40 sayı kalmış; D açmamış.
+- B: 23 × 2 = 46 → ham 46 + 100 (kullanılmayan okey) = 146 → yuvarlama **150**
+- C: 40 × 2 = **80**
+- D eli açmamış: **400**
+
+**Yuvarlama sırası.** Açmış bir oyuncunun elinde 43 sayı kalmış, normal bitiş.
+- Normal el: 43 × 2 = 86 → yuvarlama **90**
+- Hugo eli: 43 × 2 × 2 (Hugo) = 172 → yuvarlama **170** (önce yuvarlayıp sonra katlansaydı 180 çıkardı; bu yanlış)
 
 ## 7. Süre dolunca (otomatik oynama)
 
@@ -163,6 +177,6 @@ Elde yalnızca işlek taş kaldıysa işlek kuralı bu atışta da geçerlidir.
 | Oyunu bitirme −100, joker ile bitirme −200 | Ayrı bir eksi puan yok; yerine bitiş **yıldızları** var (1 yıldız = 100 siler) |
 | Yetersiz değerde el açma 100 ceza | Ceza yok, el açılmaz |
 | İşlenebilir taş atma = taş × 10 | Sabit **100** (Hugo elinde **200**) |
-| Elde kalan taşlar × 2 / deste bitince × 2 | Elde kalan taşların düz toplamı, bitme çarpanlarıyla; deste bitince ek çarpan yok |
+| Elde kalan taşlar × 2 / deste bitince × 2 | Elde kalan taş × 2; bütün çarpanlardan sonra en yakın 10'a yuvarlanır; deste bitince ek çarpan yok |
 | Joker ile bitiş ceza puanlarını × 2 yapar | Yalnızca rakiplerin elde kalanını × 2 yapar; cezaları yalnızca Hugo katlar |
 | Çift açma min 52 | 51 |

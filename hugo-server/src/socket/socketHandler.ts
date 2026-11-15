@@ -141,7 +141,7 @@ export const setupSocketHandlers = (io: Server) => {
             if (done.success) {
                 emitHandOpened(roomId, game, player, done);
             } else {
-                const r = game.undoTurnPlays(playerId, game.isHugoRound() ? 200 : 100);
+                const r = game.undoTurnPlays(playerId) /* anlık cezalar Hugo elinde de 100 yazılır; Hugo × 2 el sonunda */;
                 if (r.success) emitUndo(roomId, game, player, r);
             }
             io.to(player.socketId).emit('game:tiles', { success: true, tiles: player.tiles.map(t => t.toJSON()) });
@@ -177,7 +177,7 @@ export const setupSocketHandlers = (io: Server) => {
         // Bu sırada masaya oynadıysa önce geri alınır (geri alma cezasıyla), sonra taş kusulur
         if (game.playedToTableThisTurn && game.takenDiscardTileId) {
             const player = game.getPlayerById(playerId);
-            const r = game.undoTurnPlays(playerId, game.isHugoRound() ? 200 : 100);
+            const r = game.undoTurnPlays(playerId) /* anlık cezalar Hugo elinde de 100 yazılır; Hugo × 2 el sonunda */;
             if (!r.success || !player) return { success: false, error: r.error };
             emitUndo(roomId, game, player, r);
         }

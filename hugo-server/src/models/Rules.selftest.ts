@@ -111,7 +111,7 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     assert.deepStrictEqual(g2.game.discardTile(g2.p0.id, last.id).penalties, [], 'bitiren taş cezasız');
 }
 
-// İşlek: perde okeyin yerini tuttuğu taşı atmak da işlek (normal elde okey sarı 2, Hugo elinde sahte okey; normal elde 100, Hugo elinde 200; son taş muaf)
+// İşlek: perde okeyin yerini tuttuğu taşı atmak da işlek (normal elde okey sarı 2, Hugo elinde sahte okey; normal elde ve Hugo elinde 100 yazılır, Hugo × 2 el sonunda; son taş muaf)
 {
     const seqSet = () => [t(RED, 6), t(YELLOW, 2), t(RED, 8)];      // okey = kırmızı 7
     const sameSet = () => [t(RED, 9), t(BLUE, 9), t(BLACK, 9), new Tile(TileColor.PURPLE, 'H', true)]; // Hugo elinde okey sahte okeydir; burada sarı 9
@@ -123,7 +123,7 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     const h = setup(); // 1. el Hugo
     h.game.tableSets.push({ id: 's', playerId: h.p1.id, tiles: sameSet(), value: 36 });
     const [y9] = give(h.p0, [t(YELLOW, 9), t(BLUE, 1)]);
-    assert.deepStrictEqual(h.game.discardTile(h.p0.id, y9.id).penalties.map(p => p.amount), [200], 'Hugo elinde 200');
+    assert.deepStrictEqual(h.game.discardTile(h.p0.id, y9.id).penalties.map(p => p.amount), [100], 'Hugo elinde de 100 yazılır');
 
     const l = setup();
     l.game.tableSets.push({ id: 's', playerId: l.p1.id, tiles: seqSet(), value: 21 });
@@ -163,15 +163,15 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     assert.ok(done.success && p0.isOpen, 'eldeki mavi 7-8-9 ile açılış tamamlandı');
     assert.strictEqual(p0.tiles.length, 1);
 
-    const h = setup(); // 1. el Hugo: geri alma cezası 200
+    const h = setup(); // 1. el Hugo: geri alma cezası yine 100 yazılır
     const hh = give(h.p0, [t(RED, 10), t(RED, 11), t(RED, 12), t(BLUE, 1), t(BLACK, 5)]);
     h.game.openHand(h.p0.id, [ids(hh.slice(0, 3))], 'seri', true);
     assert.strictEqual(h.game.completePendingOpen(h.p0.id).success, false, 'elde per yok');
-    const u = h.game.undoTurnPlays(h.p0.id, h.game.isHugoRound() ? 200 : 100);
+    const u = h.game.undoTurnPlays(h.p0.id);
     assert.ok(u.success);
     assert.strictEqual(h.p0.tiles.length, 5, 'perler ele döndü');
     assert.strictEqual(h.game.tableSets.length, 0);
-    assert.strictEqual(h.p0.penaltyScore, 200);
+    assert.strictEqual(h.p0.penaltyScore, 100);
     assert.strictEqual(h.game.pendingOpen, null);
     assert.ok(h.game.discardTile(h.p0.id, hh[3].id).tile, 'geri alındıktan sonra taş atılır');
 }
@@ -298,20 +298,20 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
 
     p1.isOpen = true; give(p1, [t(RED, 5)]);                 // 5 × 2 = 10 → çiftten × 2 = 20
     give(p2, [t(YELLOW, 9), t(RED, 6)]);                      // açmadı → 400 × 2 = 800; okey cezası yok
-    p3.isOpen = true; give(p3, [t(RED, 6), t(BLUE, 2)]);      // okey 0 + 2 × 2 = 4 → 8, + okey 100 × 2 = 200
+    p3.isOpen = true; give(p3, [t(RED, 6), t(BLUE, 2)]);      // okey 0 + 2 × 2 = 4 → 8, + okey 100 × 2 = 200 → 208 → yuvarlama 210
     const res = Object.fromEntries(game.endRound(p0.id).map(r => [r.playerName, r]));
 
     assert.strictEqual(res.P0.isFinisher, true);
     assert.strictEqual(res.P0.finishedWithPairs, true);
     assert.strictEqual(res.P0.finishedElden, false, 'masada açan varken elden bitme çarpanı yok');
-    assert.strictEqual(res.P0.stars, 1, 'çiftten bitiren 1 yıldız');
+    assert.strictEqual(res.P0.stars, 2, 'çiftle bitirme yıldızı ikiye katlar');
     assert.strictEqual(res.P0.roundTotal, 0);
     assert.strictEqual(res.P1.multiplier, 2);
     assert.strictEqual(res.P1.roundTotal, 20);
     assert.strictEqual(res.P2.roundTotal, 800);
     assert.strictEqual(res.P3.unusedOkeyPenalty, 200, 'okey cezası özel durum çarpanıyla');
     assert.strictEqual(res.P2.unusedOkeyPenalty, 0, 'eli açmamış oyuncuya kullanılmayan okey cezası yazılmaz');
-    assert.strictEqual(res.P3.roundTotal, 208);
+    assert.strictEqual(res.P3.roundTotal, 210, 'en yakın 10a yuvarlanır');
     assert.strictEqual(res.P1.stars, 0, '100 altı açılış yıldız almaz');
 }
 
@@ -329,7 +329,8 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     const real = finish(t(RED, 6));
     assert.strictEqual(real.P0.finishedWithJoker, true, 'gerçek okeyle bitti');
     assert.strictEqual(real.P0.stars, 2, 'okeyle bitiren 2 yıldız');
-    assert.strictEqual(real.P1.roundTotal, 3 * 2 * 2, 'rakibin elde kalanı (× 2) okeyle bitişte × 2');
+    assert.strictEqual(real.P1.multiplier, 2, 'okeyle bitiş rakibin elde kalanını × 2');
+    assert.strictEqual(real.P1.roundTotal, 10, '3 × 2 × 2 = 12 → yuvarlama 10');
     const fake = finish(new Tile(TileColor.PURPLE, 'H', true));
     assert.strictEqual(fake.P0.finishedWithJoker, false, 'normal elde sahte okey okey sayılmaz');
     assert.strictEqual(fake.P0.stars, 1);
@@ -372,7 +373,7 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     assert.strictEqual(r1.roundTotal, 5 * 2 * 4);
 }
 
-// Elden bitme: kimse açmamışken aynı sırada açıp biten → × 2 (ve kimse açmamış: rakiplere 800)
+// Elden bitme: kimse açmamışken açmadan biten → × 2 (açmamış rakip 400 × 2 = 800)
 {
     const { game, p0, p1 } = setup();
     game.round = 2; game.indicatorTile = t(RED, 5); game.okeyTile = t(RED, 6);
@@ -389,7 +390,8 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     give(p1, [t(RED, 2)]);
     const res = Object.fromEntries(game.endRound(p0.id).map(r => [r.playerName, r]));
     assert.strictEqual(res.P0.finishedElden, true, 'kimse açmamış: elden bitme sayılır');
-    assert.strictEqual(res.P1.roundTotal, 800 * 2, 'kimse açmamış 800 × elden 2');
+    assert.strictEqual(res.P1.roundTotal, 400 * 2, 'açmamış 400 × elden 2');
+    assert.strictEqual(res.P0.stars, 2, 'kimse açmamışken bitiş 2 yıldız');
 }
 
 // Açmadan bitme, masada açan varken: elden çarpanı yok
@@ -472,9 +474,9 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     const r7 = p0.tiles[0];
     assert.ok(game.discardTile(p0.id, r7.id).tile);
     assert.ok(game.drawTile(p1.id, true), 'yerden alınmalı');
-    assert.strictEqual(p0.penaltyScore, 140, 'Hugo elinde 7 × 20');
+    assert.strictEqual(p0.penaltyScore, 70, 'Hugo elinde de 7 × 10 yazılır');
     const k = game.returnTakenTile(p1.id);
-    assert.ok(k.tile && k.revert && k.revert.amount === -140, k.error);
+    assert.ok(k.tile && k.revert && k.revert.amount === -70, k.error);
     assert.strictEqual(p0.penaltyScore, 0, 'kusunca atanın cezası silinir');
     assert.strictEqual(p1.penaltyScore, 0, 'kusmak cezasız');
     assert.strictEqual(game.turnAction, TurnAction.DRAW, 'kusan desteden çeker');
@@ -493,8 +495,20 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     assert.strictEqual(game.drawTile(p1.id, true), null, 'işlek taş alınamaz');
 }
 
-// İşlek cezası taşın değerinden bağımsız: 100, Hugo elinde 200
-for (const [round, amount] of [[2, 100], [5, 200]]) {
+// Yuvarlama bütün çarpanlardan sonra: 43 taş × 2 = 86 → 90; Hugo elinde 172 → 170
+for (const [round, total] of [[2, 90], [5, 170]]) {
+    const { game, p0, p1 } = setup();
+    game.round = round; game.indicatorTile = t(RED, 5); game.okeyTile = t(RED, 6);
+    p0.isOpen = true; p0.openedAtTurn = -5; const [last] = give(p0, [t(BLUE, 1)]);
+    p1.isOpen = true; give(p1, [t(BLACK, 13), t(BLACK, 12), t(YELLOW, 9), t(BLUE, 9)]); // 43
+    game.players.slice(2).forEach(p => { p.isOpen = true; p.tiles = []; });
+    assert.ok(game.discardTile(p0.id, last.id).tile);
+    const r1 = game.endRound(p0.id).find(r => r.playerId === p1.id)!;
+    assert.strictEqual(r1.roundTotal, total, `${round}. el: ${total}`);
+}
+
+// İşlek cezası taşın değerinden bağımsız: Hugo elinde de 100 yazılır (Hugo × 2 el sonunda)
+for (const [round, amount] of [[2, 100], [5, 100]]) {
     const { game, p0, p1 } = setup();
     game.round = round;
     game.tableSets.push({ id: 's', playerId: p1.id, kind: 'seri', value: 15, tiles: [t(RED, 4), t(RED, 5), t(RED, 6)] });
