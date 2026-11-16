@@ -13,6 +13,7 @@
         /* iPhone'da ana ekran çizgisi ıstakanın alt satırına binmesin: ıstakanın altında boşluk */
         --rack-gap: max(14px, env(safe-area-inset-bottom, 0px));
         --rack-h: calc(var(--tile-h) * 2 + 18px + var(--rack-gap));
+        --rack-w: calc(var(--tile-w) * 15 + 22px); /* ıstaka genişliği (alt bant düzeni buna göre) */
         --tileholder-h: var(--rack-h);
         --top-band: 32px;
         --side-band: 46px;
@@ -78,25 +79,7 @@
     html .round-chip{ height: 28px; font-size: 11px; padding: 0 8px; border-radius: 8px; }
     html .round-chip .hugo-tag{ font-size: 9px; padding: 2px 4px; }
 
-    html .chat{
-        left: 36px;
-        top: 2px;
-        bottom: auto;
-        width: min(300px, 45vw);
-        flex-direction: column-reverse; /* düğme üstte, panel aşağı açılır */
-    }
-    html .chat-toggle, html .pl-toggle{ padding: 6px 9px; font-size: 11px; }
-    html .chat-list{ height: calc(100dvh - 120px); min-height: 80px; }
-
-    html .penalty-log{
-        top: 2px;
-        bottom: auto;
-        right: 184px; /* üst sağ araçlar (el, tabela, masadan kalk) ile arasında pay */
-        width: 210px;
-        flex-direction: column; /* düğme üstte, liste aşağı açılır */
-        font-size: 0.7rem;
-    }
-    html .penalty-log ul{ max-height: 6em; background: rgba(0, 0, 0, 0.35); border-radius: 8px; padding: 4px 8px; }
+    /* Sohbet ve ceza kaydı: sol alt / sağ alt köşede simge (Chat.css, PenaltyLog.css) */
 
     /* Masa */
     html .game-container .game-board{ border-radius: 12px; }

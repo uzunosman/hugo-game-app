@@ -373,7 +373,10 @@ export class Game {
         if (pendingTaken && !closedFinish) {
             return { tile: null, penalties: [], error: 'Önce yandan aldığın taşı kullan: pere ekle ya da Kustu ile geri koy' };
         }
-        if (player.tiles.length > 1 && !closedFinish) {
+        if (player.tiles.length > 1 && !closedFinish && this.isOkeyTile(tile)) {
+            // Okeyi (Hugo elinde sahte okeyi) yere atmak 200 ceza, Hugo elinde 400; eli bitiren son okey cezasız (okeyle bitme)
+            penalties.push({ playerId, amount: this.pen(200), reason: 'Okey yere atıldı', tag: 'okey atma', tile: tileLabel(tile) });
+        } else if (player.tiles.length > 1 && !closedFinish) {
             // Eli bitiren son taş hariç: masadaki bir pere eklenebilecek taşı atmak 100 ceza (Hugo elinde 200)
             const islek = this.islekPenalty(tile);
             if (islek > 0) penalties.push({ playerId, amount: islek, reason: 'İşlenebilir taş atıldı', tag: 'işlek', tile: tileLabel(tile) });
@@ -430,7 +433,7 @@ export class Game {
         let revert: Penalty | null = null;
         if (this.takenPenalty) {
             this.getPlayerById(this.takenPenalty.playerId)?.removePenalty(this.takenPenalty.amount);
-            revert = { ...this.takenPenalty, amount: -this.takenPenalty.amount, reason: 'Taş kusuldu, ceza iptal', tag: 'iptal' };
+            revert = { ...this.takenPenalty, amount: -this.takenPenalty.amount, reason: 'Taş kusuldu, ceza iptal', tag: 'kustu' };
         }
         this.takenPenalty = null;
         this.takenDiscardTileId = null;

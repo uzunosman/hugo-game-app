@@ -54,6 +54,7 @@ const GameBoard = ({
     onWarn,
     canPlaySets,
     canSeeDiscards,
+    turnProgress, // sıra bendeyse kalan sürenin oranı (0-1), değilse null
     rejectId, // hamle reddedildi: gizlenen taş bırakıldığı yerden ıstakaya kayar
     kustuTileId
 }) => {
@@ -135,7 +136,7 @@ const GameBoard = ({
             moveGroup: onGroupMove,
             playGroup: (ids, from) => { if (canDiscardNow) hide(ids, from); onPlayGroup(ids); }, // per masaya sürüklendi: el aç / per indir
             discard, // köşeye atma ile aynı yol (sıra / aşama kontrolü orada)
-            addToSet: (tileId, setId, side, from) => { if (canPlaySets) hide([tileId], from); onAddTileToSet(tileId, setId, side); },
+            addToSet: (tileId, setId, side, from) => { if (canPlaySets) hide([tileId], from); onAddTileToSet(tileId, setId, side, true); }, // sürükleyerek: kendi ekranında animasyonsuz
             addPair: (ids, setId, from) => { if (canPlaySets) hide(ids, from); onAddPairToSet(ids, setId); },
             kustu: () => onKustu(false), // sürükleyerek kusma: atan oyuncu animasyon görmez
             drawDeck: handleDrawFromDeck,
@@ -173,7 +174,9 @@ const GameBoard = ({
             const groups = (el) => (el ? [...el.querySelectorAll('.open-set-group, .pair-slot')].map(g => rel(g.getBoundingClientRect())) : []);
             const c = [...deck].map(el => el.getBoundingClientRect());
             const center = rel({ left: Math.min(...c.map(r => r.left)), right: Math.max(...c.map(r => r.right)), top: Math.min(...c.map(r => r.top)), bottom: Math.max(...c.map(r => r.bottom)) });
-            const fixed = [...board.querySelectorAll('.tile-drop-zone')].map(z => rel(z.getBoundingClientRect()));
+            // Sabit engeller: köşeler ve masaya biraz binen kendi kartın (perler altında kalmasın)
+            const fixed = [...board.querySelectorAll('.tile-drop-zone'), ...document.querySelectorAll('.player-panel.current-player')]
+                .map(z => rel(z.getBoundingClientRect()));
             const sides = ['left', 'right'].filter(k => areas[k]).map(k => {
                 const a = rel(areas[k].getBoundingClientRect());
                 return { k, a, rects: groups(areas[k]), originX: k === 'left' ? a.x0 : a.x1, originY: (a.y0 + a.y1) / 2 };
@@ -244,6 +247,7 @@ const GameBoard = ({
                     onTileClick={handleTileClick}
                     onTileDoubleClick={(idx) => discard(idx)}
                     hiddenIds={hiddenIds}
+                    turnProgress={turnProgress}
                     selectedTileIndex={selectedTile}
                     dragView={dragView}
                     okeyTile={okeyTile}

@@ -6,7 +6,7 @@ import '../../assets/css/components/TileHolder.css';
 
 // Istaka: 2 × 15 hücre. Sürükleme GameBoard'daki useBoardDrag ile yapılır; burada yalnızca çizilir.
 // dragView sürerken taşlar bırakınca alacakları yerde gösterilir, sürüklenen taş yerinden kalkar.
-const TileHolder = ({ tiles, tilePositions, onTileClick, onTileDoubleClick, selectedTileIndex, okeyTile, isHugo, flippedTileIds, onOkeyFlip, onArrange, dragView, hiddenIds }) => {
+const TileHolder = ({ tiles, tilePositions, onTileClick, onTileDoubleClick, selectedTileIndex, okeyTile, isHugo, flippedTileIds, onOkeyFlip, onArrange, dragView, hiddenIds, turnProgress = null }) => {
     const tilesMap = Object.fromEntries(tiles.map(t => [t.id, t]));
     const dragging = dragView?.dragging ? dragView : null;
     const { cells, preview, blocked } = rackPreview(tilePositions, dragging);
@@ -56,11 +56,25 @@ const TileHolder = ({ tiles, tilePositions, onTileClick, onTileDoubleClick, sele
     return (
         <div className={`tile-holder-container ${dragging ? 'is-dragging' : ''}`}>
             {onArrange && (
+                // Dizme düğmeleri: tek taş boyunda, ıstakanın sağına yapışık, alt alta; içinde yelpaze gibi açılmış küçük taşlar
+                // (seri: kırmızı 3-4-5, çift: kırmızı 5-5)
                 <div className="rack-tools">
-                    <button type="button" className="rack-tool-btn" onClick={() => onArrange('seri')}>Seri diz</button>
-                    <button type="button" className="rack-tool-btn" onClick={() => onArrange('cift')}>Çift diz</button>
+                    <button type="button" className="rack-tool-btn" onClick={() => onArrange('seri')} aria-label="Seri diz" title="Seri diz">
+                        <span className="rt-fan rt-fan-3" aria-hidden="true"><span className="rt-tile">3</span><span className="rt-tile">4</span><span className="rt-tile">5</span></span>
+                        <span className="at-label" aria-hidden="true">Diz</span>
+                    </button>
+                    <button type="button" className="rack-tool-btn" onClick={() => onArrange('cift')} aria-label="Çift diz" title="Çift diz">
+                        <span className="rt-fan rt-fan-2" aria-hidden="true"><span className="rt-tile">5</span><span className="rt-tile">5</span></span>
+                        <span className="at-label" aria-hidden="true">Diz</span>
+                    </button>
                 </div>
             )}
+            {/* Sıra sendeyken ıstakanın hemen üstünde kalan süre: ince çizgi, süre azaldıkça yeşilden kırmızıya */}
+            <div className={`turn-bar ${turnProgress !== null ? 'is-active' : ''}`} aria-hidden="true">
+                {turnProgress !== null && (
+                    <span style={{ width: `${turnProgress * 100}%`, '--turn-color': `hsl(${Math.round(120 * turnProgress)}, 75%, 48%)` }} />
+                )}
+            </div>
             <div className="tile-holder">
                 <div className="tile-row first-row">{row(0)}</div>
                 <hr className="tile-row-divider" />

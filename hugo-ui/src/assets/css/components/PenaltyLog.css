@@ -1,53 +1,81 @@
-/* Ceza kaydı: şeffaf, masanın sağ altında; başlıktan gizlenip açılır */
+/* Ceza kaydı: simge masanın alt ucunun solunda; açılınca aşağı doğru, ıstakanın solundaki boşlukta şeffaf liste */
 .penalty-log {
     position: fixed;
-    right: 12px;
-    bottom: 12px;
-    /* Istakanın yanındaki boşluğa sığar: dar ekranda ıstakanın sağ alt hücrelerinin üstüne binmez */
-    width: min(250px, calc(100% - 24px), max(140px, calc((100vw - var(--tile-w, 40px) * 15 - 24px) / 2 - 20px)));
-    pointer-events: none; /* boş çerçeve tıklama yutmaz; yalnızca düğme ve liste */
-    display: flex;
-    flex-direction: column-reverse; /* başlık altta, liste üstünde açılır */
-    align-items: flex-end;
-    gap: 4px;
+    left: calc(4px + env(safe-area-inset-left, 0px));
+    bottom: calc(var(--rack-h) + 8px);
+    z-index: 460; /* dizme düğmelerinin (450) üstünde */
+    pointer-events: none;
     color: #fff;
-    font-size: 0.78rem;
-    line-height: 1.4;
-    z-index: 120; /* ıstaka katmanının (100) üstünde: düğme her zaman tıklanır */
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75);
-}
-.penalty-log ul {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    max-height: 7.2em;
-    overflow-y: auto;
-    text-align: right;
-    scrollbar-width: none;
 }
 .penalty-log > * { pointer-events: auto; }
-.penalty-log li { overflow-wrap: anywhere; }
-.penalty-log li.pl-empty { opacity: 0.75; }
-.pl-tag { color: #ffd66b; }
-.pl-amount { color: #ffb0a8; font-weight: 700; font-variant-numeric: tabular-nums; }
-.penalty-log li.cancel .pl-amount { color: #a7f0aa; }
 .pl-toggle {
+    position: relative;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    font: 600 12px/1 system-ui, sans-serif;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
     color: #fff;
     background: rgba(0, 0, 0, 0.28);
     border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 999px;
-    padding: 5px 10px;
+    border-radius: 7px;
     cursor: pointer;
-    text-shadow: none;
 }
-.pl-toggle:hover { background: rgba(0, 0, 0, 0.42); }
+.pl-toggle:hover { background: rgba(0, 0, 0, 0.45); }
 .pl-toggle:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
-.pl-count { font-variant-numeric: tabular-nums; opacity: 0.8; }
-@media (max-width: 640px) {
-    .penalty-log { width: 170px; font-size: 0.68rem; right: 6px; bottom: calc(var(--rack-h, 120px) + 6px); }
+.penalty-log.is-open .pl-toggle { background: #ffbd59; color: #3b2500; border-color: #ffbd59; }
+.pl-count {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    min-width: 13px;
+    height: 13px;
+    padding: 0 3px;
+    border-radius: 999px;
+    background: #e11d48;
+    color: #fff;
+    font: 700 8px/13px system-ui, sans-serif;
+    text-align: center;
 }
+.pl-list {
+    position: fixed;
+    /* Istakanın sağından ekranın sağına, masanın altından ekranın altına */
+    left: calc(4px + env(safe-area-inset-left, 0px));
+    right: calc(50% + var(--rack-w) / 2 + 4px); /* ıstakanın solu: aksiyon düğmelerinin üstüne gelebilir */
+    top: calc(100dvh - var(--rack-h) - 2px);
+    max-height: calc(var(--rack-h) - 6px);
+    margin: 0;
+    padding: 4px 6px;
+    list-style: none;
+    overflow-y: auto;
+    /* Sütunlu: ad (hepsi aynı genişlikte) | taş | tutar; satırlar alt alta hizalı */
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-content: start;
+    gap: 3px 8px;
+    background: rgba(8, 30, 38, 0.55);
+    backdrop-filter: blur(4px);
+    border-radius: 10px;
+    font-size: 10.5px;
+    font-weight: 300;
+    scrollbar-width: none;
+    animation: genie-up 0.28s cubic-bezier(.2, .8, .3, 1) both;
+    transform-origin: 0 0;
+}
+.pl-list li { display: contents; white-space: nowrap; }
+.pl-list li > * { align-self: center; }
+.pl-list .pl-tiles { display: inline-flex; gap: 2px; }
+.pl-list .pen-tile { width: 12px; height: 16px; font-size: 9px; }
+.pl-list li.pl-empty { display: block; grid-column: 1 / -1; opacity: 0.75; white-space: normal; }
+.pl-name { font-weight: 400; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-amount { color: #ffb0a8; font-weight: 500; font-variant-numeric: tabular-nums; text-align: right; }
+.pl-kustu { color: #a7f0aa; font-weight: 500; text-align: right; }
+.pl-list .pen-tag { color: #ffd66b; }
+
+/* Cin efekti: simgenin olduğu köşeden süzülerek büyür */
+@keyframes genie-up {
+    from { opacity: 0; transform: scale(0.15, 0.05) skewX(-12deg); }
+    60% { opacity: 1; transform: scale(1.02, 0.9) skewX(2deg); }
+    to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { .pl-list { animation: none; } }

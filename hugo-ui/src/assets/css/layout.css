@@ -334,3 +334,172 @@
 .tile-drop-zone .discard-top { position: relative; z-index: 1; }
 
 .tile-drop-zone .discard-top .tile.discarded { opacity: 1; } /* üstteki taş saydam değil: alttaki taş içinden görünmez */
+
+/* ══ Alt bant: ıstakanın üstünde süre çizgisi; ıstakanın solunda aksiyon düğmeleri, sağında dizme düğmeleri ve
+   onların üstünde kendi kartın. Düğmeler tek taş boyunda, ıstakaya yapışık, alt alta, arka plansız ══ */
+:root { --rack-w: calc(var(--tile-w, 40px) * 15 + 24px); --turn-bar-h: 2px; --tool-gap: 4px; }
+
+/* Süre çizgisi: yalnızca sıra sendeyken yavaşça belirir; ince, yeşilden kırmızıya, ucunda küçük daire */
+.turn-bar {
+    position: relative;
+    width: var(--rack-w);
+    max-width: 100%;
+    height: var(--turn-bar-h);
+    margin: 1px 0;
+    border-radius: 2px;
+    background: rgba(0, 0, 0, 0.2);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+}
+.turn-bar.is-active { opacity: 1; }
+.turn-bar span {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    border-radius: 2px;
+    background: var(--turn-color);
+    transition: width 1s linear, background-color 1s linear;
+}
+.turn-bar span::after {
+    content: '';
+    position: absolute;
+    right: -3px;
+    top: 50%;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--turn-color);
+    box-shadow: 0 0 4px var(--turn-color);
+    transform: translateY(-50%);
+}
+@media (prefers-reduced-motion: reduce) { .turn-bar, .turn-bar span { transition: none; } }
+
+/* Ortak tek-taş düğmesi (dizme ve aksiyonlar) */
+.game-container .rack-tool-btn,
+.game-container .open-hand-btn {
+    position: relative;
+    width: var(--set-tile-w, 22px);
+    height: var(--set-tile-h, 32px);
+    min-width: 0;
+    padding: 0;
+    display: block;
+    background: rgba(0, 0, 0, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 5px;
+    box-shadow: none;
+    transform: none;
+    cursor: pointer;
+    color: #fff;
+}
+.game-container .rack-tool-btn:active, .game-container .open-hand-btn:active { background: rgba(0, 0, 0, 0.3); }
+.game-container .rack-tool-btn:focus-visible, .game-container .open-hand-btn:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+
+/* Dizme: ıstakanın sağına yapışık */
+.game-container .tile-holder-container .rack-tools {
+    position: fixed;
+    left: calc(50% + var(--rack-w) / 2 + 3px);
+    right: auto;
+    bottom: calc(var(--rack-gap, 6px) + 2px);
+    flex-direction: column;
+    align-items: center;
+    gap: var(--tool-gap);
+    width: auto;
+    margin: 0;
+    padding: 0;
+    background: none;
+    box-shadow: none;
+}
+
+/* Aksiyonlar: ıstakanın soluna yapışık; açılabilir: yeşil, değer yetmiyor: turuncu çerçeve, geri al: kırmızımsı */
+.game-container .action-buttons {
+    left: auto;
+    right: calc(50% + var(--rack-w) / 2 + 3px);
+    bottom: calc(var(--rack-gap, 6px) + 2px);
+    transform: none;
+    flex-direction: column-reverse; /* ilk düğme (aç) ıstakanın alt köşesine en yakın */
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: var(--tool-gap);
+    max-width: none;
+}
+.game-container .open-hand-btn.active { background: #16a34a; border-color: #4ade80; }
+.game-container .open-hand-btn.active:hover { background: #15803d; transform: none; }
+.game-container .open-hand-btn.active.short { background: rgba(0, 0, 0, 0.18); border-color: #ffbd59; }
+.game-container .open-hand-btn.drop-per.active { background: #0e7490; border-color: #67e8f9; }
+.game-container .open-hand-btn.undo-turn.active { background: rgba(150, 35, 25, 0.8); border-color: rgba(255, 170, 150, 0.6); }
+.game-container .open-hand-btn.disabled { opacity: 0.45; cursor: not-allowed; }
+/* Değer etiketi: düğmenin üst kenarına oturan küçük hap */
+.game-container .open-hand-score {
+    position: absolute;
+    top: -7px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 2;
+    padding: 1px 4px;
+    border-radius: 999px;
+    background: #0b2e36;
+    color: #fff;
+    font: 700 8px/1.2 system-ui, sans-serif;
+    white-space: nowrap;
+}
+.game-container .open-hand-btn.active:not(.short):not(.undo-turn) .open-hand-score { background: #14532d; }
+/* Düğme yazısı (Aç, İndir, Geri al, Diz): altta küçük ve ince, göze batmaz; yelpaze yazıya yer açmak için yukarıda */
+.at-label {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 1px;
+    z-index: 2;
+    font: 500 7px/1 system-ui, sans-serif;
+    letter-spacing: 0.02em;
+    text-align: center;
+    white-space: nowrap;
+    color: rgba(255, 255, 255, 0.85);
+}
+.game-container .rack-tool-btn .rt-tile,
+.game-container .open-hand-btn .rt-tile { bottom: 30%; height: 56%; }
+.at-undo {
+    position: absolute;
+    inset: 0 0 22% 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font: 700 calc(var(--set-tile-h, 32px) * 0.45)/1 system-ui, sans-serif;
+    color: #fff;
+}
+
+/* Kendi kartın: dizme düğmelerinin üstünde, ıstakanın sağında */
+.game-container .player-panel.current-player {
+    left: calc(50% + var(--rack-w) / 2 + 3px);
+    right: auto;
+    bottom: calc(var(--rack-gap, 6px) + 2px + var(--set-tile-h, 32px) * 2 + var(--tool-gap) + 6px);
+    transform: none;
+    max-width: calc(50% - var(--rack-w) / 2 - 8px);
+    z-index: 130;
+}
+
+/* Yelpaze: küçük taşlar alt ortadan dönerek açılır, birleşim yerlerinde üst üste biner */
+.rt-fan { position: absolute; inset: 0; }
+.rt-tile {
+    position: absolute;
+    left: 50%;
+    bottom: 10%;
+    width: 50%;
+    height: 68%;
+    margin-left: -25%;
+    padding: 1px 0 0 2px;
+    display: flex;
+    align-items: flex-start;   /* rakam iskambil kâğıdı gibi sol üstte: üst üste binen taşlarda da okunur */
+    justify-content: flex-start;
+    border-radius: 2px;
+    background: var(--tile-bg, #f5f0e1);
+    color: #e11d1d;
+    font: 800 calc(var(--set-tile-h, 32px) * 0.26)/1 system-ui, sans-serif;
+    box-shadow: 0 1px 1.5px rgba(0, 0, 0, 0.4);
+    transform-origin: 50% 150%;
+}
+.rt-fan-3 .rt-tile:nth-child(1) { transform: rotate(-20deg); }
+.rt-fan-3 .rt-tile:nth-child(3) { transform: rotate(20deg); }
+.rt-fan-2 .rt-tile:nth-child(1) { transform: rotate(-11deg); }
+.rt-fan-2 .rt-tile:nth-child(2) { transform: rotate(11deg); }

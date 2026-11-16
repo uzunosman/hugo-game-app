@@ -21,7 +21,8 @@ Az puan iyidir: 9 el sonunda toplam puanı en düşük olan kazanır (eşitlikte
 
 | Durum | Kime yazılır | Normal el | Hugo eli | Not |
 |---|---|---|---|---|
-| **İşlek taş atmak**: atılan taş masadaki bir seriye/pere baştan ya da sondan eklenebiliyor | Taşı atana | **100** | **200** | Eli bitiren son taş için yazılmaz. Okey atmak işlek sayılmaz. Çiftler kontrol edilmez. İşlek atılan taş sıradaki oyuncu tarafından **yerden alınamaz** (ikinci ceza yazdırılamaz). Süre dolup taş otomatik atılırsa da uygulanır. |
+| **İşlek taş atmak**: atılan taş masadaki bir seriye/pere baştan ya da sondan eklenebiliyor | Taşı atana | **100** | **200** | Eli bitiren son taş için yazılmaz. Okey atmak işlek sayılmaz (ayrı okey atma cezası var). Çiftler kontrol edilmez. İşlek atılan taş sıradaki oyuncu tarafından **yerden alınamaz** (ikinci ceza yazdırılamaz). Süre dolup taş otomatik atılırsa da uygulanır. |
+| **Okeyi yere atmak** (Hugo elinde sahte okeyi) | Taşı atana | **200** | **400** | Eli bitiren son taş okeyse ceza yok (okeyle bitme). Okey atmak işlek sayılmaz; bu ayrı bir cezadır. |
 | **Yerden (yandan) taş almak** | Taşı **atana** | taş değeri × 10 | taş değeri × 20 | Sahte okey, okeyin değeriyle hesaplanır. Kendi attığın taş için yazılmaz. |
 | **Yandan alınan taşı atmak** | — | **atılamaz** | **atılamaz** | Yandan alınan taş atılamaz, başka taş da atılamaz: pere eklenip (açarak ya da işleyerek) kullanılmalı ya da Kustu ile geri konmalı. Süre dolarsa taş kendiliğinden kusulur (masaya oynandıysa önce geri alınır). |
 | **Kusmak**: yandan alınan taşı kullanmadan geri koymak | — | **0** | **0** | Cezasız. Atana yazılan "yerden" cezası **silinir**. Oyuncu desteden çeker, kusulan taş o sırada tekrar alınamaz. Kustu taş atılana kadar basılabilir: o sırada masaya oynandıysa (el açma, per indirme, işleme) önce hepsi ele döner ve **geri alma cezası** yazılır (100, Hugo elinde 200), sonra taş kusulur. |

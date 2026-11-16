@@ -3,13 +3,12 @@ import socketService from '../../services/socketService';
 import { avatarFor } from '../../utils/avatar';
 import '../../assets/css/components/Chat.css';
 
-const KEY = 'hugo.chatOpen';
 const MAX_LEN = 200; // sunucu da aynı sınırı uygular
-const readOpen = () => { try { return localStorage.getItem(KEY) === '1'; } catch { return false; } };
 
-// Masa sohbeti: sol altta açılır kapanır; kapalıyken okunmamış mesaj sayısı görünür
+// Masa sohbeti: sol altta yalnızca simge; dokununca ıstakanın solundaki boşlukta şeffaf panel açılır (cin efekti).
+// Klavye panel açılınca değil, yazma alanına dokununca açılır. Kapalıyken okunmamış mesaj sayısı görünür
 const Chat = ({ playerId }) => {
-    const [open, setOpen] = useState(readOpen);
+    const [open, setOpen] = useState(false);
     const [messages, setMessages] = useState([]);
     const [unread, setUnread] = useState(0);
     const [text, setText] = useState('');
@@ -30,8 +29,7 @@ const Chat = ({ playerId }) => {
     }, [playerId]);
 
     useEffect(() => {
-        try { localStorage.setItem(KEY, open ? '1' : '0'); } catch { /* yalnızca bu oturum */ }
-        if (open) { setUnread(0); inputRef.current?.focus(); }
+        if (open) setUnread(0); // yazma alanına odaklanılmaz: telefonda klavye kendiliğinden açılmasın
     }, [open]);
 
     useEffect(() => {
@@ -76,11 +74,10 @@ const Chat = ({ playerId }) => {
                     {error && <p className="chat-error" role="alert">{error}</p>}
                 </div>
             )}
-            <button type="button" className="chat-toggle" onClick={() => setOpen(o => !o)} aria-expanded={open}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <button type="button" className="chat-toggle" onClick={() => setOpen(o => !o)} aria-expanded={open} aria-label="Sohbet" title="Sohbet">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                 </svg>
-                Sohbet
                 {unread > 0 && <span className="chat-unread" aria-label={`${unread} okunmamış`}>{unread}</span>}
             </button>
         </aside>

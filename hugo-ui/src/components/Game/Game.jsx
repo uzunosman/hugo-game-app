@@ -11,7 +11,7 @@ import socketService from '../../services/socketService';
 import { getOrderedPlayers, getPlayerPosition, getPlayerCorner, getCurrentPlayerIndex, calculateHandScore, calculatePairScore, canTakePairOkey, getConsecutiveGroups, validateSet, validatePair, arrangeTiles } from '../../utils/gameUtils';
 import { handleDrawTile, handleTileMove, handleDrawDiscardedTile } from '../../utils/tileHandlers';
 import { moveGroup } from '../../utils/rackDrag';
-import { flyToCorner, PLACE_MS, rackTileEl, slideFrom, whenRendered } from '../../utils/flyTiles';
+import { animateOwn, flyToCorner, PLACE_MS, rackTileEl, slideFrom, whenRendered } from '../../utils/flyTiles';
 import '../../assets/css/components/GameBoard.css';
 import '../../assets/css/layout.css';
 import '../../assets/css/mobile.css';
@@ -111,6 +111,11 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
     const players = getOrderedPlayers(room.players, player.id);
     const currentPlayerIndex = getCurrentPlayerIndex(players, gameState.currentPlayerId);
     const isMyTurn = gameState.currentPlayerId === player.id;
+    // Istaka üstündeki süre çizgisi: sıranın başındaki süreye (uzatmalar dahil) oranla kalan süre
+    const turnMax = useRef(60);
+    useEffect(() => { turnMax.current = Math.max(60, timeLeft || 0); }, [gameState.currentPlayerId, gameState.round]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (timeLeft > turnMax.current) turnMax.current = timeLeft;
+    const turnProgress = isMyTurn && typeof timeLeft === 'number' ? Math.max(0, Math.min(1, timeLeft / turnMax.current)) : null;
     const myCorner = getPlayerCorner(0); // Kendimiz her zaman 0. indeksteyiz
 
     // En son taş atan oyuncunun köşesini hesapla (sıradaki oyuncunun çekebileceği köşe)
@@ -361,8 +366,9 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
     }, []);
 
     // İşleme handler'ı — seç & tıkla veya sürükle & bırak (pozisyon dahil)
-    const onAddTileToSet = (tileId, targetSetId, position) => {
+    const onAddTileToSet = (tileId, targetSetId, position, viaDrag = false) => {
         if (!myOpenState.isOpen || !isMyTurn) return;
+        if (!viaDrag) animateOwn.add(tileId); // tıklayarak işleme: taş ıstakadaki yerinden pere uçar
 
         // Hedef çiftse elindeki eşiyle birlikte çift olarak işle; çiftte okey varsa ve taş okeyin eşiyse okey alınır
         const targetSet = tableSets.find(s => s.id === targetSetId);
@@ -395,6 +401,7 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
                 setSelectedTile(null);
                 setDraggingTile(null);
             } else {
+                animateOwn.delete(tileId);
                 reject(response.error || 'İşleme yapılamadı');
             }
         });
@@ -525,6 +532,11 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
         if (selectedTile !== null && !e.target.closest(KEEPS_SELECTION)) setSelectedTile(null);
     };
 
+    // Aksiyon düğmelerindeki küçük taş yelpazesi (dizme düğmeleriyle aynı görünüm)
+    const actionFan = (nums) => (
+        <span className={`rt-fan rt-fan-${nums.length}`} aria-hidden="true">{nums.map((n, i) => <span key={i} className="rt-tile">{n}</span>)}</span>
+    );
+
     return (
         <div className="game-container" onClick={onBlankClick}>
             {notices.length > 0 && (
@@ -561,29 +573,33 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
             })}
 
             {/* Açmadan önce: Tümünü aç (per) ve Çift Aç; per masaya sürüklenerek tek tek de açılır. Açtıktan sonra: Perleri indir */}
+            {/* Aksiyonlar: ıstakanın soluna yapışık, dizme bloğu gibi tek taş boyunda düğmeler (alt alta).
+                Taş yelpazesi + işaret (↑ aç, ↓ indir, ↶ geri al), üstte küçük değer etiketi; açabilecek durumdaysa yeşil */}
             {canAct && (
                 <div className="action-buttons">
+                    {/* Açma düğmesi yalnızca elde per / çift varken ve dizme kipine göre tek: seri dizdeyse "Tümünü aç",
+                        çift dizdeyse "Çift aç" */}
                     {!myOpenState.isOpen && (
                         <>
-                            <button
+                            {rackMode !== 'cift' && handScore.validSetCount > 0 && <button
                                 className={`open-hand-btn ${canOpenHand ? 'active' : 'disabled'} ${canOpenHand && openHandShort ? 'short' : ''}`}
                                 onClick={() => onOpenHand('seri')}
                                 disabled={!canOpenHand}
-                                title={canOpenHand && openHandShort ? `Değer yetersiz: ${maxOpenedValue === 0 ? 'en az 51' : `${maxOpenedValue}'i geçmeli`}` : undefined}
+                                aria-label="Tümünü aç"
+                                title={canOpenHand && openHandShort ? `Tümünü aç: değer yetersiz (${maxOpenedValue === 0 ? 'en az 51' : `${maxOpenedValue}'i geçmeli`})` : 'Tümünü aç'}
                             >
-                                Tümünü aç
-                                {openTotal > 0 && (
-                                    <span className="open-hand-score">{openTotal}</span>
-                                )}
-                            </button>
-                            {pairScore.pairCount > 0 && (
+                                {actionFan([3, 4, 5])}<span className="at-label" aria-hidden="true">Aç</span>
+                                {openTotal > 0 && <span className="open-hand-score">{openTotal}</span>}
+                            </button>}
+                            {rackMode === 'cift' && pairScore.pairCount > 0 && (
                                 <button
                                     className={`open-hand-btn ${canOpenPairs ? 'active' : 'disabled'} ${canOpenPairs && openPairsShort ? 'short' : ''}`}
                                     onClick={() => onOpenHand('cift')}
                                     disabled={!canOpenPairs}
-                                    title={openPairsShort ? `Değer yetersiz: ${maxOpenedValue === 0 ? 'en az 51' : `${maxOpenedValue}'i geçmeli`}` : undefined}
+                                    aria-label="Çift aç"
+                                    title={openPairsShort ? `Çift aç: değer yetersiz (${maxOpenedValue === 0 ? 'en az 51' : `${maxOpenedValue}'i geçmeli`})` : 'Çift aç'}
                                 >
-                                    Çift Aç
+                                    {actionFan([5, 5])}<span className="at-label" aria-hidden="true">Aç</span>
                                     <span className="open-hand-score">{pairScore.pairTotal}</span>
                                 </button>
                             )}
@@ -593,18 +609,22 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
                         <button
                             className="open-hand-btn undo-turn active"
                             onClick={onUndoTurn}
-                            title={`Bu sırada masaya oynadıklarını ele geri al: ${gameState.isHugoRound ? 200 : 100} ceza`}
+                            aria-label="Geri al"
+                            title={`Geri al: bu sırada masaya oynadıkların ele döner, ${gameState.isHugoRound ? 200 : 100} ceza`}
                         >
-                            Geri al <span className="open-hand-score">+{gameState.isHugoRound ? 200 : 100}</span>
+                            <span className="at-undo" aria-hidden="true">↶</span><span className="at-label" aria-hidden="true">Geri al</span>
+                            <span className="open-hand-score">+{gameState.isHugoRound ? 200 : 100}</span>
                         </button>
                     )}
-                    {myOpenState.isOpen && (
+                    {myOpenState.isOpen && canDropPer && (
                         <button
                             className={`open-hand-btn drop-per ${canDropPer ? 'active' : 'disabled'}`}
                             onClick={() => onDropPer()}
                             disabled={!canDropPer}
+                            aria-label={myOpenState.openedWithPairs ? 'Çiftleri indir' : 'Perleri indir'}
+                            title={myOpenState.openedWithPairs ? 'Çiftleri indir' : 'Perleri indir'}
                         >
-                            {myOpenState.openedWithPairs ? 'Çiftleri indir' : 'Perleri indir'}
+                            {actionFan(myOpenState.openedWithPairs ? [5, 5] : [3, 4, 5])}<span className="at-label" aria-hidden="true">İndir</span>
                         </button>
                     )}
                 </div>
@@ -667,6 +687,7 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
                 onAddPairToSet={onAddPairToSet}
                 kustuTileId={kustuCorner ? takenInfo?.tileId : null}
                 rejectId={rejectId}
+                turnProgress={turnProgress}
                 onTileDragStart={handleTileDragStart}
                 onTileDragEnd={handleTileDragEnd}
                 flippedTileIds={flippedTileIds}
@@ -674,7 +695,7 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
             />
 
             <RotateHint />
-            <PenaltyLog entries={penaltyLog} />
+            <PenaltyLog entries={penaltyLog} round={gameState.round} />
             <Chat playerId={player.id} />
 
             {/* Sağ üst: el bilgisi ve tabela */}

@@ -689,4 +689,20 @@ for (const [round, amount] of [[2, 100], [5, 200]]) {
     assert.deepStrictEqual(game.toPublicJSON().discardOwners, []);
 }
 
+// Okeyi yere atmak: normal elde okey 200, Hugo elinde sahte okey 400 (çarpanla yazılır); eli bitiren son okey cezasız
+{
+    const n = setup();
+    n.game.round = 2; n.game.indicatorTile = t(RED, 5); n.game.okeyTile = t(RED, 6);
+    const [ok1] = give(n.p0, [t(RED, 6), t(BLUE, 1)]);
+    assert.deepStrictEqual(n.game.discardTile(n.p0.id, ok1.id).penalties.map(p => [p.tag, p.amount]), [['okey atma', 200]]);
+    const h = setup(); // 1. el Hugo: sahte okey okeydir
+    const j = new Tile(TileColor.PURPLE, 'H', true);
+    give(h.p0, [j, t(BLUE, 1)]);
+    assert.deepStrictEqual(h.game.discardTile(h.p0.id, j.id).penalties.map(p => p.amount), [400], 'Hugo elinde 400');
+    const f = setup();
+    const j2 = new Tile(TileColor.PURPLE, 'H', true);
+    f.p0.isOpen = true; give(f.p0, [j2]);
+    assert.deepStrictEqual(f.game.discardTile(f.p0.id, j2.id).penalties, [], 'okeyle bitiren ceza almaz');
+}
+
 console.log('Rules.selftest: el açma, set doğrulama, sıra, işleme, yandan alma, işlek taş, otomatik atış, Hugo, sahte okey, çift açma, çift işleme ve el sonu puanlama kuralları ✓');

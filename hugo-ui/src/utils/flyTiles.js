@@ -5,6 +5,8 @@
 export const incomingTiles = new Set();
 // Kendi taşlarımızın çıkış yeri (sürükleyip bırakılan yer): yere açılışta iniş oradan başlar
 export const tileOrigins = new Map();
+// Tıklayarak (seçip yuvaya dokunarak) işlenen kendi taşlarımız: işleme animasyonu bize de gösterilir
+export const animateOwn = new Set();
 
 const DURATION = 480;
 const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -21,6 +23,8 @@ const sourceRect = (playerId, myId) => {
 export const flyTilesIn = (tileIds, playerId, myId, own = false) => {
     if (!tileIds.length) return;
     const mine = playerId === myId;
+    if (tileIds.some(id => animateOwn.has(id))) own = true;
+    tileIds.forEach(id => animateOwn.delete(id));
     if (reducedMotion() || (mine && !own)) { tileIds.forEach(id => tileOrigins.delete(id)); return; }
     tileIds.forEach(id => incomingTiles.add(id));
     // Kendi taşı: bırakıldığı yer ya da ıstakadaki yeri (henüz ıstakadan kalkmadıysa) şimdi alınır
@@ -74,7 +78,8 @@ export const flyToCorner = (corner, from, tileId) => {
         if (zone) zone.dataset.flight = '1'; // uçarken alttaki eski taş görünür
         const sx = from.left + from.width / 2 - (to.left + to.width / 2);
         const sy = from.top + from.height / 2 - (to.top + to.height / 2);
-        const sc = from.width && to.width ? from.width / to.width : 1;
+        // Oyuncu kartından çıkan taş kartın boyunda değil, taş boyunda (biraz küçük) başlar
+        const sc = from.width && to.width ? Math.min(1, from.width / to.width) : 1;
         const done = () => { target.style.visibility = ''; ghost.remove(); if (zone) delete zone.dataset.flight; };
         ghost.animate([
             { transform: `translate(${sx}px, ${sy}px) scale(${sc})` },

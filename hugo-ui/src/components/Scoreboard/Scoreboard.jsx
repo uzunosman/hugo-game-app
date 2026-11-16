@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
+import PenaltyTiles from '../PenaltyTiles/PenaltyTiles';
 import '../../assets/css/components/Scoreboard.css';
 
 const TOTAL_ROUNDS = 9;
@@ -105,18 +106,6 @@ const Scoreboard = ({ players, playerOpenStates, roundHistory = [] }) => {
             )}
         </>
     );
-};
-
-// Ceza kaydındaki taş etiketi ("kırmızı 5", "mavi 5 + mavi 5", "sahte okey") ıstakadaki gibi küçük taş olarak çizilir;
-// taşsız cezalarda (geri alma, süre) kısa etiket yazılır
-const COLOR_OF = { 'kırmızı': 'red', 'mavi': 'blue', 'siyah': 'black', 'sarı': 'yellow' };
-const PenaltyTiles = ({ label, tag }) => {
-    if (!label) return <span className="pen-tag">{tag || 'ceza'}</span>;
-    return label.split(' + ').map((part, i) => {
-        const [name, value] = part.trim().split(' ');
-        const joker = part.trim() === 'sahte okey';
-        return <span key={i} className={`pen-tile ${joker ? 'purple' : COLOR_OF[name] || ''}`}>{joker ? '★' : value}</span>;
-    });
 };
 
 // Bir elin dökümü: oyuncu başına elde kalan, açmama, oyun içi cezalar, okey, çarpan, yıldız ve el puanı
