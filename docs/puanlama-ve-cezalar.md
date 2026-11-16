@@ -23,7 +23,7 @@ Az puan iyidir: 9 el sonunda toplam puanı en düşük olan kazanır (eşitlikte
 |---|---|---|---|---|
 | **İşlek taş atmak**: atılan taş masadaki bir seriye/pere baştan ya da sondan eklenebiliyor | Taşı atana | **100** | **200** | Eli bitiren son taş için yazılmaz. Okey atmak işlek sayılmaz. Çiftler kontrol edilmez. İşlek atılan taş sıradaki oyuncu tarafından **yerden alınamaz** (ikinci ceza yazdırılamaz). Süre dolup taş otomatik atılırsa da uygulanır. |
 | **Yerden (yandan) taş almak** | Taşı **atana** | taş değeri × 10 | taş değeri × 20 | Sahte okey, okeyin değeriyle hesaplanır. Kendi attığın taş için yazılmaz. |
-| **Yandan alınan taşı kullanmadan geri atmak** | Taşı alana | **100** | **200** | Yandan alınan taş kullanılmadıysa yalnızca o taş atılabilir. |
+| **Yandan alınan taşı atmak** | — | **atılamaz** | **atılamaz** | Yandan alınan taş atılamaz, başka taş da atılamaz: pere eklenip (açarak ya da işleyerek) kullanılmalı ya da Kustu ile geri konmalı. Süre dolarsa taş kendiliğinden kusulur (masaya oynandıysa önce geri alınır). |
 | **Kusmak**: yandan alınan taşı kullanmadan geri koymak | — | **0** | **0** | Cezasız. Atana yazılan "yerden" cezası **silinir**. Oyuncu desteden çeker, kusulan taş o sırada tekrar alınamaz. Kustu taş atılana kadar basılabilir: o sırada masaya oynandıysa (el açma, per indirme, işleme) önce hepsi ele döner ve **geri alma cezası** yazılır (100, Hugo elinde 200), sonra taş kusulur. |
 | **İşleme**: başkasının serisine/perine taş eklemek | Per **sahibine** | taş değeri × 10 | taş değeri × 20 | Okey işlenirse eklendiği yerdeki değer sayılır (örn. 5-6-7'nin sonuna okey → 8 × 10 = 80). Kendi perine işlemek cezasızdır. |
 | **Okey almak**: perdeki okeyin yerine gerçek taşı koyup okeyi almak | Per **sahibine** | **100** | **200** | Aynı sayılı perde (erkek per) okey ancak per 4 taşa tamamlanınca alınabilir. Aynı sırada okey işleyen tekrar okey alamaz. Kendi perinden / çiftinden okey alan ceza yemez. |
@@ -129,12 +129,12 @@ Temel **1 yıldız** alınır, aşağıdaki her koşul bunu **× 2** yapar:
 
 ### 5.2 100+ açılış yıldızı
 
-Bitirmeyen oyuncunun o eldeki **açılışının** toplam değeri **100 veya üzeriyse** +1 yıldız alır. Bitiren bu yıldızı almaz, yalnızca bitiş yıldızını alır (örn. Hugo elinde okeysiz bitiş: 2 yıldız).
+Oyuncunun o eldeki **açılışının** toplam değeri **100 veya üzeriyse** her zaman +1 yıldız alır. Bitiren de alır; bitiş yıldızına eklenir (örn. Hugo elinde 100+ açıp okeysiz bitiş: 1 × 2 + 1 = 3 yıldız).
 Açtığı sırada (taş atmadan) eklenen perler ve kendi perine işlenen taşlar açılışa eklenir; sonraki sıralarda eklenenler sayılmaz.
 
 ## 6. Örnekler
 
-**Normal el.** A normal bitirir. B eli açmış, elinde 3 ve 7 kalmış, o elde 140 ceza yemiş, açılışı 104 (bitirmediği için +1 yıldız).
+**Normal el.** A normal bitirir. B eli açmış, elinde 3 ve 7 kalmış, o elde 140 ceza yemiş, açılışı 104 (+1 yıldız).
 - B: elde kalan (3 + 7) × 2 = 20 → ham 20 + 140 = 160 → 160 − 1 yıldız × 100 = **60**
 - A: ceza yoksa 0 − 100 = **−100**
 - C eli açmamış: **400**

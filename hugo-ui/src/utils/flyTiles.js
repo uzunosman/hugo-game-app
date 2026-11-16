@@ -3,6 +3,8 @@
 
 // Yolda olan taş id'leri: OpenSetsArea bunları iniş bitene kadar gizli çizer
 export const incomingTiles = new Set();
+// Kendi taşlarımızın çıkış yeri (sürükleyip bırakılan yer): yere açılışta iniş oradan başlar
+export const tileOrigins = new Map();
 
 const DURATION = 480;
 const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -15,11 +17,15 @@ const sourceRect = (playerId, myId) => {
 };
 
 // Masaya yeni çizilen taşları (tileIds) işleyenin yerinden uçurur; render sonrasına ertelenir
-export const flyTilesIn = (tileIds, playerId, myId) => {
+// own: kendi hamlemiz de uçsun mu (yere per açma / indirme: evet; işleme: hayır, yalnızca diğer oyuncular görür)
+export const flyTilesIn = (tileIds, playerId, myId, own = false) => {
     if (!tileIds.length) return;
-    // Oynayan oyuncu kendi işlemesini / açmasını animasyonsuz görür; uçuş yalnızca diğer oyunculara
-    if (reducedMotion() || playerId === myId) return;
+    const mine = playerId === myId;
+    if (reducedMotion() || (mine && !own)) { tileIds.forEach(id => tileOrigins.delete(id)); return; }
     tileIds.forEach(id => incomingTiles.add(id));
+    // Kendi taşı: bırakıldığı yer ya da ıstakadaki yeri (henüz ıstakadan kalkmadıysa) şimdi alınır
+    const origins = mine ? Object.fromEntries(tileIds.map(id => [id, tileOrigins.get(id) || rackTileEl(id)?.getBoundingClientRect()])) : {};
+    tileIds.forEach(id => tileOrigins.delete(id));
     requestAnimationFrame(() => requestAnimationFrame(() => {
         const from = sourceRect(playerId, myId);
         const stagger = Math.min(90, 700 / tileIds.length); // çok taşlı açılış da 1 saniyeyi geçmesin
@@ -28,6 +34,10 @@ export const flyTilesIn = (tileIds, playerId, myId) => {
             const land = () => { incomingTiles.delete(id); target?.classList.remove('incoming'); };
             if (!target || !target.animate) return land();
             const to = target.getBoundingClientRect();
+            if (origins[id]) { // kendi taşı: bıraktığın yerden masadaki yerine süzülür
+                target.style.visibility = 'hidden';
+                return flyClone(target, origins[id], to, PLACE_MS, () => { target.style.visibility = ''; land(); });
+            }
             if (!from) return land();
             const ghost = target.cloneNode(true);
             ghost.classList.remove('incoming');
@@ -60,10 +70,12 @@ export const flyToCorner = (corner, from, tileId) => {
         Object.assign(ghost.style, { position: 'fixed', left: `${to.left}px`, top: `${to.top}px`, width: `${to.width}px`, height: `${to.height}px`, margin: '0', zIndex: 500, pointerEvents: 'none' });
         document.body.appendChild(ghost);
         target.style.visibility = 'hidden';
+        const zone = target.closest('.tile-drop-zone');
+        if (zone) zone.dataset.flight = '1'; // uçarken alttaki eski taş görünür
         const sx = from.left + from.width / 2 - (to.left + to.width / 2);
         const sy = from.top + from.height / 2 - (to.top + to.height / 2);
         const sc = from.width && to.width ? from.width / to.width : 1;
-        const done = () => { target.style.visibility = ''; ghost.remove(); };
+        const done = () => { target.style.visibility = ''; ghost.remove(); if (zone) delete zone.dataset.flight; };
         ghost.animate([
             { transform: `translate(${sx}px, ${sy}px) scale(${sc})` },
             { transform: 'translate(0, 0) scale(1)' },

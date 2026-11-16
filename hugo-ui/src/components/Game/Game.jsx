@@ -31,11 +31,8 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
         setTiles,
         gameState,
         setGameState,
-        error,
         setError,
-        errorId,
-        dismissNotice,
-        noticeBacklog,
+        notices,
         setLoading,
         selectedTile,
         setSelectedTile,
@@ -86,14 +83,6 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
     const [draggingTile, setDraggingTile] = useState(null);
 
     // Okey taşlarına sağ tıkla - ters çevrilmiş görünsün
-    // Bildirim 3 sn sonra kendiliğinden kaybolur
-    // Bildirim 3 sn (sırada bekleyen varsa 1,8 sn) görünür, sonra sıradaki gelir
-    const hasBacklog = noticeBacklog > 0;
-    useEffect(() => {
-        if (!errorId) return;
-        const t = setTimeout(dismissNotice, hasBacklog ? 1800 : 3000);
-        return () => clearTimeout(t);
-    }, [errorId, hasBacklog, dismissNotice]);
 
     const [flippedTileIds, setFlippedTileIds] = useState(() => new Set());
     // Son dizme kipi: Çift diz'e basıldıysa kartta per yerine çift değeri gösterilir (Seri diz'e kadar)
@@ -538,7 +527,11 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
 
     return (
         <div className="game-container" onClick={onBlankClick}>
-            {error && <div key={errorId} className="game-toast" role="status">{error}</div>}
+            {notices.length > 0 && (
+                <div className="game-toasts" role="status">
+                    {notices.map(n => <div key={n.id} className="game-toast">{n.msg}</div>)}
+                </div>
+            )}
 
             {/* Oyuncu Panelleri */}
             {players.map((p, index) => {
@@ -596,9 +589,9 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
                         <button
                             className="open-hand-btn undo-turn active"
                             onClick={onUndoTurn}
-                            title="Bu sırada masaya oynadıklarını ele geri al: 100 ceza"
+                            title={`Bu sırada masaya oynadıklarını ele geri al: ${gameState.isHugoRound ? 200 : 100} ceza`}
                         >
-                            Geri al <span className="open-hand-score">+100</span>
+                            Geri al <span className="open-hand-score">+{gameState.isHugoRound ? 200 : 100}</span>
                         </button>
                     )}
                     {myOpenState.isOpen && (

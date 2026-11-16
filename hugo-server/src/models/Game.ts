@@ -363,14 +363,15 @@ export class Game {
         }
 
         const penalties: Penalty[] = [];
-        // Yandan alınan taş kullanılmalı; kullanılmadıysa yalnızca o taş 100 cezayla geri atılabilir
+        // Yandan alınan taş atılamaz: pere eklenip kullanılmalı (açarak / işleyerek) ya da Kustu ile geri konmalı
         const pendingTaken = this.pendingTakenTileId(player);
-        if (pendingTaken && pendingTaken !== tileId && !closedFinish) {
-            return { tile: null, penalties: [], error: 'Yandan aldığın taşı kullanmalısın (ya da 100 ceza ile geri at)' };
+        if (pendingTaken === tileId) {
+            return { tile: null, penalties: [], error: 'Yandan aldığın taş atılamaz: pere ekle ya da Kustu ile geri koy' };
         }
-        if (pendingTaken) {
-            penalties.push({ playerId, amount: this.pen(100), reason: 'Yandan alınan taş kullanılmadı', tag: 'kullanılmadı', tile: tileLabel(tile) });
-        } else if (player.tiles.length > 1 && !closedFinish) {
+        if (pendingTaken && !closedFinish) {
+            return { tile: null, penalties: [], error: 'Önce yandan aldığın taşı kullan: pere ekle ya da Kustu ile geri koy' };
+        }
+        if (player.tiles.length > 1 && !closedFinish) {
             // Eli bitiren son taş hariç: masadaki bir pere eklenebilecek taşı atmak 100 ceza (Hugo elinde 200)
             const islek = this.islekPenalty(tile);
             if (islek > 0) penalties.push({ playerId, amount: islek, reason: 'İşlenebilir taş atıldı', tag: 'işlek', tile: tileLabel(tile) });
@@ -555,8 +556,6 @@ export class Game {
     pickAutoDiscard(playerId: string): Tile | null {
         const player = this.getPlayerById(playerId);
         if (!player || player.tiles.length === 0) return null;
-        const pendingTaken = this.pendingTakenTileId(player);
-        if (pendingTaken) return player.tiles.find(t => t.id === pendingTaken) || null;
         const plain = player.tiles.filter(t => !this.isOkeyTile(t) && typeof this.asPlayed(t).value === 'number');
         if (plain.length === 0) return player.tiles.find(t => !this.isOkeyTile(t)) || player.tiles[0]; // elde yalnızca okey varsa
         const inSets = new Set(planSets(this, player.tiles).flat().map(t => t.id));
@@ -1305,8 +1304,8 @@ export class Game {
                 stars = 1 * jokerStarMult * hugoStarMult * closedStarMult * pairStarMult;
             }
             // Yere açılan taşların değeri 100 ve üzeriyse (bitiren dahil) 1 yıldız
-            // 100+ açılış yıldızı bitirmeyenlere; bitiren yalnızca bitiş yıldızını alır (Hugo elinde okeysiz bitiş: 2)
-            if (!isFinisher && player.openingScore >= 100) stars += 1;
+            // 100+ açan her zaman 1 yıldız alır (bitiren de: bitiş yıldızına eklenir)
+            if (player.openingScore >= 100) stars += 1;
 
             // roundTotal: hugoMult uygulandıktan sonra yıldızlar düşülür; puan eksiye düşebilir
             const roundTotal = preMult - (stars * 100);

@@ -78,7 +78,7 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     assert.strictEqual(game.tableSets[0].tiles[0].value, 8, 'kırmızı 8 başa eklendi');
 }
 
-// Yandan alınan taş kullanılmalı: başka taş atılamaz, aynı taş 100 cezayla geri atılabilir
+// Yandan alınan taş kullanılmalı: ne başka taş ne de aynı taş atılabilir (kullanılır ya da Kustu ile geri konur)
 {
     const { game, p0, p1 } = setup();
     const [x] = give(p0, [t(BLUE, 4), t(BLUE, 8)]);
@@ -88,10 +88,12 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     assert.strictEqual(taken?.id, x.id, 'P1 yandan alabilmeli');
     const other = game.discardTile(p1.id, p1.tiles[0].id);
     assert.strictEqual(other.tile, null, 'yandan alınan taş kullanılmadan başka taş atılamaz');
-    assert.match(other.error || '', /Yandan/);
+    assert.match(other.error || '', /yandan/i);
     const back = game.discardTile(p1.id, x.id);
-    assert.ok(back.tile, 'aynı taş geri atılabilir');
-    assert.strictEqual(p1.penaltyScore, 200, '100, Hugo elinde × 2 yazılır');
+    assert.strictEqual(back.tile, null, 'yandan alınan taş atılamaz');
+    assert.match(back.error || '', /atılamaz/);
+    assert.strictEqual(p1.penaltyScore, 0, 'ceza yazılmaz');
+    assert.ok(game.returnTakenTile(p1.id).tile, 'Kustu ile geri konur');
 }
 
 // İşlek taş: masadaki pere eklenebilecek taşı atmak 100 ceza (Hugo dışı el); eli bitiren son taş muaf
@@ -356,7 +358,7 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     p1.isOpen = true; p1.openingScore = 120; give(p1, [t(RED, 5)]);
     assert.ok(game.discardTile(p0.id, h[9].id).tile);
     const res = Object.fromEntries(game.endRound(p0.id).map(x => [x.playerName, x]));
-    assert.strictEqual(res.P0.stars, 2, 'Hugo elinde okeysiz bitiş yalnızca 2 yıldız (bitirene 100+ yıldızı eklenmez)');
+    assert.strictEqual(res.P0.stars, 3, 'Hugo elinde okeysiz bitiş 1 × 2 + 100+ açılış 1');
     assert.strictEqual(res.P1.stars, 1, 'bitirmeyen 100+ açan 1 yıldız');
 }
 
@@ -506,6 +508,18 @@ for (const [round, total] of [[2, 86], [5, 172]]) {
     assert.ok(game.discardTile(p0.id, last.id).tile);
     const r1 = game.endRound(p0.id).find(r => r.playerId === p1.id)!;
     assert.strictEqual(r1.roundTotal, total, `${round}. el: ${total}`);
+}
+
+// Elinde çiftler dizili ama açmamış oyuncu çift sayılmaz: 400 (× 2 yok)
+{
+    const { game, p0, p1 } = setup();
+    game.round = 2; game.indicatorTile = t(RED, 5); game.okeyTile = t(RED, 6);
+    p0.isOpen = true; p0.openedAtTurn = -5; const [last] = give(p0, [t(BLUE, 1)]);
+    give(p1, [t(BLACK, 5), t(BLACK, 5), t(RED, 9), t(RED, 9)]);
+    game.players.slice(2).forEach(p => { p.isOpen = true; p.tiles = []; });
+    assert.ok(game.discardTile(p0.id, last.id).tile);
+    const r1 = game.endRound(p0.id).find(r => r.playerId === p1.id)!;
+    assert.strictEqual(r1.roundTotal, 400, 'açmayan çift dizmiş olsa da 400');
 }
 
 // Çiftle açmış (bitirmeyen) oyuncunun elde kalanı ayrıca × 2

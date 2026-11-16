@@ -5,7 +5,7 @@ import DiscardAreas from '../DiscardAreas/DiscardAreas';
 import OpenSetsArea from '../OpenSetsArea/OpenSetsArea';
 import useBoardDrag from '../../hooks/useBoardDrag';
 import { fitTable } from '../../utils/tableFit';
-import { flyClone, PLACE_MS, rackTileEl, slideFrom, whenRendered } from '../../utils/flyTiles';
+import { flyClone, PLACE_MS, rackTileEl, slideFrom, tileOrigins, whenRendered } from '../../utils/flyTiles';
 import '../../assets/css/components/GameBoard.css';
 
 /**
@@ -68,6 +68,7 @@ const GameBoard = ({
     // from: bırakılan yer (tek dikdörtgen ya da taş başına dizi); reddedilince taş oradan ıstakaya kayar
     const hide = (ids, from) => {
         const rectOf = (i) => (Array.isArray(from) ? from[i] : from);
+        ids.forEach((id, i) => { if (id && rectOf(i)) tileOrigins.set(id, rectOf(i)); }); // yere açılışta uçuş buradan başlar
         outRect.current = rectOf(0) || null;
         setHiddenIds(new Set(ids.filter(Boolean)));
         clearTimeout(hideTimer.current);
@@ -101,8 +102,9 @@ const GameBoard = ({
                     // Köşedeki eski taş görünür kalır; atılan taş köşeye çizilince uçuş bitene kadar gizlenir, sonra üstüne iner
                     const landedEl = () => zone.querySelector(`.discard-top .tile[data-tile-id="${id}"]`);
                     let flown = false; // uçuş bittiyse (ya da vazgeçildiyse) sonradan gelen taş gizlenmez
+                    zone.dataset.flight = '1'; // uçarken alttaki eski taş görünür
                     whenRendered(landedEl, (t) => { if (!flown) t.style.visibility = 'hidden'; });
-                    flyClone(el, from, to, PLACE_MS, () => { flown = true; const t = landedEl(); if (t) t.style.visibility = ''; },
+                    flyClone(el, from, to, PLACE_MS, () => { flown = true; delete zone.dataset.flight; const t = landedEl(); if (t) t.style.visibility = ''; },
                         () => !!landedEl() || !!rackTileEl(id)); // köşeye geldi ya da reddedildi
                 }
             }
@@ -174,7 +176,7 @@ const GameBoard = ({
     });
 
     return (
-        <div ref={boardRef} className={`game-board ${dragView?.dragging ? 'is-dragging' : ''} ${dragView?.dragging && dragView.kind === 'tile' ? 'drag-tile' : ''} ${dragView?.overTable ? 'drop-table' : ''}`} onPointerDown={onPointerDown}>
+        <div ref={boardRef} className={`game-board ${dragView?.dragging ? 'is-dragging' : ''} ${dragView?.dragging && dragView.kind === 'tile' ? 'drag-tile' : ''} ${dragView?.overTable ? 'drop-table' : ''} ${dragView?.dragging && dragView.kind === 'group' && dragView.group?.len === 2 ? 'drag-pair' : ''}`} onPointerDown={onPointerDown}>
             <div className="board-content">
                 {/* Köşe Bırakma Alanları */}
                 <DiscardAreas

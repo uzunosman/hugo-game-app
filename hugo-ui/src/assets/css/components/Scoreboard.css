@@ -162,5 +162,19 @@
 .round-detail-title { font-size: 20px; font-weight: 700; }
 .finisher-mark { color: #0d5c0d; font-weight: 400; }
 /* El dökümünde oyun içi cezalar: oyuncunun kolonunda alt alta tutarlar */
-.penalty-cell { display: flex; flex-direction: column; align-items: center; gap: 1px; color: #b42318; }
+.penalty-cell { display: inline-grid; grid-template-columns: repeat(2, auto); gap: 3px 10px; justify-items: start; color: #b42318; }
+.penalty-item { display: inline-flex; align-items: center; gap: 3px; }
+.pen-tile {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 15px; height: 20px; border-radius: 3px;
+    background: #f5f0e1; box-shadow: 0 1px 1px rgba(0, 0, 0, 0.25);
+    font: 700 11px/1 system-ui, sans-serif;
+}
+.pen-tile.red { color: #e11d1d; }
+.pen-tile.blue { color: #0aa5bd; }
+.pen-tile.black { color: #111; }
+.pen-tile.yellow { color: #d99a00; }
+.pen-tile.purple { color: #8e24aa; }
+.pen-tag { font-size: 10px; color: #6b5a3a; }
+.penalty-amount { font-weight: 700; }
 .penalty-cell .cancel { color: #0d5c0d; }

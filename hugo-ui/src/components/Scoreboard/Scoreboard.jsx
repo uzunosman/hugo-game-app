@@ -107,13 +107,31 @@ const Scoreboard = ({ players, playerOpenStates, roundHistory = [] }) => {
     );
 };
 
+// Ceza kaydındaki taş etiketi ("kırmızı 5", "mavi 5 + mavi 5", "sahte okey") ıstakadaki gibi küçük taş olarak çizilir;
+// taşsız cezalarda (geri alma, süre) kısa etiket yazılır
+const COLOR_OF = { 'kırmızı': 'red', 'mavi': 'blue', 'siyah': 'black', 'sarı': 'yellow' };
+const PenaltyTiles = ({ label, tag }) => {
+    if (!label) return <span className="pen-tag">{tag || 'ceza'}</span>;
+    return label.split(' + ').map((part, i) => {
+        const [name, value] = part.trim().split(' ');
+        const joker = part.trim() === 'sahte okey';
+        return <span key={i} className={`pen-tile ${joker ? 'purple' : COLOR_OF[name] || ''}`}>{joker ? '★' : value}</span>;
+    });
+};
+
 // Bir elin dökümü: oyuncu başına elde kalan, açmama, oyun içi cezalar, okey, çarpan, yıldız ve el puanı
 const RoundDetail = ({ entry, players, onBack }) => {
     const byId = Object.fromEntries(entry.results.map(r => [r.playerId, r]));
-    // Oyun içi cezalar her oyuncunun kendi kolonunda: yalnızca tutarlar (iptaller eksi)
-    const penaltiesOf = (id) => entry.penalties
-        ? entry.penalties.filter(p => p.playerId === id).map(p => p.amount)
-        : (byId[id]?.penaltyEntries || []);
+    // Oyun içi cezalar her oyuncunun kendi kolonunda: cezaya yol açan taş ve tutar ({ amount, tile, tag }).
+    // İptal edilen cezalar (Kustu / geri alma iadesi: eksi kayıt) gösterilmez; iptal ettiği ceza da listeden düşer
+    const penaltiesOf = (id) => {
+        const list = entry.penalties
+            ? entry.penalties.filter(p => p.playerId === id)
+            : (byId[id]?.penaltyEntries || []).map(amount => ({ amount }));
+        const out = list.filter(p => p.amount > 0);
+        list.filter(p => p.amount < 0).forEach(p => { const i = out.map(x => x.amount).lastIndexOf(-p.amount); if (i !== -1) out.splice(i, 1); });
+        return out;
+    };
     // Çarpan gösterilmez: değerler çarpılmış hâliyle yazılır (Hugo × 2 dahil; cezalar zaten çarpanla yazıldı)
     const hugo = entry.isHugoRound ? 2 : 1;
     const hand = (r) => (r.effectiveHandScore ?? r.handScore) * hugo;
@@ -121,7 +139,16 @@ const RoundDetail = ({ entry, players, onBack }) => {
         // Elde kalan taş cezası yalnızca yere açana; açmayanın sabit cezası ayrı satırda
         ['Elde kalan', r => (r.isOpen === false || r.isFinisher ? '' : hand(r))],
         ['Açmadı', r => (r.isOpen === false && !r.isFinisher ? hand(r) : '')],
-        ['Cezalar', (r, list) => (list.length ? <span className="penalty-cell">{list.map((a, i) => <span key={i} className={a < 0 ? 'cancel' : undefined}>{a > 0 ? '+' : ''}{a}</span>)}</span> : '')],
+        ['Cezalar', (r, list) => (list.length ? (
+            <span className="penalty-cell">
+                {list.map((p, i) => (
+                    <span key={i} className="penalty-item">
+                        <PenaltyTiles label={p.tile} tag={p.tag} />
+                        <span className="penalty-amount">{p.amount}</span>
+                    </span>
+                ))}
+            </span>
+        ) : '')],
         ['Kullanılmayan okey', r => (r.unusedOkeyPenalty ? r.unusedOkeyPenalty * hugo : '')],
         ['Yıldız', r => (r.stars > 0 ? '★'.repeat(r.stars) : '')],
     ];

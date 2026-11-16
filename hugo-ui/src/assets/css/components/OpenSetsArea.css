@@ -212,5 +212,7 @@
 @keyframes okey-take { to { box-shadow: 0 0 0 3px #f5c542, 0 0 16px rgba(245, 197, 66, 1); } }
 @media (prefers-reduced-motion: reduce) { .open-set-tile.okey-takeable { animation: none; } }
 
-/* Istakadan sürüklenen çift başkasının çiftlerinin üstünde: bırakınca işlenir */
-.open-pairs-list.pair-drop { outline: 2px dashed rgba(255, 255, 255, 0.9); outline-offset: 4px; border-radius: 6px; background: rgba(255, 255, 255, 0.08); }
+/* Istakadan çift sürüklenirken çiftlerin çevresinde görünmez geniş bir bırakma alanı; alana girince kesik çerçeve belirir */
+.game-board.drag-pair .open-pairs-list { position: relative; }
+.game-board.drag-pair .open-pairs-list::before { content: ''; position: absolute; inset: -22px; }
+.open-pairs-list.pair-drop { outline: 2px dashed rgba(255, 255, 255, 0.9); outline-offset: 12px; border-radius: 8px; background: rgba(255, 255, 255, 0.08); }

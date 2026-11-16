@@ -25,14 +25,15 @@ const useGameState = (player, room) => {
     const [tiles, setTiles] = useState([]);
     const [gameState, setGameState] = useState(room.game);
     // Bildirimler sıraya girer, art arda gösterilir (ör. perine iki taş işlenince iki ceza bildirimi). '' yeni bildirim eklemez.
+    // Bildirimler aynı anda ayrı baloncuklarda alt alta görünür (ör. perine iki taş işlenince iki ceza), her biri 3 sn sonra
+    // kendiliğinden kaybolur. '' yeni bildirim eklemez.
     const [notices, setNotices] = useState([]);
     const setError = useCallback((msg) => {
-        if (msg) setNotices(q => [...q, { id: `${Date.now()}-${Math.random()}`, msg }].slice(-6));
+        if (!msg) return;
+        const id = `${Date.now()}-${Math.random()}`;
+        setNotices(q => [...q, { id, msg }].slice(-5));
+        setTimeout(() => setNotices(q => q.filter(n => n.id !== id)), 3000);
     }, []);
-    const dismissNotice = useCallback(() => setNotices(q => q.slice(1)), []);
-    const error = notices[0]?.msg || '';
-    const errorId = notices[0]?.id || null;
-    const noticeBacklog = notices.length - 1;
     const [loading, setLoading] = useState(false);
     const [selectedTile, setSelectedTile] = useState(null);
     const [timeLeft, setTimeLeft] = useState(60);
@@ -205,7 +206,7 @@ const useGameState = (player, room) => {
                     : null);
                 // Masadaki setlere yeni setleri ekle: taşlar açanın yerinden uçarak gelir (herkesin ekranında)
                 if (response.newSets) {
-                    flyTilesIn(response.newSets.flatMap(st => st.tiles.map(t => t.id)), response.playerId, player.id);
+                    flyTilesIn(response.newSets.flatMap(st => st.tiles.map(t => t.id)), response.playerId, player.id, true);
                     setTableSets(prev => [...prev, ...response.newSets]);
                 }
                 // Oyuncu açık durumunu güncelle
@@ -250,7 +251,8 @@ const useGameState = (player, room) => {
             if (response.success && response.newSets) {
                 applyOpenState(response);
                 // İndirilen per de, başkasının çiftlerine işlenen çift de indirenin yerinden uçarak gelir
-                flyTilesIn(notOnTable(response.newSets.flatMap(st => st.tiles)), response.playerId, player.id);
+                // Kendi per indirmen uçar; başkasının çiftlerine işlediğin çift (işleme) kendi ekranında uçmaz
+                flyTilesIn(notOnTable(response.newSets.flatMap(st => st.tiles)), response.playerId, player.id, response.newSets.every(st => st.playerId === response.playerId));
                 setTableSets(prev => [...prev, ...response.newSets]);
             }
         });
@@ -452,11 +454,8 @@ const useGameState = (player, room) => {
         setTiles,
         gameState,
         setGameState,
-        error,
         setError,
-        errorId,
-        dismissNotice,
-        noticeBacklog,
+        notices,
         loading,
         setLoading,
         selectedTile,

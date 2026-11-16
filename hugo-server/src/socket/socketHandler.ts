@@ -147,9 +147,9 @@ export const setupSocketHandlers = (io: Server) => {
             io.to(player.socketId).emit('game:tiles', { success: true, tiles: player.tiles.map(t => t.toJSON()) });
         }
 
-        // Yandan alınıp kullanılmamış taş önce kusulur (cezasız), sonra desteden çekilir
-        // (masaya oynadıysa kusulmaz: hamleler kalır, taş 100 cezayla atılır)
-        if (game.takenDiscardTileId && !game.playedToTableThisTurn && player.tiles.some(t => t.id === game.takenDiscardTileId)) {
+        // Yandan alınıp kullanılmamış taş atılamaz: önce kusulur (masaya oynadıysa oynananlar geri alma cezasıyla ele döner),
+        // sonra desteden çekilir
+        if (game.takenDiscardTileId && player.tiles.some(t => t.id === game.takenDiscardTileId)) {
             returnTaken(roomId, game, playerId);
         }
 

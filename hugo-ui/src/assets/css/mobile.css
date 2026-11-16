@@ -131,7 +131,8 @@
     html .tabela-table tbody th img{ width: 22px; height: 22px; }
     html .scoreboard-modal.scoreboard-kiraathane{ max-height: calc(100dvh - 16px); padding: 10px 12px; }
     html .scoreboard-table th, html .scoreboard-table td{ padding: 3px 8px; font-size: 12px; }
-    html .game-toast{ top: 36px; font-size: 0.85rem; padding: 6px 12px; }
+    html .game-toasts{ top: 36px; gap: 4px; }
+    html .game-toast{ font-size: 0.85rem; padding: 6px 12px; }
 }
 
 /* Telefon dikey tutulurken oyun ekranı: yatay çevirme uyarısı */

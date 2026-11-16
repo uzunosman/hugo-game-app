@@ -328,7 +328,9 @@
 }
 /* Dizme düğmeleri köşe bırakma alanlarının (300-400) üstünde: dokunuş başka katmana gitmesin */
 .tile-holder-container .rack-tools { z-index: 450; }
-/* Köşede bir önceki taş üstteki taşın tam altında (yalnızca uçuş sırasında görünür) */
-.tile-drop-zone .discard-under { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+/* Köşede bir önceki taş üstteki taşın tam altında: yalnızca atılan taş uçarken görünür, sonra tamamen gizlenir */
+.tile-drop-zone .discard-under { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; visibility: hidden; }
+.tile-drop-zone[data-flight] .discard-under { visibility: visible; }
 .tile-drop-zone .discard-top { position: relative; z-index: 1; }
-.tile-drop-zone:has(.discard-top.discard-locked) .discard-under { visibility: hidden; } /* soluk kilitli taşın altından eski taş görünmesin */
+
+.tile-drop-zone .discard-top .tile.discarded { opacity: 1; } /* üstteki taş saydam değil: alttaki taş içinden görünmez */
