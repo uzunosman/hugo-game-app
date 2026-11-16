@@ -89,6 +89,14 @@ const GameBoard = ({
     // Atma: çift tık / seçip köşeye dokununca taş köşeye yavaşça uçar; sürükleyip bırakınca atan oyuncu animasyon görmez
     // (diğer oyuncular atanın kartından köşeye uçuşu görür). Taş sunucu cevabına kadar ıstakada gizli kalır.
     const discard = (idx, dropRect) => {
+        // Yandan alınan taş henüz ıstakadaysa (kullanılmadı) hiçbir taş atılamaz: uçuş başlamaz, uyarı hemen çıkar.
+        // Sürükleyerek bırakılan taş ıstakadaki yerine kayarak döner (useBoardDrag)
+        if (canDiscardNow && kustuTileId && tilePositions.includes(kustuTileId)) {
+            onWarn?.(tilePositions[idx] === kustuTileId
+                ? 'Yandan aldığın taş atılamaz: pere ekle ya da Kustu ile geri koy'
+                : 'Önce yandan aldığın taşı kullan: pere ekle ya da Kustu ile geri koy');
+            return;
+        }
         if (canDiscardNow) {
             const id = tilePositions[idx];
             const el = rackTileEl(id);
@@ -102,8 +110,8 @@ const GameBoard = ({
                     // Köşedeki eski taş görünür kalır; atılan taş köşeye çizilince uçuş bitene kadar gizlenir, sonra üstüne iner
                     const landedEl = () => zone.querySelector(`.discard-top .tile[data-tile-id="${id}"]`);
                     let flown = false; // uçuş bittiyse (ya da vazgeçildiyse) sonradan gelen taş gizlenmez
-                    zone.dataset.flight = '1'; // uçarken alttaki eski taş görünür
-                    whenRendered(landedEl, (t) => { if (!flown) t.style.visibility = 'hidden'; });
+                    // Alttaki eski taş yalnızca yeni taş köşeye çizilip gizlendiği anda görünür (öncesinde üst taş zaten eski taş)
+                    whenRendered(landedEl, (t) => { if (!flown) { t.style.visibility = 'hidden'; zone.dataset.flight = '1'; } });
                     flyClone(el, from, to, PLACE_MS, () => { flown = true; delete zone.dataset.flight; const t = landedEl(); if (t) t.style.visibility = ''; },
                         () => !!landedEl() || !!rackTileEl(id)); // köşeye geldi ya da reddedildi
                 }
@@ -139,6 +147,8 @@ const GameBoard = ({
 
     // Hiçbir taş üst üste gelmesin: orta taşlar ve yan perler dikeyde boşluğa kayar, sığmazsa küçülür (utils/tableFit)
     const boardRef = useRef(null);
+    const refit = useRef(null);
+    useEffect(() => () => clearTimeout(refit.current), []);
     useLayoutEffect(() => {
         const place = () => {
             const board = boardRef.current;
@@ -147,6 +157,12 @@ const GameBoard = ({
             if (!box || !deck?.length) return;
             // Sürüklerken (büyüyen per, büyüyen köşe) ölçü bozulmasın: yerleşim sabit kalır
             if (board.classList.contains('is-dragging') || box.querySelector('.open-set-group.expanded')) return;
+            // Bırakınca büyümüş per küçülürken (geçiş animasyonu) ölçülmez: yanlış ölçüyle perler kayıp geri gelmesin
+            if ([...box.querySelectorAll('.open-set-group')].some(g => g.getAnimations?.().length)) {
+                clearTimeout(refit.current);
+                refit.current = setTimeout(place, 360);
+                return;
+            }
             const q = (pos) => box.querySelector(`.open-sets-${pos}`);
             const areas = { top: q('top'), bottom: q('bottom'), left: q('left'), right: q('right') };
             // Önce varsayılan yerlere dön, sonra ölç (aynı karede: titreme olmaz)

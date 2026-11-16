@@ -4,7 +4,8 @@ import '../../assets/css/components/PlayerPanel.css';
 
 const TURN_SECONDS = 60;
 
-const PlayerPanel = ({ playerId, name, isBot = false, position, isCurrentPlayer, timeLeft, setScore, setLabel = 'Per', isOpen, openedTotal, penaltyScore, connected = true, bubble = null }) => {
+// canOpenWith: ıstakadaki per / çift değeri açmaya yetiyor mu (masada açan yoksa 51, varsa en yüksek açılışı geçmeli)
+const PlayerPanel = ({ playerId, name, isBot = false, position, isCurrentPlayer, timeLeft, setScore, setLabel = 'Per', canOpenWith = false, isOpen, openedTotal, penaltyScore, connected = true, bubble = null }) => {
     const seconds = isCurrentPlayer && typeof timeLeft === 'number' ? timeLeft : null;
     const progress = seconds === null ? 0 : Math.max(0, Math.min(1, seconds / TURN_SECONDS));
     const isWarning = seconds !== null && seconds <= 10;
@@ -29,7 +30,7 @@ const PlayerPanel = ({ playerId, name, isBot = false, position, isCurrentPlayer,
                     {isOpen && openedTotal > 0 && <span className="pp-chip pp-open" title="Açılış değeri">Açık {openedTotal}</span>}
                     {penaltyScore > 0 && <span className="pp-chip pp-penalty" title="Bu eldeki ceza">Ceza {penaltyScore}</span>}
                     {showSetScore && (
-                        <span className={`pp-chip pp-set ${setScore >= 51 ? 'valid' : ''}`} title={setLabel === 'Çift' ? 'Istakadaki çiftlerin değeri' : 'Istakadaki perlerin değeri'}>{setLabel} {setScore}</span>
+                        <span className={`pp-chip pp-set ${canOpenWith ? 'valid' : ''}`} title={setLabel === 'Çift' ? 'Istakadaki çiftlerin değeri' : 'Istakadaki perlerin değeri'}>{setLabel} {setScore}</span>
                     )}
                 </div>
             </div>

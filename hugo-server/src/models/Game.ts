@@ -103,6 +103,7 @@ export class Game {
     lastDiscardPlayerId: string | null;
     tableSets: TableSet[];
     okeyPlayedThisTurn: boolean;
+    openingFrozen: boolean;            // bu sırada başkasına işlendi ya da okey alındı: açılış değerine artık eklenmez
     roundEndResults: RoundResult[] | null;
     finisherPlayerId: string | null;
     finishedWithJoker: boolean;
@@ -136,6 +137,7 @@ export class Game {
         this.okeyTile = null;
         this.lastDiscardPlayerId = null;
         this.okeyPlayedThisTurn = false;
+        this.openingFrozen = false;
         this.roundEndResults = null;
         this.finisherPlayerId = null;
         this.finishedWithJoker = false;
@@ -452,7 +454,7 @@ export class Game {
 
     // Açtığı sırada (taş atmadan) indirdiği perler ve kendi perine işlediği taşlar açılış değerine eklenir (örn. 65 + 10 = 75)
     private addToOpening(player: Player, amount: number): void {
-        if (amount <= 0 || !player.isOpen || player.openedAtTurn !== this.turnCounter) return;
+        if (amount <= 0 || this.openingFrozen || !player.isOpen || player.openedAtTurn !== this.turnCounter) return;
         player.lastOpenedValue += amount;
         player.openedTotal += amount;
         player.openingScore += amount;
@@ -492,6 +494,7 @@ export class Game {
         Object.assign(player, snap.open);
         this.turnAction = snap.turnAction;
         this.okeyPlayedThisTurn = snap.okeyPlayedThisTurn;
+        this.openingFrozen = false; // geri alınınca bu sıradaki işlemeler de geri alındı
 
         const reverts = snap.penalties.map(p => {
             this.getPlayerById(p.playerId)?.removePenalty(p.amount);
@@ -540,6 +543,7 @@ export class Game {
         // Tur aksiyonunu sıfırla
         this.turnAction = TurnAction.DRAW;
         this.okeyPlayedThisTurn = false;
+        this.openingFrozen = false;
         this.returnedTileId = null;
         this.playedToTableThisTurn = false;
         this.turnSnapshot = null;
@@ -839,6 +843,7 @@ export class Game {
 
         this.beginTablePlay(player);
         if (targetSet.playerId === playerId) this.addToOpening(player, newValue - targetSet.value);
+        else this.openingFrozen = true; // başkasına işledi: sonra indirilen perler açılışa eklenmez
         player.removeTile(tileId);
         tile.setStatus(TileStatus.ON_TABLE);
         tile.setVisible(true);
@@ -899,6 +904,7 @@ export class Game {
 
         okeyTile.setStatus(TileStatus.IN_HAND);
         player.addTile(okeyTile);
+        this.openingFrozen = true; // okey alındı: bu okeyle indirilen per açılışa eklenmez
 
         // Set sahibine 100 puan ceza (kendi perinden / çiftinden okey alan ceza yemez)
         let penalty: { targetPlayerId: string; amount: number; tag: string; tile: string } | undefined;
@@ -961,6 +967,7 @@ export class Game {
         const newSet: TableSet = { id: uuidv4(), playerId: target.playerId, tiles: tiles as Tile[], value, kind: 'cift' };
         this.tableSets.push(newSet);
         if (target.playerId === playerId) this.addToOpening(player, value);
+        else this.openingFrozen = true;
 
         let penalty: { targetPlayerId: string; amount: number; tag: string; tile: string } | undefined;
         const owner = this.getPlayerById(target.playerId);
@@ -1383,6 +1390,7 @@ export class Game {
         this.discardOwners = [];
         this.tableSets = [];
         this.okeyPlayedThisTurn = false;
+        this.openingFrozen = false;
         this.playedToTableThisTurn = false;
         this.turnSnapshot = null;
         this.pendingOpen = null;

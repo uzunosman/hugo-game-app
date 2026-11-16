@@ -547,6 +547,10 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
                         timeLeft={p.id === gameState.currentPlayerId ? timeLeft : null}
                         setScore={index === 0 ? (rackMode === 'cift' ? pairScore.pairTotal : handScore.setTotal) : null}
                         setLabel={rackMode === 'cift' ? 'Çift' : 'Per'}
+                        canOpenWith={index === 0 && (() => {
+                            const v = rackMode === 'cift' ? pairScore.pairTotal : handScore.setTotal;
+                            return maxOpenedValue === 0 ? v >= 51 : v > maxOpenedValue; // açabilecek durumdaysa yeşil
+                        })()}
                         isOpen={openState?.isOpen}
                         openedTotal={openState?.openedTotal}
                         penaltyScore={openState?.penaltyScore || 0}

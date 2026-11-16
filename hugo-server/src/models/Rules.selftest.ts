@@ -426,10 +426,23 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     assert.strictEqual(p0.openedTotal, 88);
     // Sıra geçince (sonraki sıralarda) eklenmez
     game.turnCounter += 4;
-    const [b9, b8] = give(p0, [t(BLUE, 9), t(RED, 2)]);
+    const [b9] = give(p0, [t(BLUE, 9), t(RED, 2)]);
     assert.ok(game.addTileToSet(p0.id, b9.id, seri.id, 'start').success);
     assert.strictEqual(p0.lastOpenedValue, 88, 'sonraki sırada eklenmez');
-    void b8;
+}
+
+// Aynı sırada başkasına işledikten / okey aldıktan sonra indirilen per açılışa eklenmez
+{
+    const { game, p0, p1 } = setup();
+    game.round = 2; game.indicatorTile = t(RED, 5); game.okeyTile = t(RED, 6);
+    p1.isOpen = true;
+    game.tableSets.push({ id: 'o1', playerId: p1.id, kind: 'seri', value: 18, tiles: [t(BLUE, 5), t(BLUE, 6), t(BLUE, 7)] });
+    const h = give(p0, [t(BLUE, 10), t(BLUE, 11), t(BLUE, 12), t(BLACK, 10), t(YELLOW, 10), t(RED, 10), t(BLUE, 8), t(BLACK, 3), t(BLACK, 4), t(BLACK, 5), t(RED, 1)]);
+    assert.ok(game.openHand(p0.id, [ids(h.slice(0, 3)), ids(h.slice(3, 6))]).success);
+    assert.strictEqual(p0.lastOpenedValue, 63);
+    assert.ok(game.addTileToSet(p0.id, h[6].id, 'o1', 'end').success, 'başkasının perine işledi');
+    assert.ok(game.dropPer(p0.id, [ids(h.slice(7, 10))]).success);
+    assert.strictEqual(p0.lastOpenedValue, 63, 'işlemeden sonra indirilen per eklenmez');
 }
 
 // Çiftlere çift işleme: sahibine normal işleme gibi taşların toplamı × 10 ceza; kendi çiftine işlemek cezasız

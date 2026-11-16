@@ -45,7 +45,7 @@ Az puan iyidir: 9 el sonunda toplam puanı en düşük olan kazanır (eşitlikte
 | Çiftle açan | Sonra yalnızca çift indirir |
 | Çiftle açan | Köşelere atılmış eski taşları görebilir: köşeye tıklayınca yana açılır, başka yere tıklayınca kapanır |
 | Masaya her oynayışta | Elde en az bir taş kalmalı; el son taş atılarak biter |
-| Açtığı sırada ekleme | Açan oyuncu taş atmadan (sırası geçmeden) yeni per indirir ya da kendi perine taş işlerse açılış değerine eklenir. Örn. 65 açıp aynı sırada 10 eklerse açılışı 75 olur (sonraki oyuncular 75'i geçmeli; 100+ yıldızı da buna bakar). |
+| Açtığı sırada ekleme | Açan oyuncu taş atmadan (sırası geçmeden) yeni per indirir ya da kendi perine taş işlerse açılış değerine eklenir. Örn. 65 açıp aynı sırada 10 eklerse açılışı 75 olur (sonraki oyuncular 75'i geçmeli; 100+ yıldızı da buna bakar). Aynı sırada başkasının perine / çiftine işlenir ya da okey alınırsa ekleme durur: örn. 80 açıp okeyi alan, okeyle indirdiği peri 80'e ekleyemez. |
 | Per per açma | Per ıstakadan masaya sürüklenince yalnızca o per yere iner. Eşik dolana kadar perler yerde bekler (kesik çerçeve) ve taş atılamaz. "Tümünü aç" ıstakadaki tüm geçerli perleri açar. |
 
 ## 4. El sonu puanı
