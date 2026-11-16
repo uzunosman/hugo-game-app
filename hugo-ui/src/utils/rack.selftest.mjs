@@ -1,7 +1,7 @@
 // Istaka mantığı öz-testi: `npm test` ile çalışır (saf fonksiyonlar, tarayıcı gerekmez).
 import assert from 'node:assert';
 import { getConsecutiveGroups, arrangeTiles, calculateHandScore, calculatePairScore, findPairPartner, validatePair, validateSet, CELLS_PER_ROW } from './gameUtils.js';
-import { insertShift, rackGroupAt, reconcilePositions } from './tileHandlers.js';
+import { insertShift, rackGroupAt, reconcilePositions, drawSlot } from './tileHandlers.js';
 import { moveGroup, rackPreview, perGroupAt } from './rackDrag.js';
 
 let n = 0;
@@ -204,6 +204,19 @@ const row = (cells) => [...cells, ...Array(CELLS_PER_ROW * 2 - cells.length).fil
     assert.deepStrictEqual(reconcilePositions(row(['a', 'x', 'b']), tl('a', 'b')).slice(0, 3), ['a', null, 'b'], 'elde olmayan silinir');
     assert.deepStrictEqual(reconcilePositions(row(['a', 'a']), tl('a')).slice(0, 2), ['a', null], 'çift yazılan silinir');
     assert.deepStrictEqual(reconcilePositions(row(['a', null, 'b']), tl('a', 'b', 'c')).slice(0, 3), ['a', 'c', 'b'], 'kayıp taş boşa');
+}
+
+// Tıklayarak çekilen taş: üst sıranın en sağı, soldaki taşla arasında bir boşluk
+{
+    const p = Array(30).fill(null);
+    for (let i = 0; i < 6; i++) p[i] = `a${i}`;
+    assert.strictEqual(drawSlot(p), 14, 'üst sıranın en sağı');
+    p[13] = 'x';
+    assert.strictEqual(drawSlot(p), 11, '13 doluysa yanına yapışmaz: iki yanı boş en sağdaki hücre');
+    const full = Array(30).fill(null).map((_, i) => (i < 15 && i !== 0 ? `f${i}` : null));
+    assert.strictEqual(drawSlot(full), 29, 'üst sırada boşluklu yer yoksa alt sıranın en sağı');
+    const packed = Array(30).fill(null).map((_, i) => (i !== 0 && i !== 20 ? `f${i}` : null));
+    assert.strictEqual(drawSlot(packed), 20, 'hiç boşluklu yer yoksa sağdan ilk boş hücre');
 }
 
 console.log('rack.selftest: satır ayrımı, kaydırma, otomatik dizme, çiftler, sahte okey, per/çift taşıma, sürükleme önizlemesi ve ıstaka-el uyumu ✓');

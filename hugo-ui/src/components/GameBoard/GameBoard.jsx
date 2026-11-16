@@ -94,13 +94,16 @@ const GameBoard = ({
             const from = el?.getBoundingClientRect();
             if (!dropRect && el && from) {
                 const zone = document.querySelector(`.tile-drop-zone[data-corner="${playerCorner}"]`);
-                const top = zone?.querySelector('.tile')?.getBoundingClientRect();
+                const top = zone?.querySelector('.discard-top .tile')?.getBoundingClientRect();
                 const z = zone?.getBoundingClientRect();
                 const to = top || (z && { left: z.left + (z.width - from.width) / 2, top: z.top + (z.height - from.height) / 2, width: from.width, height: from.height });
                 if (zone && to) {
-                    zone.dataset.incoming = '1'; // uçuş bitene kadar köşedeki taş görünmez
-                    flyClone(el, from, to, PLACE_MS, () => delete zone.dataset.incoming,
-                        () => !!zone.querySelector(`.tile[data-tile-id="${id}"]`) || !!rackTileEl(id)); // köşeye geldi ya da reddedildi
+                    // Köşedeki eski taş görünür kalır; atılan taş köşeye çizilince uçuş bitene kadar gizlenir, sonra üstüne iner
+                    const landedEl = () => zone.querySelector(`.discard-top .tile[data-tile-id="${id}"]`);
+                    let flown = false; // uçuş bittiyse (ya da vazgeçildiyse) sonradan gelen taş gizlenmez
+                    whenRendered(landedEl, (t) => { if (!flown) t.style.visibility = 'hidden'; });
+                    flyClone(el, from, to, PLACE_MS, () => { flown = true; const t = landedEl(); if (t) t.style.visibility = ''; },
+                        () => !!landedEl() || !!rackTileEl(id)); // köşeye geldi ya da reddedildi
                 }
             }
             hide([id], dropRect || from);
@@ -124,7 +127,7 @@ const GameBoard = ({
             discard, // köşeye atma ile aynı yol (sıra / aşama kontrolü orada)
             addToSet: (tileId, setId, side, from) => { if (canPlaySets) hide([tileId], from); onAddTileToSet(tileId, setId, side); },
             addPair: (ids, setId, from) => { if (canPlaySets) hide(ids, from); onAddPairToSet(ids, setId); },
-            kustu: onKustu,
+            kustu: () => onKustu(false), // sürükleyerek kusma: atan oyuncu animasyon görmez
             drawDeck: handleDrawFromDeck,
             drawDiscard: handleDrawDiscardedTile,
             dragStart: onTileDragStart,

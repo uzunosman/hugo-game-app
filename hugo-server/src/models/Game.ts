@@ -309,7 +309,7 @@ export class Game {
             this.owners().pop();
             const discarder = this.lastDiscardPlayerId ? this.getPlayerById(this.lastDiscardPlayerId) : undefined;
             const value = drawnTile ? this.asPlayed(drawnTile).value : 0;
-            const amount = (typeof value === 'number' ? value : 0) * 10; // Hugo elinde de × 10 yazılır, el sonunda Hugo × 2
+            const amount = this.pen((typeof value === 'number' ? value : 0) * 10); // Hugo elinde × 20 yazılır
             if (drawnTile && discarder && discarder.id !== playerId && amount > 0) {
                 discarder.addPenalty(amount);
                 this.takenPenalty = { playerId: discarder.id, amount, reason: 'Attığı taş yerden alındı', tag: 'yerden', tile: tileLabel(drawnTile) };
@@ -369,7 +369,7 @@ export class Game {
             return { tile: null, penalties: [], error: 'Yandan aldığın taşı kullanmalısın (ya da 100 ceza ile geri at)' };
         }
         if (pendingTaken) {
-            penalties.push({ playerId, amount: 100, reason: 'Yandan alınan taş kullanılmadı', tag: 'kullanılmadı', tile: tileLabel(tile) });
+            penalties.push({ playerId, amount: this.pen(100), reason: 'Yandan alınan taş kullanılmadı', tag: 'kullanılmadı', tile: tileLabel(tile) });
         } else if (player.tiles.length > 1 && !closedFinish) {
             // Eli bitiren son taş hariç: masadaki bir pere eklenebilecek taşı atmak 100 ceza (Hugo elinde 200)
             const islek = this.islekPenalty(tile);
@@ -381,7 +381,8 @@ export class Game {
         if (closedFinish) [...player.tiles].forEach(t => player.removeTile(t.id));
         // Son taş: bitiren bu sırada açtıysa ya da hiç açmadan bitirdiyse "elden bitme"
         if (player.tiles.length === 0) {
-            this.finishedElden = closedFinish || player.openedAtTurn === this.turnCounter;
+            // Elden bitme yalnızca açmadan bitişte (masaya hiç taş açmadan); açıp aynı sırada bitirmek normal bitiştir
+            this.finishedElden = closedFinish;
             // Okeyle bitme: son taş bu elin okeyi (Hugo elinde sahte okey, normal elde göstergenin bir üstü)
             this.finishedWithJoker = this.isOkeyTile(tile);
         }
@@ -443,6 +444,11 @@ export class Game {
     }
 
     // Bu sıradaki ilk masaya oynamadan önce durumu sakla
+    // Anlık cezalar çarpanla yazılır: Hugo elinde × 2 (el sonunda cezalar ayrıca katlanmaz)
+    private pen(amount: number): number {
+        return amount * (this.isHugoRound() ? 2 : 1);
+    }
+
     // Açtığı sırada (taş atmadan) indirdiği perler ve kendi perine işlediği taşlar açılış değerine eklenir (örn. 65 + 10 = 75)
     private addToOpening(player: Player, amount: number): void {
         if (amount <= 0 || !player.isOpen || player.openedAtTurn !== this.turnCounter) return;
@@ -490,6 +496,7 @@ export class Game {
             this.getPlayerById(p.playerId)?.removePenalty(p.amount);
             return { ...p, amount: -p.amount, reason: 'Hamle geri alındı, ceza iptal', tag: 'iptal' };
         });
+        penaltyAmount = this.pen(penaltyAmount);
         player.addPenalty(penaltyAmount);
         const penalty: Penalty = { playerId, amount: penaltyAmount, reason: 'Masaya oynananlar geri alındı', tag: 'geri alma' };
         if (this.pendingOpen?.playerId === playerId) this.pendingOpen = null;
@@ -508,7 +515,7 @@ export class Game {
             (this.validateSetTiles([tile, ...set.tiles]) > 0 || this.validateSetTiles([...set.tiles, tile]) > 0 ||
                 this.replacesOkey(set, tile))
         );
-        return fits ? 100 : 0; // Hugo elinde de 100 yazılır, el sonunda Hugo × 2
+        return fits ? this.pen(100) : 0; // Hugo elinde 200 yazılır
     }
 
     // Taş perdeki bir okeyin yerini tutuyor mu (okey alma kuralıyla aynı: aynı sayı perinde yalnızca 4 taşken)
@@ -860,7 +867,7 @@ export class Game {
                 const played = this.asPlayed(tile); // sahte okey, okeyin değeri kadar ceza yazar
                 effectiveValue = typeof played.value === 'number' ? played.value : 0;
             }
-            const penaltyAmount = effectiveValue * 10;
+            const penaltyAmount = this.pen(effectiveValue * 10);
             setOwner.addPenalty(penaltyAmount);
             penalty = { targetPlayerId: setOwner.id, amount: penaltyAmount, tag: 'işleme', tile: tileLabel(tile) };
             this.turnSnapshot?.penalties.push({ playerId: penalty.targetPlayerId, amount: penalty.amount, reason: '', tag: penalty.tag, tile: penalty.tile });
@@ -897,8 +904,9 @@ export class Game {
         // Set sahibine 100 puan ceza (kendi perinden / çiftinden okey alan ceza yemez)
         let penalty: { targetPlayerId: string; amount: number; tag: string; tile: string } | undefined;
         if (setOwner && setOwner.id !== player.id) {
-            setOwner.addPenalty(100);
-            penalty = { targetPlayerId: setOwner.id, amount: 100, tag: 'okey', tile: tileLabel(tile) };
+            const amount = this.pen(100);
+            setOwner.addPenalty(amount);
+            penalty = { targetPlayerId: setOwner.id, amount, tag: 'okey', tile: tileLabel(tile) };
             this.turnSnapshot?.penalties.push({ playerId: penalty.targetPlayerId, amount: penalty.amount, reason: '', tag: penalty.tag, tile: penalty.tile });
         }
 
@@ -958,7 +966,7 @@ export class Game {
         let penalty: { targetPlayerId: string; amount: number; tag: string; tile: string } | undefined;
         const owner = this.getPlayerById(target.playerId);
         if (owner && owner.id !== playerId) {
-            const amount = value * 10; // normal işleme gibi: taşların toplamı × 10 (Hugo çarpanı el sonunda)
+            const amount = this.pen(value * 10); // normal işleme gibi: taşların toplamı × 10 (Hugo elinde × 20)
             owner.addPenalty(amount);
             penalty = { targetPlayerId: owner.id, amount, tag: 'çift işleme', tile: (tiles as Tile[]).map(tileLabel).join(' + ') };
             this.turnSnapshot?.penalties.push({ playerId: penalty.targetPlayerId, amount: penalty.amount, reason: '', tag: penalty.tag, tile: penalty.tile });
@@ -1245,7 +1253,8 @@ export class Game {
         const nonFinishers = this.players.filter(p => p.id !== resolvedFinisherId);
         const noOtherPlayersOpened = nonFinishers.every(p => !p.isOpen);
         // Elden bitme yalnızca masada başka açan yoksa çarpan ekler
-        const finishedElden = !!finisher && this.finishedElden && noOtherPlayersOpened;
+        // Masaya herhangi biri (bitiren dahil) taş açtıysa elden bitme sayılmaz: çarpan ve yıldız yok, normal bitiş
+        const finishedElden = !!finisher && this.finishedElden && !finisher.isOpen && noOtherPlayersOpened;
         const handMult = jokerMult * (finishedWithPairs ? 2 : 1) * (finishedElden ? 2 : 1);
         // Açmamış oyuncu 400 (kimse açmadan elden bitişte elden çarpanıyla 800 olur); deste bitip kimse açmadıysa herkes 800
         const closedHandPenalty = !finisher && noOtherPlayersOpened ? 800 : 400;
@@ -1277,8 +1286,8 @@ export class Game {
             const openBonus = 0;   // reserved for future use
             const finishBonus = 0; // reserved for future use
 
-            const rawTotal = effectiveHandScore + player.penaltyScore + unusedOkeyPenalty + openBonus + finishBonus;
-            const preMult = rawTotal * hugoMult; // yuvarlama yok
+            // Anlık cezalar yazılırken çarpanla (Hugo × 2) yazıldı: el sonunda yalnızca elde kalan ve okey cezası katlanır
+            const preMult = (effectiveHandScore + unusedOkeyPenalty + openBonus + finishBonus) * hugoMult + player.penaltyScore; // yuvarlama yok
             const multiplier = hugoMult * handMult;
 
             // Yıldız hesabı — finisher ve diğer oyuncular için ayrı kural
@@ -1291,12 +1300,13 @@ export class Game {
                 // finishStars = 1 × (finishedWithJoker?2:1) × (isHugoRound?2:1) × (noOtherPlayersOpened?2:1)
                 const jokerStarMult = this.finishedWithJoker ? 2 : 1;
                 const hugoStarMult = this.isHugoRound() ? 2 : 1;
-                const closedStarMult = noOtherPlayersOpened ? 2 : 1;
+                const closedStarMult = finishedElden ? 2 : 1; // yalnızca elden bitişte (masada hiç açılış yokken)
                 const pairStarMult = finishedWithPairs ? 2 : 1; // çiftle bitirme yıldızı ikiye katlar
                 stars = 1 * jokerStarMult * hugoStarMult * closedStarMult * pairStarMult;
             }
             // Yere açılan taşların değeri 100 ve üzeriyse (bitiren dahil) 1 yıldız
-            if (player.openingScore >= 100) stars += 1;
+            // 100+ açılış yıldızı bitirmeyenlere; bitiren yalnızca bitiş yıldızını alır (Hugo elinde okeysiz bitiş: 2)
+            if (!isFinisher && player.openingScore >= 100) stars += 1;
 
             // roundTotal: hugoMult uygulandıktan sonra yıldızlar düşülür; puan eksiye düşebilir
             const roundTotal = preMult - (stars * 100);
@@ -1312,7 +1322,7 @@ export class Game {
                 penaltyScore: player.penaltyScore,
                 openBonus,
                 finishBonus,
-                rawTotal,
+                rawTotal: preMult,
                 roundTotal,
                 multiplier,
                 isHugoRound: this.isHugoRound(),

@@ -114,13 +114,15 @@ const RoundDetail = ({ entry, players, onBack }) => {
     const penaltiesOf = (id) => entry.penalties
         ? entry.penalties.filter(p => p.playerId === id).map(p => p.amount)
         : (byId[id]?.penaltyEntries || []);
+    // Çarpan gösterilmez: değerler çarpılmış hâliyle yazılır (Hugo × 2 dahil; cezalar zaten çarpanla yazıldı)
+    const hugo = entry.isHugoRound ? 2 : 1;
+    const hand = (r) => (r.effectiveHandScore ?? r.handScore) * hugo;
     const rows = [
         // Elde kalan taş cezası yalnızca yere açana; açmayanın sabit cezası ayrı satırda
-        ['Elde kalan', r => (r.isOpen === false || r.isFinisher ? '' : r.effectiveHandScore ?? r.handScore)],
-        ['Açmadı', r => (r.isOpen === false && !r.isFinisher ? r.effectiveHandScore ?? r.handScore : '')],
+        ['Elde kalan', r => (r.isOpen === false || r.isFinisher ? '' : hand(r))],
+        ['Açmadı', r => (r.isOpen === false && !r.isFinisher ? hand(r) : '')],
         ['Cezalar', (r, list) => (list.length ? <span className="penalty-cell">{list.map((a, i) => <span key={i} className={a < 0 ? 'cancel' : undefined}>{a > 0 ? '+' : ''}{a}</span>)}</span> : '')],
-        ['Kullanılmayan okey', r => r.unusedOkeyPenalty],
-        ['Çarpan', r => (r.multiplier > 1 ? `×${r.multiplier}` : '')],
+        ['Kullanılmayan okey', r => (r.unusedOkeyPenalty ? r.unusedOkeyPenalty * hugo : '')],
         ['Yıldız', r => (r.stars > 0 ? '★'.repeat(r.stars) : '')],
     ];
     return (

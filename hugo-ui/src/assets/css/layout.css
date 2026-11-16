@@ -328,5 +328,7 @@
 }
 /* Dizme düğmeleri köşe bırakma alanlarının (300-400) üstünde: dokunuş başka katmana gitmesin */
 .tile-holder-container .rack-tools { z-index: 450; }
-/* Çift tıkla atılan taş köşeye uçarken köşedeki taş görünmez (yeni taş erken belirmesin) */
-.tile-drop-zone[data-incoming] .tile { visibility: hidden; }
+/* Köşede bir önceki taş üstteki taşın tam altında (yalnızca uçuş sırasında görünür) */
+.tile-drop-zone .discard-under { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.tile-drop-zone .discard-top { position: relative; z-index: 1; }
+.tile-drop-zone:has(.discard-top.discard-locked) .discard-under { visibility: hidden; } /* soluk kilitli taşın altından eski taş görünmesin */

@@ -11,7 +11,7 @@ import socketService from '../../services/socketService';
 import { getOrderedPlayers, getPlayerPosition, getPlayerCorner, getCurrentPlayerIndex, calculateHandScore, calculatePairScore, canTakePairOkey, getConsecutiveGroups, validateSet, validatePair, arrangeTiles } from '../../utils/gameUtils';
 import { handleDrawTile, handleTileMove, handleDrawDiscardedTile } from '../../utils/tileHandlers';
 import { moveGroup } from '../../utils/rackDrag';
-import { PLACE_MS, rackTileEl, slideFrom, whenRendered } from '../../utils/flyTiles';
+import { flyToCorner, PLACE_MS, rackTileEl, slideFrom, whenRendered } from '../../utils/flyTiles';
 import '../../assets/css/components/GameBoard.css';
 import '../../assets/css/layout.css';
 import '../../assets/css/mobile.css';
@@ -208,7 +208,12 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
             setDiscardedTiles,
             setGameState,
             setError,
-            onTaken: setTakenInfo
+            onTaken: setTakenInfo,
+            // Tıklayarak alınan taş köşeden ıstakadaki yerine kayar (sürükleyerek alınan zaten yerine bırakıldı)
+            onDrawn: targetIndex == null ? (() => {
+                const from = document.querySelector(`.tile-drop-zone[data-corner="${corner}"] .discard-top .tile`)?.getBoundingClientRect();
+                return (tile) => whenRendered(() => rackTileEl(tile.id), el => slideFrom(el, from, PLACE_MS));
+            })() : undefined
         });
     };
 
@@ -243,8 +248,12 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
         });
     };
 
-    const onKustu = () => {
+    // fromRack: Kustu düğmesiyle kusulunca taş ıstakadan köşeye uçar (sürükleyerek kusulunca animasyon yok)
+    const onKustu = (fromRack = true) => {
         const undoing = playedThisTurn;
+        const taken = takenInfo;
+        const from = fromRack && taken ? rackTileEl(taken.tileId)?.getBoundingClientRect() : null;
+        if (from) flyToCorner(taken.corner, from, taken.tileId);
         socketService.returnTaken((response) => {
             if (!response?.success) return setError(response?.error || 'Taş geri konamadı');
             setTakenInfo(null);

@@ -2,6 +2,20 @@
  * Taş işleme fonksiyonları
  */
 
+// Tıklayarak çekilen taşın yeri: üst sıranın en sağı; soldaki ilk taşla arasında bir boşluk kalır.
+// Üst sırada böyle yer yoksa alt sıranın en sağı (aynı kural), o da yoksa sağdan ilk boş hücre.
+export const drawSlot = (positions) => {
+    const gapSlot = (lo, hi) => {
+        for (let i = hi; i > lo; i--) if (positions[i] === null && positions[i - 1] === null && (i === hi || positions[i + 1] === null)) return i;
+        return -1;
+    };
+    const top = gapSlot(0, 14);
+    if (top !== -1) return top;
+    const bottom = gapSlot(15, 29);
+    if (bottom !== -1) return bottom;
+    return positions.lastIndexOf(null);
+};
+
 /**
  * Taş çekme işlemi
  * @param {Object} params - Parametreler
@@ -44,14 +58,12 @@ export const handleDrawTile = ({
             // Yeni taşı ıstakaya yerleştir
             setTilePositions(prevPositions => {
                 const newPositions = [...prevPositions];
-                // Hedef pozisyon belirtilmiş ve boşsa oraya koy, değilse ilk boşa
+                // Hedef pozisyon belirtilmiş ve boşsa oraya koy, değilse üst sıranın sağına (drawSlot)
                 if (targetIndex !== undefined && targetIndex !== null && newPositions[targetIndex] === null) {
                     newPositions[targetIndex] = response.tile.id;
                 } else {
-                    const emptyIndex = newPositions.findIndex(pos => pos === null);
-                    if (emptyIndex !== -1) {
-                        newPositions[emptyIndex] = response.tile.id;
-                    }
+                    const slot = drawSlot(newPositions);
+                    if (slot !== -1) newPositions[slot] = response.tile.id;
                 }
                 return newPositions;
             });
@@ -323,7 +335,8 @@ export const handleDrawDiscardedTile = ({
     setDiscardedTiles,
     setGameState,
     setError,
-    onTaken
+    onTaken,
+    onDrawn // çekilen taş ıstakaya kondu (animasyon için)
 }) => {
     // Sadece sıradaki oyuncu, draw aşamasında işlem yapabilir
     if (gameState.currentPlayerId !== playerId) {
@@ -373,14 +386,14 @@ export const handleDrawDiscardedTile = ({
                 if (targetIndex !== undefined && targetIndex !== null && newPositions[targetIndex] === null) {
                     newPositions[targetIndex] = response.tile.id;
                 } else {
-                    const emptyIndex = newPositions.findIndex(pos => pos === null);
-                    if (emptyIndex !== -1) {
-                        newPositions[emptyIndex] = response.tile.id;
-                    }
+                    const slot = drawSlot(newPositions);
+                    if (slot !== -1) newPositions[slot] = response.tile.id;
                 }
 
                 return newPositions;
             });
+
+            onDrawn?.(response.tile);
 
             // Atılan taşı köşeden kaldır
             setDiscardedTiles(prevDiscardedTiles => {

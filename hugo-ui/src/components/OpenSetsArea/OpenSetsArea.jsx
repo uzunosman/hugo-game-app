@@ -235,7 +235,8 @@ const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTil
                             data-is-okey={tileIsOkey ? 'true' : undefined}
                             onClick={tileIsOkey && isExpanded && selectedTileId ? () => handleSlotClick(set.id, 'end') : undefined}
                         >
-                            {tile.isJoker ? <JokerFace /> : tile.value}
+                            {/* Yerdeki okey düz taş görünür: numarası / simgesi yazılmaz */}
+                            {tileIsOkey ? null : tile.isJoker ? <JokerFace /> : tile.value}
                         </div>
                     );
                 })}

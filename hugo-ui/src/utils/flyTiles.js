@@ -67,7 +67,7 @@ export const flyToCorner = (corner, from, tileId) => {
         ghost.animate([
             { transform: `translate(${sx}px, ${sy}px) scale(${sc})` },
             { transform: 'translate(0, 0) scale(1)' },
-        ], { duration: 320, easing: 'cubic-bezier(.3,.8,.35,1)' }).finished.catch(() => {}).finally(done);
+        ], { duration: PLACE_MS, easing: EASE }).finished.catch(() => {}).finally(done);
         setTimeout(done, 1000); // sekme arka plandaysa animasyon ilerlemez: köşedeki taş gizli kalmasın
     });
 };

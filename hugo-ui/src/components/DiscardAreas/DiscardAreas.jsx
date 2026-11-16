@@ -118,8 +118,12 @@ const DiscardAreas = ({
                         </svg>
                     </button>
                 )}
+                {/* Bir önceki taş üstteki taşın altında durur: yeni atılan taş uçarken köşe boş kalmaz, taş üstüne iner */}
+                {tiles.length > 1 && corner !== kustuCorner && (
+                    <div className="discard-under" aria-hidden="true"><Tile tile={tiles[tiles.length - 2]} isDiscarded={true} /></div>
+                )}
                 {lastTile && corner !== kustuCorner && (
-                    <div className={lastTile.locked ? 'discard-locked' : undefined} title={lastTile.locked ? 'Bu taş yerden alınamaz' : undefined}>
+                    <div className={`discard-top ${lastTile.locked ? 'discard-locked' : ''}`} title={lastTile.locked ? 'Bu taş yerden alınamaz' : undefined}>
                     <Tile
                         tile={lastTile}
                         onClick={() => handleDiscardedTileClick(corner, lastIndex)}
