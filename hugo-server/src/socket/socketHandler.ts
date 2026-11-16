@@ -363,6 +363,24 @@ export const setupSocketHandlers = (io: Server) => {
 
     io.on('connection', (socket: Socket) => {
         console.log(`Yeni bağlantı: ${socket.id}`);
+        // Teşhis: reddedilen her istek (sebebi ve soketin oyuncuya bağlı olup olmadığı) günlüğe yazılır
+        socket.use((packet, next) => {
+            const last = packet.length - 1;
+            const ack = packet[last];
+            if (last > 0 && typeof ack === 'function') {
+                // Paket yerinde değişir: olay işleyicisi kaydı tutan ack'i alır
+                packet[last] = (res: any) => {
+                    if (res && res.success === false) {
+                        const me = gameManager.getPlayerBySocketId(socket.id);
+                        const asked = packet[1]?.playerId;
+                        const owner = asked && asked !== me?.id ? ` (bu soket ${asked} oyuncusuna bağlı değil)` : '';
+                        console.warn(`Reddedildi [${me?.name || '?'}] ${packet[0]}: ${res.error}${owner}`);
+                    }
+                    ack(res);
+                };
+            }
+            next();
+        });
         socket.onAny(() => {
             // İnsan oyuncunun her olayı masasını canlı tutar; ardından kaydet
             const me = gameManager.getPlayerBySocketId(socket.id);

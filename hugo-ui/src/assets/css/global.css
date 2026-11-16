@@ -89,3 +89,6 @@ input, textarea, [contenteditable="true"] { -webkit-user-select: text; user-sele
     pointer-events: none;
     user-select: none;
 }
+
+/* Oyun ekranı kaydırılamaz: telefon dikey → yatay dönünce sayfa kaymış kalıp dokunma alanları taşlardan kaymasın (iOS) */
+html:has(.game-container), html:has(.game-container) body { overflow: hidden; overscroll-behavior: none; }

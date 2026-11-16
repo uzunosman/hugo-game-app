@@ -35,6 +35,22 @@ if (import.meta.env.PROD) {
   check(); // açılışta da: ana ekran uygulaması eski sayfayla açıldıysa güncel sürüme geçer
 }
 
+// iOS ana ekran uygulaması: dikeyden yataya dönünce sayfa kaymış kalırsa çizim ile dokunma alanı ayrışır
+// (üst sıradaki taşa altından dokunmak gerekir). Dönüşten sonra kayma sıfırlanır ve teşhis için günlüğe yazılır.
+{
+  const reset = () => setTimeout(() => {
+    const vv = window.visualViewport;
+    const off = { x: scrollX, y: scrollY, vx: Math.round(vv?.offsetLeft || 0), vy: Math.round(vv?.offsetTop || 0) };
+    if (off.x || off.y || off.vx || off.vy) {
+      window.__hugoLog?.({ type: 'donus-kaymasi', ...off });
+      window.scrollTo(0, 0);
+      document.scrollingElement && (document.scrollingElement.scrollTop = 0);
+    }
+  }, 350);
+  window.addEventListener('orientationchange', reset);
+  window.addEventListener('resize', reset);
+}
+
 // Teşhis (iPhone ana ekran uygulamasındaki donma için): hatalar ve ana iş parçacığının uzun süre kilitlenmesi
 // sunucu günlüğüne gider. Son kullanıcı hareketi (window.__lastAction) donmanın neyle başladığını gösterir.
 {
