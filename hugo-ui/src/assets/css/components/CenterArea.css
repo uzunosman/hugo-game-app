@@ -19,12 +19,12 @@
 }
 
 @media (max-width: 640px) {
-    .center-tiles {
+    html:not(.stage) .center-tiles{
         padding: var(--spacing-sm);
         gap: 3px;
     }
 
-    .round-indicator {
+    html:not(.stage) .round-indicator{
         font-size: 11px;
         padding: 3px 8px;
     }

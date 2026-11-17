@@ -34,8 +34,8 @@
     background: #fff;
     border: 1px solid #1a1a1a;
     padding: 16px 20px;
-    max-width: 95vw;
-    max-height: 90vh;
+    max-width: calc(var(--stage-w, 100vw) * 0.95);
+    max-height: calc(var(--stage-h, 100vh) * 0.9);
     overflow: auto;
 }
 
@@ -122,12 +122,11 @@
 }
 
 @media (max-width: 640px) {
-    .scoreboard-modal.scoreboard-kiraathane {
+    html:not(.stage) .scoreboard-modal.scoreboard-kiraathane{
         padding: 12px 14px;
     }
 
-    .scoreboard-table th,
-    .scoreboard-table td {
+    html:not(.stage) .scoreboard-table th, html:not(.stage) .scoreboard-table td{
         padding: 6px 8px;
         font-size: 12px;
     }
@@ -148,7 +147,7 @@
     cursor: pointer;
 }
 .round-link:focus-visible, .round-back:focus-visible { outline: 2px solid #1d4f91; outline-offset: 2px; }
-.round-detail { min-width: min(520px, 86vw); }
+.round-detail { min-width: min(520px, calc(var(--stage-w, 100vw) * 0.86)); }
 .round-detail-head { display: flex; align-items: center; gap: 12px; margin: 0 28px 10px 0; }
 .round-back {
     font: 700 14px/1 'Kalam', cursive;

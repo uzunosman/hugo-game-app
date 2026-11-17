@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { perGroupAt } from '../utils/rackDrag';
 import { rackTileEl, settleFrom, tileLooks } from '../utils/flyTiles';
+import { pointToStage, stageRoot, stageScale } from '../utils/stage';
 
 // Masadaki tüm sürükle-bırak: fare, dokunmatik ve kalem aynı Pointer Events yolunu kullanır.
 //  - Istaka taşı: sürükle → ıstakada yer değiştir, köşeye at, masadaki pere işle (son taş ıstaka dışında her yere: at)
@@ -68,6 +69,7 @@ export default function useBoardDrag(props) {
             : [s.el];
         if (!els.length) return;
         const first = els[0].getBoundingClientRect();
+        const k = stageScale(); // sürükleme kopyası sahnenin içinde: ölçüler sahne biriminde
         const ghost = document.createElement('div');
         ghost.className = 'drag-ghost';
         els.forEach(src => {
@@ -75,17 +77,19 @@ export default function useBoardDrag(props) {
             const c = src.cloneNode(true);
             c.classList.remove('selected');
             c.querySelectorAll('.draw-hint, .remaining-count').forEach(n => n.remove()); // desteden çekilen taş: düz kapalı taş
-            Object.assign(c.style, { width: `${r.width}px`, height: `${r.height}px`, visibility: 'visible', opacity: '1', margin: '0', transform: 'none' });
+            Object.assign(c.style, { width: `${r.width / k}px`, height: `${r.height / k}px`, visibility: 'visible', opacity: '1', margin: '0', transform: 'none' });
             ghost.appendChild(c);
         });
-        document.body.appendChild(ghost);
+        stageRoot().appendChild(ghost);
         s.ghost = ghost;
-        s.ox = s.x0 - first.left;
-        s.oy = s.y0 - first.top + (s.pointerType === 'touch' ? 14 : 0); // parmak taşı örtmesin
+        s.ox = (s.x0 - first.left) / k;
+        s.oy = (s.y0 - first.top) / k + (s.pointerType === 'touch' ? 14 : 0); // parmak taşı örtmesin
         moveGhost(s);
     };
     const moveGhost = (s) => {
-        if (s.ghost) s.ghost.style.transform = `translate3d(${s.x - s.ox}px, ${s.y - s.oy}px, 0)`;
+        if (!s.ghost) return;
+        const [x, y] = pointToStage(s.x, s.y);
+        s.ghost.style.transform = `translate3d(${x - s.ox}px, ${y - s.oy}px, 0)`;
     };
 
     const swallowClick = () => {

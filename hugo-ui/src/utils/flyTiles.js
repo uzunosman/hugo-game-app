@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { stageRoot, stageScale, toStage } from './stage';
 
 // Masaya gelen taş animasyonu (işleme, el açma, per indirme): taş, oynayan oyuncunun kartından (kendin için ıstakadan) çıkıp
 // masadaki perdeki yerine kısa bir yayla iner. Herkesin ekranında, sunucunun işleme olayıyla oynar.
@@ -33,25 +34,26 @@ export const flyTilesIn = (tileIds, playerId, myId, own = false) => {
     const origins = mine ? Object.fromEntries(tileIds.map(id => [id, tileOrigins.get(id) || rackTileEl(id)?.getBoundingClientRect()])) : {};
     tileIds.forEach(id => tileOrigins.delete(id));
     requestAnimationFrame(() => requestAnimationFrame(() => {
-        const from = sourceRect(playerId, myId);
+        const from = toStage(sourceRect(playerId, myId));
         const stagger = Math.min(90, 700 / tileIds.length); // çok taşlı açılış da 1 saniyeyi geçmesin
         tileIds.forEach((id, i) => {
             const target = document.querySelector(`.open-set-tile[data-tile-id="${id}"]`);
             const land = () => { incomingTiles.delete(id); target?.classList.remove('incoming'); };
             if (!target || !target.animate) return land();
-            const to = target.getBoundingClientRect();
+            const toV = target.getBoundingClientRect();
+            const to = toStage(toV);
             if (origins[id]) { // kendi taşı: bıraktığın yerden masadaki yerine süzülür; büyümüş per sonra taşla birlikte küçülür
                 target.style.visibility = 'hidden';
                 const look = tileLooks.get(id);
                 tileLooks.delete(id);
-                return morphFly(look, target, origins[id], to, () => { target.style.visibility = ''; land(); releaseSet(); });
+                return morphFly(look, target, origins[id], toV, () => { target.style.visibility = ''; land(); releaseSet(); });
             }
             if (!from) return land();
             const ghost = target.cloneNode(true);
             ghost.classList.remove('incoming');
             ghost.classList.add('flying-tile');
             Object.assign(ghost.style, { left: `${to.left}px`, top: `${to.top}px`, width: `${to.width}px`, height: `${to.height}px` });
-            document.body.appendChild(ghost);
+            stageRoot().appendChild(ghost);
             // Kaynak: kartın/ıstakanın ortası (kendin için ıstakanın üst kenarı)
             const sx = from.left + from.width / 2 - (to.left + to.width / 2);
             const sy = (playerId === myId ? from.top : from.top + from.height / 2) - (to.top + to.height / 2);
@@ -68,15 +70,16 @@ export const flyTilesIn = (tileIds, playerId, myId, own = false) => {
 
 // Atılan taş: kaynaktan (ıstakadaki taş / bırakıldığı yer / atan oyuncunun kartı) köşeye uçar.
 // Köşedeki yeni taş render sonrası bulunur, uçuş bitene kadar gizli kalır.
-export const flyToCorner = (corner, from, tileId) => {
-    if (!corner || !from || reducedMotion()) return;
+export const flyToCorner = (corner, fromV, tileId) => {
+    if (!corner || !fromV || reducedMotion()) return;
+    const from = toStage(fromV);
     whenRendered(() => document.querySelector(`.tile-drop-zone[data-corner="${corner}"] .tile[data-tile-id="${tileId}"]`), (target) => {
         if (!target?.animate) return;
-        const to = target.getBoundingClientRect();
+        const to = toStage(target.getBoundingClientRect());
         const ghost = target.cloneNode(true);
         ghost.classList.add('flying-discard');
         Object.assign(ghost.style, { position: 'fixed', left: `${to.left}px`, top: `${to.top}px`, width: `${to.width}px`, height: `${to.height}px`, margin: '0', zIndex: 500, pointerEvents: 'none' });
-        document.body.appendChild(ghost);
+        stageRoot().appendChild(ghost);
         target.style.visibility = 'hidden';
         const zone = target.closest('.tile-drop-zone');
         if (zone) zone.dataset.flight = '1'; // uçarken alttaki eski taş görünür
@@ -101,8 +104,9 @@ const EASE = 'cubic-bezier(.22,.61,.36,1)';
 export const PLACE_MS = 420;
 
 // landed(): varış yerindeki gerçek öğe hazır mı; değilse kopya varış yerinde bekler (en çok 1,5 sn), boşluk ya da sıçrama olmaz
-export const flyClone = (srcEl, fromRect, toRect, duration = PLACE_MS, onDone, landed) => {
-    if (!srcEl || !fromRect || !toRect || reducedMotion()) return onDone?.();
+export const flyClone = (srcEl, fromV, toV, duration = PLACE_MS, onDone, landed) => {
+    if (!srcEl || !fromV || !toV || reducedMotion()) return onDone?.();
+    const fromRect = toStage(fromV), toRect = toStage(toV);
     const ghost = srcEl.cloneNode(true);
     ghost.classList.remove('selected');
     ghost.classList.add('flying-discard');
@@ -111,7 +115,7 @@ export const flyClone = (srcEl, fromRect, toRect, duration = PLACE_MS, onDone, l
         position: 'fixed', left: `${toRect.left}px`, top: `${toRect.top}px`, width: `${toRect.width}px`, height: `${toRect.height}px`,
         margin: '0', zIndex: 500, pointerEvents: 'none', visibility: 'visible', opacity: '1', transformOrigin: '0 0',
     });
-    document.body.appendChild(ghost);
+    stageRoot().appendChild(ghost);
     const sc = toRect.width ? fromRect.width / toRect.width : 1;
     let gone = false;
     const done = () => { if (!gone) { gone = true; ghost.remove(); onDone?.(); } };
@@ -137,10 +141,11 @@ export const settleFrom = (el, fromRect) => slideFrom(el, fromRect, PLACE_MS);
 export const slideFrom = (el, fromRect, duration = 240) => {
     if (!el?.animate || !fromRect || reducedMotion()) return;
     const r = el.getBoundingClientRect();
+    const k = stageScale(); // sahne ölçekliyse ekran farkı sahne birimine çevrilir
     // Kayarken tıklanamaz: desteye çift tıklayınca ikinci tık, desteden kayan taşa gidip onu atmasın
     el.style.pointerEvents = 'none';
     el.animate([
-        { transform: `translate(${fromRect.left - r.left}px, ${fromRect.top - r.top}px)` },
+        { transform: `translate(${(fromRect.left - r.left) / k}px, ${(fromRect.top - r.top) / k}px)` },
         { transform: 'none' },
     ], { duration, easing: EASE }).finished.catch(() => {}).finally(() => { el.style.pointerEvents = ''; });
 };
@@ -161,9 +166,9 @@ export const rackTileEl = (tileId) => document.querySelector(`.tile-holder .tile
 
 // Başka oyuncu taş çekti: taş desteden (kapalı) ya da yerden (açık) o oyuncunun kartına doğru küçülerek uçar ve kartta söner
 export const flyToPlayer = (srcEl, playerId) => {
-    const to = playerPanelRect(playerId);
+    const to = toStage(playerPanelRect(playerId));
     if (!srcEl || !to || reducedMotion()) return;
-    const from = srcEl.getBoundingClientRect();
+    const from = toStage(srcEl.getBoundingClientRect());
     if (!from.width) return;
     const ghost = srcEl.cloneNode(true);
     ghost.classList.remove('selected', 'disabled', 'can-drag');
@@ -173,7 +178,7 @@ export const flyToPlayer = (srcEl, playerId) => {
         position: 'fixed', left: `${from.left}px`, top: `${from.top}px`, width: `${from.width}px`, height: `${from.height}px`,
         margin: '0', zIndex: 500, pointerEvents: 'none', opacity: '1', filter: 'none',
     });
-    document.body.appendChild(ghost);
+    stageRoot().appendChild(ghost);
     const dx = to.left + to.width / 2 - (from.left + from.width / 2);
     const dy = to.top + to.height / 2 - (from.top + from.height / 2);
     const lift = -Math.min(30, Math.hypot(dx, dy) * 0.12); // yolun ortasında hafif yükselir
@@ -193,8 +198,9 @@ export const COLLAPSE_MS = 320; // OpenSetsArea.css: per küçülme geçişi
 
 // İki kopya aynı yoldan gider (ıstaka taşı → masa taşı): biri sönerken öbürü belirir; ölçek her ikisinde de sürekli
 // olduğundan yazı boyu sıçramaz. Varışta masa taşı kopyası gerçek taşla birebir aynı boyda (büyümüş perin içinde).
-const morphFly = (look, target, from, to, done) => {
+const morphFly = (look, target, fromV, toV, done) => {
     if (reducedMotion() || !target.animate) return done();
+    const from = toStage(fromV), to = toStage(toV);
     const make = (el, w, h) => {
         const g = el.cloneNode(true);
         g.classList.remove('selected', 'dragging', 'incoming');
@@ -204,7 +210,7 @@ const morphFly = (look, target, from, to, done) => {
             position: 'fixed', left: `${to.left}px`, top: `${to.top}px`, width: `${w}px`, height: `${h}px`, margin: '0',
             zIndex: 500, pointerEvents: 'none', visibility: 'visible', opacity: '1', transformOrigin: '0 0', transition: 'none',
         });
-        document.body.appendChild(g);
+        stageRoot().appendChild(g);
         return g;
     };
     const path = (w, h) => [

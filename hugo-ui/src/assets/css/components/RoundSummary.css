@@ -10,7 +10,7 @@
 }
 .tabela {
     width: min(440px, 100%);
-    max-height: calc(100vh - 32px);
+    max-height: calc(var(--stage-h, 100vh) - 32px);
     overflow: auto;
     padding: 22px 24px 18px 46px;
     color: #23324a;

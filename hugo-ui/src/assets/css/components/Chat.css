@@ -11,7 +11,7 @@
     position: fixed;
     left: calc(50% + var(--rack-w) / 2 + 4px); /* ıstakanın sağı: dizme düğmelerinin ve kartın üstüne gelebilir */
     right: calc(4px + env(safe-area-inset-right, 0px));
-    top: calc(100dvh - var(--rack-h) - var(--self-band, 0px)); /* masanın alt kenarından (düğmenin hemen altından) */
+    top: calc(var(--stage-h, 100dvh) - var(--rack-h) - var(--self-band, 0px)); /* masanın alt kenarından (düğmenin hemen altından) */
     bottom: 6px;
     min-width: 140px;
     display: flex;

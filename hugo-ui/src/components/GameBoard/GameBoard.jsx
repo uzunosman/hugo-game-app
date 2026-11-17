@@ -5,6 +5,7 @@ import DiscardAreas from '../DiscardAreas/DiscardAreas';
 import OpenSetsArea from '../OpenSetsArea/OpenSetsArea';
 import useBoardDrag from '../../hooks/useBoardDrag';
 import { fitTable } from '../../utils/tableFit';
+import { stageScale } from '../../utils/stage';
 import { animateOwn, flyClone, holdSet, PLACE_MS, rackTileEl, slideFrom, tileLooks, tileOrigins, whenRendered } from '../../utils/flyTiles';
 import '../../assets/css/components/GameBoard.css';
 
@@ -186,7 +187,8 @@ const GameBoard = ({
             board.style.removeProperty('--center-y');
             Object.values(areas).forEach(el => { el?.style.removeProperty('--fit-y'); el?.style.removeProperty('--fit-s'); });
             const o = box.getBoundingClientRect();
-            const rel = (r) => ({ x0: r.left - o.left, x1: r.right - o.left, y0: r.top - o.top, y1: r.bottom - o.top });
+            const k = stageScale(); // ölçüler sahne biriminde (CSS'e yazılan konumlar)
+            const rel = (r) => ({ x0: (r.left - o.left) / k, x1: (r.right - o.left) / k, y0: (r.top - o.top) / k, y1: (r.bottom - o.top) / k });
             const groups = (el) => (el ? [...el.querySelectorAll('.open-set-group, .pair-slot')].map(g => rel(g.getBoundingClientRect())) : []);
             const c = [...deck].map(el => el.getBoundingClientRect());
             const center = rel({ left: Math.min(...c.map(r => r.left)), right: Math.max(...c.map(r => r.right)), top: Math.min(...c.map(r => r.top)), bottom: Math.max(...c.map(r => r.bottom)) });
@@ -197,7 +199,7 @@ const GameBoard = ({
                 const a = rel(areas[k].getBoundingClientRect());
                 return { k, a, rects: groups(areas[k]), originX: k === 'left' ? a.x0 : a.x1, originY: (a.y0 + a.y1) / 2 };
             });
-            const fit = fitTable({ H: o.height, top: groups(areas.top), bottom: groups(areas.bottom), center, sides, fixed });
+            const fit = fitTable({ H: o.height / k, top: groups(areas.top), bottom: groups(areas.bottom), center, sides, fixed });
             board.style.setProperty('--center-y', `${Math.round(fit.centerY)}px`);
             if (fit.topScale < 1) { areas.top?.style.setProperty('--fit-s', fit.topScale); areas.bottom?.style.setProperty('--fit-s', fit.bottomScale); }
             sides.forEach(({ k, a }, i) => {

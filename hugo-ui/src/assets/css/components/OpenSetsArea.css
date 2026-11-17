@@ -132,27 +132,27 @@
 
 /* ── Mobil ─────────────────────────────────────────── */
 @media (max-width: 640px) {
-    .open-sets-area {
+    html:not(.stage) .open-sets-area{
         max-width: 50%;
         max-height: 35%;
     }
 
-    .open-set-tile {
+    html:not(.stage) .open-set-tile{
         width: 18px;
         height: 26px;
         font-size: 11px;
     }
 
-    .open-set-group {
+    html:not(.stage) .open-set-group{
         gap: 0px;
         padding: 2px;
     }
 
-    .open-set-group.expanded {
+    html:not(.stage) .open-set-group.expanded{
         transform: scale(1.65);
     }
 
-    .insertion-slot {
+    html:not(.stage) .insertion-slot{
         width: 18px;
         height: 26px;
     }
@@ -191,8 +191,8 @@
 @keyframes pair-slot-pulse { from { opacity: 0.65; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .pair-slot { animation: none; } }
 @media (max-width: 640px) {
-    .pair-slot span { width: 18px; height: 26px; }
-    .open-pairs-list { max-width: 200px; }
+    html:not(.stage) .pair-slot span{ width: 18px; height: 26px; }
+    html:not(.stage) .open-pairs-list{ max-width: 200px; }
 }
 
 /* İşlenen taş: yolda iken masadaki yeri boş görünür, kopyası işleyenin yerinden uçar (utils/flyTiles.js) */

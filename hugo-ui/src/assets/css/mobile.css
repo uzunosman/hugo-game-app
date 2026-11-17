@@ -3,9 +3,10 @@
    │sol│                   MASA                                 │sağ│
    ├──────────────────────── kendi kartın ─────────────────────────┤
    │ aksiyonlar │           ISTAKA (15 × 2)           │  dizme  │ */
-@media (orientation: landscape) and (max-height: 500px) {
-    html:root{
-        --tile-h: min(11dvh, 44px); /* kendi kartın masanın altına geldi: ıstaka biraz küçük */
+/* sahne (html.stage): eskiden yalnızca telefon yatayda */
+    html.stage{
+        --stage-w: 750px; --stage-h: 390px; /* referans: iPhone 14 ana ekran uygulaması, yatay */
+        --tile-h: min(calc(var(--stage-h) * 0.11), 44px); /* kendi kartın masanın altına geldi: ıstaka biraz küçük */
         --tile-w: calc(var(--tile-h) / 1.5);
         --tile-font: calc(var(--tile-h) * 0.5);
         --tile-pb: calc(var(--tile-h) * 0.22);
@@ -30,74 +31,71 @@
     }
 
     /* Istaka: ince çerçeve, satırlar taşa yapışık */
-    html .tile-holder-container{ padding: 0 0 var(--rack-gap); }
-    html .tile-holder{ padding: 3px 4px; width: calc(var(--tile-w) * 15 + 22px); border-radius: 6px 6px 0 0; }
-    html .tile-row{ min-height: calc(var(--tile-h) + 2px); padding: 0; }
-    html .tile-row-divider{ margin: 0; }
-    html .tile{ border-radius: 3px; }
+    html.stage .tile-holder-container{ padding: 0 0 var(--rack-gap); }
+    html.stage .tile-holder{ padding: 3px 4px; width: calc(var(--tile-w) * 15 + 22px); border-radius: 6px 6px 0 0; }
+    html.stage .tile-row{ min-height: calc(var(--tile-h) + 2px); padding: 0; }
+    html.stage .tile-row-divider{ margin: 0; }
+    html.stage .tile{ border-radius: 3px; }
 
     /* Kendi kartın, aksiyon ve dizme düğmeleri: layout.css (masanın alt ortası, ıstakanın iki yanı) */
 
     /* Oyuncu kartları: küçük avatar, tek satır */
-    html .player-panel{ gap: 5px; padding: 2px 7px 2px 2px; border-radius: 8px; }
-    html .pp-avatar{ --size: 22px; }
-    html .pp-name{ font-size: 11px; max-width: 96px; }
-    html .pp-chip{ font-size: 9px; padding: 2px 4px; }
-    html .pp-meta{ gap: 2px; }
-    html .player-panel.top{ top: 1px; }
+    html.stage .player-panel{ gap: 5px; padding: 2px 7px 2px 2px; border-radius: 8px; }
+    html.stage .pp-avatar{ --size: 22px; }
+    html.stage .pp-name{ font-size: 11px; max-width: 96px; }
+    html.stage .pp-chip{ font-size: 9px; padding: 2px 4px; }
+    html.stage .pp-meta{ gap: 2px; }
+    html.stage .player-panel.top{ top: 1px; }
     /* Karşı ve kendi kartı: sıra gelince çıkan süre halkasıyla kartın kenarı arasında boşluk */
-    html .player-panel.top, html .game-container .player-panel.current-player{ padding: 4px 8px 4px 4px; }
-    html .player-panel.left, html .player-panel.right{ width: 40px; padding: 4px 2px; gap: 2px; }
-    html .player-panel.left{ left: 3px; }
-    html .player-panel.right{ right: 3px; }
-    html .player-panel.left .pp-name, html .player-panel.right .pp-name{ font-size: 9px; }
-    html .player-panel.left .pp-chip, html .player-panel.right .pp-chip{ font-size: 8px; padding: 1px 2px; }
+    html.stage .player-panel.top, html.stage .game-container .player-panel.current-player{ padding: 4px 8px 4px 4px; }
+    html.stage .player-panel.left, html.stage .player-panel.right{ width: 40px; padding: 4px 2px; gap: 2px; }
+    html.stage .player-panel.left{ left: 3px; }
+    html.stage .player-panel.right{ right: 3px; }
+    html.stage .player-panel.left .pp-name, html.stage .player-panel.right .pp-name{ font-size: 9px; }
+    html.stage .player-panel.left .pp-chip, html.stage .player-panel.right .pp-chip{ font-size: 8px; padding: 1px 2px; }
 
     /* Üst bant: ayarlar ve sohbet solda; cezalar, el ve tabela sağda */
-    html .settings{ left: 3px; top: 2px; }
-    html .settings-toggle, html .top-right-tools .scoreboard-toggle{ width: 28px; height: 28px; border-radius: 8px; }
-    html .top-right-tools{ top: 2px; right: 3px; gap: 4px; }
-    html .round-chip{ height: 28px; font-size: 11px; padding: 0 8px; border-radius: 8px; }
-    html .round-chip .hugo-tag{ font-size: 9px; padding: 2px 4px; }
+    html.stage .settings{ left: 3px; top: 2px; }
+    html.stage .settings-toggle, html.stage .top-right-tools .scoreboard-toggle{ width: 28px; height: 28px; border-radius: 8px; }
+    html.stage .top-right-tools{ top: 2px; right: 3px; gap: 4px; }
+    html.stage .round-chip{ height: 28px; font-size: 11px; padding: 0 8px; border-radius: 8px; }
+    html.stage .round-chip .hugo-tag{ font-size: 9px; padding: 2px 4px; }
 
     /* Sohbet ve ceza kaydı: sol alt / sağ alt köşede simge (Chat.css, PenaltyLog.css) */
 
     /* Masa */
-    html .game-container .game-board{ border-radius: var(--board-r) var(--board-r) 0 0; }
-    html .open-sets-top{ top: 6px; }
-    html .open-sets-bottom{ bottom: 6px; }
-    html .open-sets-left{ left: calc(6% + 5px); }
-    html .open-sets-right{ right: calc(6% + 5px); }
-    html .open-sets-list, 
-    html .open-sets-bottom .open-sets-list, 
-    html .open-sets-top .open-sets-list{ gap: 4px 8px; }
-    html .open-set-group{ padding: 1px; gap: 1px; }
+    html.stage .game-container .game-board{ border-radius: var(--board-r) var(--board-r) 0 0; }
+    html.stage .open-sets-top{ top: 6px; }
+    html.stage .open-sets-bottom{ bottom: 6px; }
+    html.stage .open-sets-left{ left: calc(6% + 5px); }
+    html.stage .open-sets-right{ right: calc(6% + 5px); }
+    html.stage .open-sets-list, html.stage .open-sets-bottom .open-sets-list, html.stage .open-sets-top .open-sets-list{ gap: 4px 8px; }
+    html.stage .open-set-group{ padding: 1px; gap: 1px; }
     /* Yanlarda tek sütun (layout.css): perler alt alta, dikeyde ortalı */
-    html .open-sets-left .open-sets-list, html .open-sets-right .open-sets-list,
-    html .open-sets-area.open-sets-left, html .open-sets-area.open-sets-right{ gap: 4px; }
+    html.stage .open-sets-left .open-sets-list, html.stage .open-sets-right .open-sets-list, html.stage .open-sets-area.open-sets-left, html.stage .open-sets-area.open-sets-right{ gap: 4px; }
     /* Köşe alanı telefonda büyümez (yan perlere değmesin); hamle sırasında yalnızca kenarlığı belirginleşir */
-    html .tile-drop-zone, html .tile-drop-zone.active{
+    html.stage .tile-drop-zone, html.stage .tile-drop-zone.active{
         width: calc(var(--tile-w) + 8px);
         height: calc(var(--tile-h) + 8px);
         border-radius: 6px;
     }
-    html .tile-drop-zone.top-left, html .tile-drop-zone.top-right{ top: 6px; }
-    html .tile-drop-zone.bottom-left, html .tile-drop-zone.bottom-right{ bottom: 6px; }
-    html .tile-drop-zone.top-left, html .tile-drop-zone.bottom-left{ left: 6px; }
-    html .tile-drop-zone.top-right, html .tile-drop-zone.bottom-right{ right: 6px; }
-    html .center-area .center-tiles{ gap: 3px; }
-    html .kustu-btn{ font-size: 10px; padding: 6px 2px; }
+    html.stage .tile-drop-zone.top-left, html.stage .tile-drop-zone.top-right{ top: 6px; }
+    html.stage .tile-drop-zone.bottom-left, html.stage .tile-drop-zone.bottom-right{ bottom: 6px; }
+    html.stage .tile-drop-zone.top-left, html.stage .tile-drop-zone.bottom-left{ left: 6px; }
+    html.stage .tile-drop-zone.top-right, html.stage .tile-drop-zone.bottom-right{ right: 6px; }
+    html.stage .center-area .center-tiles{ gap: 3px; }
+    html.stage .kustu-btn{ font-size: 10px; padding: 6px 2px; }
 
     /* Tabela ve el sonu: kısa ekranda kaydırılabilir */
-    html .tabela{ max-height: calc(100dvh - 16px); padding: 12px 14px 10px 40px; }
-    html .tabela-title{ font-size: 22px; }
-    html .tabela-table{ font-size: 15px; }
-    html .tabela-table tbody th img{ width: 22px; height: 22px; }
-    html .scoreboard-modal.scoreboard-kiraathane{ max-height: calc(100dvh - 16px); padding: 10px 12px; }
-    html .scoreboard-table th, html .scoreboard-table td{ padding: 3px 8px; font-size: 12px; }
-    html .game-toasts{ top: 36px; gap: 4px; }
-    html .game-toast{ font-size: 0.85rem; padding: 6px 12px; }
-}
+    html.stage .tabela{ max-height: calc(var(--stage-h, 100dvh) - 16px); padding: 12px 14px 10px 40px; }
+    html.stage .tabela-title{ font-size: 22px; }
+    html.stage .tabela-table{ font-size: 15px; }
+    html.stage .tabela-table tbody th img{ width: 22px; height: 22px; }
+    html.stage .scoreboard-modal.scoreboard-kiraathane{ max-height: calc(var(--stage-h, 100dvh) - 16px); padding: 10px 12px; }
+    html.stage .scoreboard-table th, html.stage .scoreboard-table td{ padding: 3px 8px; font-size: 12px; }
+    html.stage .game-toasts{ top: 36px; gap: 4px; }
+    html.stage .game-toast{ font-size: 0.85rem; padding: 6px 12px; }
+
 
 /* Telefon dikey tutulurken oyun ekranı: yatay çevirme uyarısı */
 .rotate-hint {

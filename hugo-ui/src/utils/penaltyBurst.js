@@ -1,6 +1,7 @@
 // İşleme cezası: işlenen taş yerine oturunca taşın üst kenarından kırmızı kıvılcımlar ve ceza değeri yukarı doğru büyüyerek
 // çıkar, sonra söner. Üstten gelen bildirimin yerine geçer (masadaki herkes görür). Boyut taştan küçük, süre kısa.
 import { incomingTiles } from './flyTiles';
+import { stageRoot, toStage } from './stage';
 
 const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 const SPARKS = 16;
@@ -23,7 +24,8 @@ export const penaltyBurst = (tileIds, amount) => {
     requestAnimationFrame(wait);
 };
 
-const burst = (r, amount) => {
+const burst = (rV, amount) => {
+    const r = toStage(rV);
     const root = document.createElement('div');
     root.className = 'penalty-burst';
     root.setAttribute('aria-hidden', 'true');
@@ -48,6 +50,6 @@ const burst = (r, amount) => {
             root.appendChild(s);
         }
     }
-    document.body.appendChild(root);
+    stageRoot().appendChild(root);
     setTimeout(() => root.remove(), 1650);
 };

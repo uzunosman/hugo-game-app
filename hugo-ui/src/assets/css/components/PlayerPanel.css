@@ -138,13 +138,13 @@
 }
 
 @media (max-width: 640px) {
-    .player-panel { gap: 5px; padding: 3px 7px 3px 3px; border-radius: 9px; }
-    .pp-avatar { --size: 24px; }
-    .pp-name { font-size: 11px; max-width: 90px; }
-    .pp-chip { font-size: 9px; padding: 2px 3px; }
-    .player-panel.left, .player-panel.right { width: 46px; padding: 4px 2px; }
-    .player-panel.left .pp-name, .player-panel.right .pp-name { font-size: 9px; }
-    .pp-bot { font-size: 7px; padding: 1px 2px; right: -6px; }
+    html:not(.stage) .player-panel{ gap: 5px; padding: 3px 7px 3px 3px; border-radius: 9px; }
+    html:not(.stage) .pp-avatar{ --size: 24px; }
+    html:not(.stage) .pp-name{ font-size: 11px; max-width: 90px; }
+    html:not(.stage) .pp-chip{ font-size: 9px; padding: 2px 3px; }
+    html:not(.stage) .player-panel.left, html:not(.stage) .player-panel.right{ width: 46px; padding: 4px 2px; }
+    html:not(.stage) .player-panel.left .pp-name, html:not(.stage) .player-panel.right .pp-name{ font-size: 9px; }
+    html:not(.stage) .pp-bot{ font-size: 7px; padding: 1px 2px; right: -6px; }
 }
 
 /* Aksiyon butonları konteyneri */
@@ -208,11 +208,11 @@
 }
 
 @media (max-width: 640px) {
-    .action-buttons {
+    html:not(.stage) .action-buttons{
         bottom: calc(var(--tileholder-h, 100px) + 44px);
     }
 
-    .open-hand-btn {
+    html:not(.stage) .open-hand-btn{
         font-size: 11px;
         padding: 5px 12px;
     }
@@ -232,7 +232,7 @@
     bottom: calc(100% + 8px);
     left: 50%;
     width: max-content;
-    max-width: min(220px, 40vw);
+    max-width: min(220px, calc(var(--stage-w, 100vw) * 0.4));
     padding: 6px 10px;
     border-radius: 12px;
     background: #fff;
@@ -282,14 +282,14 @@
     .pp-bubble { animation: pp-bubble-fade 3.5s linear forwards; }
     @keyframes pp-bubble-fade { 0%, 90% { opacity: 1; } 100% { opacity: 0; } }
 }
-@media (orientation: landscape) and (max-height: 500px) {
-    .pp-bubble { font-size: 11px; padding: 4px 8px; max-width: min(180px, 34vw); }
-}
+/* sahne (html.stage): eskiden yalnızca telefon yatayda */
+    html.stage .pp-bubble{ font-size: 11px; padding: 4px 8px; max-width: min(180px, calc(var(--stage-w, 100vw) * 0.34)); }
+
 /* Telefonda kendi kartın sol altta: balon ekrandan taşmasın diye sola yaslı */
-@media (orientation: landscape) and (max-height: 500px) {
-    .player-panel.current-player .pp-bubble { left: 0; --bx: 0; }
-    .player-panel.current-player .pp-bubble::after { left: 18px; }
-}
+/* sahne (html.stage): eskiden yalnızca telefon yatayda */
+    html.stage .player-panel.current-player .pp-bubble{ left: 0; --bx: 0; }
+    html.stage .player-panel.current-player .pp-bubble::after{ left: 18px; }
+
 
 /* Açılış değeri rozeti: dizme düğmesi gibi koyu, ince çerçeveli küçük taş; üstte seri (3-4-5) ya da çift (5-5) yelpazesi,
    hemen altında açılış sayısı (belirgin). Kuzey ve güneyde kartın solunda, doğu ve batıda kartın üstünde: orta alanı daraltmaz */

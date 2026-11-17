@@ -352,7 +352,6 @@ export const arrangeTiles = (tiles, mode, okeyTile, isHugo) => {
     const wild = played.filter(t => isOkeyTile(t, okeyTile, isHugo) || typeof t.value !== 'number');
     const plain = played.filter(t => !wild.includes(t));
 
-    const byColor = (a, b) => colorIdx(a) - colorIdx(b) || a.value - b.value;
     const bySmallestLast = (a, b) => b.value - a.value || colorIdx(a) - colorIdx(b); // büyükten küçüğe: en küçük sonda
 
     // Çift diz: aynı taşları yan yana; okeyler en değerli tek taşla eşleşir

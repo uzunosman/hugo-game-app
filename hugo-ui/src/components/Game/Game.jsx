@@ -17,6 +17,7 @@ import '../../assets/css/layout.css';
 import '../../assets/css/mobile.css';
 import RotateHint from '../RotateHint/RotateHint';
 import SeatSwitcher from '../Lab/SeatSwitcher';
+import { enterStage } from '../../utils/stage';
 
 /**
  * Ana Oyun bileşeni
@@ -56,6 +57,9 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
     const isGameOver = roundEndResults?.gameStatus === 'finished';
     // El sonu / oyun sonu ekranı son atılan taşın uçuşu bitince gelir
     const [summaryReady, setSummaryReady] = useState(false);
+    // Oyun ekranı sabit sahnede (750×390) çizilir, her cihazda aynı görünür (utils/stage.js)
+    useEffect(() => enterStage(), []);
+
     useEffect(() => {
         setSummaryReady(false);
         if (!roundEndResults) return;

@@ -54,6 +54,14 @@
 - Yönetim ekranı: https://hugola.io/admin (masaları canlı izle, kapat, duyuru, günlük istatistik, sorunlar). Veriler Socket.IO
   `admin:*` isteklerinden; anahtar `/var/lib/hugo/admin-token` (ya da `ADMIN_TOKEN`). Sunucu: `src/utils/Admin.ts`, arayüz: `components/Admin`.
 
+## Ekran (sahne)
+- Oyun ekranı her cihazda aynı: referans kullanıcının iPhone 14'ü, ana ekran uygulaması yatay = 750×390 CSS px. Ekran bu
+  ölçüde çizilir (`html.stage`, `utils/stage.js`) ve görünen alana orantılı sığdırılır; oranı farklı ekranda kenarda masa
+  rengi boşluk kalır. Telefon yatay tasarımı (`mobile.css`, eskiden media query) artık hep `html.stage` altında.
+- Yeni oyun ekranı CSS'inde `vw` / `dvh` yerine `var(--stage-w)` / `var(--stage-h)`; gövdeye eklenen kopyalar (uçan taş vb.)
+  `stageRoot()`'a eklenir, ekran koordinatı `toStage()` ile çevrilir.
+- Tasarım değişikliğinde kullanıcıyı farklı cihazlarda nasıl görüneceği konusunda uyar (Android, küçük / büyük iPhone, tablet).
+
 ## Dikkat
 - Animasyonlar `utils/flyTiles.js` (`PLACE_MS`): işlenen taş bırakıldığı / ıstakadaki yerden pere süzülür (sürükleyerek
   işlemede per taş oturana kadar büyük kalır: `holdSet`); diğer oyuncunun çektiği taş desteden / yerden kartına uçar

@@ -95,8 +95,8 @@
 
 /* Dar ekran: butonlar küçülür, ortadaki oyuncu paneline binmez */
 @media (max-width: 640px) {
-    .rack-tools { gap: 4px; }
-    .rack-tool-btn { font-size: 0.65rem; padding: 4px 7px; }
+    html:not(.stage) .rack-tools{ gap: 4px; }
+    html:not(.stage) .rack-tool-btn{ font-size: 0.65rem; padding: 4px 7px; }
 }
 
 /* Basılı tutulan per: kalkık ve çerçeveli (sürükleyince ıstakadan kalkar) */

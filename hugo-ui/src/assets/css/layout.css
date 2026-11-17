@@ -19,7 +19,7 @@
     --set-tile-font: 21px;
 }
 @media (max-width: 640px) {
-    :root {
+    html:not(.stage){
         --top-band: 34px;
         --side-band: 50px;
         --self-band: 66px; /* dar ekranda butonlar kartın üstüne ikinci satıra iner */
@@ -71,7 +71,7 @@
 /* Yan oyuncular ekranın değil masanın dikey ortasında */
 .player-panel.top { top: 3px; }
 .player-panel.left,
-.player-panel.right { top: calc((var(--top-band) + 100dvh - var(--rack-h) - var(--self-band)) / 2); }
+.player-panel.right { top: calc((var(--top-band) + var(--stage-h, 100dvh) - var(--rack-h) - var(--self-band)) / 2); }
 .player-panel.left { left: 4px; }
 .player-panel.right { right: 4px; }
 
@@ -175,27 +175,27 @@
 
 /* ── Mobil: aksiyonlar kartın üstünde ortalanır, dizme butonları sağ kenarda ── */
 @media (max-width: 640px) {
-    .game-container .game-board { border-radius: 12px; }
-    .action-buttons {
+    html:not(.stage) .game-container .game-board{ border-radius: 12px; }
+    html:not(.stage) .action-buttons{
         right: auto;
         left: 50%;
         transform: translateX(-50%);
         bottom: calc(var(--rack-h) + 36px);
     }
-    .player-panel.current-player { max-width: 52vw; }
-    .tile-holder-container .rack-tools {
+    html:not(.stage) .player-panel.current-player{ max-width: 52vw; }
+    html:not(.stage) .tile-holder-container .rack-tools{
         left: auto;
         right: 8px;
         bottom: calc(var(--rack-h) + 12px);
         flex-direction: column;
         gap: 4px;
     }
-    .round-chip { height: 32px; font-size: 12px; padding: 0 8px; }
-    .top-right-tools { top: 2px; right: 2px; gap: 4px; }
-    .top-right-tools .scoreboard-toggle { width: 32px; height: 32px; }
-    .player-panel.left { left: 2px; }
-    .player-panel.right { right: 2px; }
-    .player-panel.top { top: 2px; }
+    html:not(.stage) .round-chip{ height: 32px; font-size: 12px; padding: 0 8px; }
+    html:not(.stage) .top-right-tools{ top: 2px; right: 2px; gap: 4px; }
+    html:not(.stage) .top-right-tools .scoreboard-toggle{ width: 32px; height: 32px; }
+    html:not(.stage) .player-panel.left{ left: 2px; }
+    html:not(.stage) .player-panel.right{ right: 2px; }
+    html:not(.stage) .player-panel.top{ top: 2px; }
 }
 
 /* ── Köşe taş atma alanları: ince ve sakin; yalnızca hamle sırasında belirginleşir ── */
@@ -269,7 +269,7 @@
     flex-wrap: wrap;
     gap: 2px;
     width: max-content;
-    max-width: min(60vw, calc(var(--set-tile-w) * 12 + 22px));
+    max-width: min(calc(var(--stage-w, 100vw) * 0.6), calc(var(--set-tile-w) * 12 + 22px));
     padding: 4px;
     border-radius: 6px;
     background: rgba(0, 0, 0, 0.45);
@@ -572,3 +572,24 @@ html[data-ui="kiraathane"] { --board-bg: #5a3420; }
 html[data-ui="gece"] { --board-bg: #17224a; }
 html[data-ui="cini"] { --board-bg: #1d3f8f; }
 html[data-ui="karatahta"] { --board-bg: #a77a3f; }
+
+/* ══ Sahne: oyun ekranı her cihazda aynı. Referans iPhone 14 ana ekran uygulaması yatay (750×390 CSS px); ekran bu
+   ölçüde çizilir ve görünen alana orantılı sığdırılır (--stage-s, utils/stage.js). Oranı farklı ekranlarda kenarlarda
+   masa rengi boşluk kalır. position: fixed alt öğeler sahneye göre konumlanır (transform kapsayıcı olur) ══ */
+html.stage, html.stage body { background: var(--primary-bg, #0097b2); overflow: hidden; }
+html.stage .game-container {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    width: var(--stage-w);
+    height: var(--stage-h);
+    transform: translate(-50%, -50%) scale(var(--stage-s, 1));
+    transform-origin: center center;
+}
+/* Ayarlar düğmesi oyun sahnesinin dışında çizilir: sahnenin sol üst köşesine, sahneyle aynı ölçekte yerleşir */
+html.stage body .settings { /* telefon kuralını (mobile.css) ezer */
+    left: calc(50% - var(--stage-w) * var(--stage-s, 1) / 2 + 3px * var(--stage-s, 1));
+    top: calc(50% - var(--stage-h) * var(--stage-s, 1) / 2 + 2px * var(--stage-s, 1));
+    transform: scale(var(--stage-s, 1));
+    transform-origin: 0 0;
+}

@@ -24,7 +24,7 @@
     position: fixed; z-index: 120;
     /* sol üst, ayar düğmesinin sağı: ortadaki üst oyuncu kartını kapatmaz */
     top: calc(6px + env(safe-area-inset-top, 0px)); left: calc(64px + env(safe-area-inset-left, 0px));
-    max-width: min(460px, calc(50vw - 120px));
+    max-width: min(460px, calc(var(--stage-w, 100vw) / 2 - 110px)); /* karşı oyuncunun kartına değmesin */
     background: rgba(20, 28, 30, 0.88); color: #fff;
     border: 1px solid #f2b84b; border-radius: 10px;
     padding: 4px 6px; font: 500 11px/1.2 system-ui, sans-serif;

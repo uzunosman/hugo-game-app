@@ -25,7 +25,7 @@
 /* Mobil: tile boyutlarını ekran genişliğine göre dinamik hesapla
    Formül: (100vw - tile-holder padding 10px - gap toplamı 14px) / 15 sütun */
 @media (max-width: 640px) {
-    :root {
+    html:not(.stage){
         --tile-w: calc((100vw - 24px) / 15);
         --tile-h: calc(var(--tile-w) * 1.5);
         --tile-font: calc(var(--tile-w) * 0.52);

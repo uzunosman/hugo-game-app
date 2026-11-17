@@ -42,7 +42,7 @@
     /* Istakanın sağından ekranın sağına, masanın altından ekranın altına */
     left: calc(4px + env(safe-area-inset-left, 0px));
     right: calc(50% + var(--rack-w) / 2 + 4px); /* ıstakanın solu: aksiyon düğmelerinin üstüne gelebilir */
-    top: calc(100dvh - var(--rack-h) - var(--self-band, 0px)); /* masanın alt kenarından (düğmenin hemen altından) */
+    top: calc(var(--stage-h, 100dvh) - var(--rack-h) - var(--self-band, 0px)); /* masanın alt kenarından (düğmenin hemen altından) */
     max-height: calc(var(--rack-h) + var(--self-band, 0px) - 6px);
     margin: 0;
     padding: 4px 6px;
