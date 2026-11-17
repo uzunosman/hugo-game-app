@@ -10,7 +10,7 @@ CONF=/etc/hugo
 [ -f /opt/hugo/deploy/traefik/Caddyfile.staging ] || { echo "Önce yeni sürüm prod'a deploy edilmeli (Caddyfile.staging yok)"; exit 1; }
 
 # Kod klasörü: deploy kullanıcısı yazar (./deploy/update.sh --staging)
-install -d -o deploy -g deploy /opt/hugo-staging/hugo-ui/dist
+install -d -o deploy -g deploy /opt/hugo-staging /opt/hugo-staging/hugo-ui /opt/hugo-staging/hugo-ui/dist
 
 # Giriş parolası: sunucuda üretilir, yalnızca bir kez gösterilir
 if [ ! -f "$CONF/staging-auth.env" ]; then

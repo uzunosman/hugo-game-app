@@ -1,15 +1,17 @@
 import crypto from 'crypto';
+import { v4 as uuidv4 } from 'uuid';
 import { Server, Socket } from 'socket.io';
 import { GameManager } from '../utils/GameManager';
 import { config } from '../config/config';
 import { Game, GameStatus, Penalty, SetKind, TurnAction } from '../models/Game';
 import { Tile } from '../models/Tile';
 import { Player } from '../models/Player';
-import { RoomStatus } from '../models/Room';
+import { Room, RoomStatus } from '../models/Room';
 import { appendArchive, saveState } from '../utils/Persistence';
 import { planOpening, planSets } from '../ai/AiPlanner';
 import { dayOf, dealSnapshot, findTile, logEvent, tileLabel } from '../utils/EventLog';
 import { checkToken, days, problems, statsOf, tableEvents } from '../utils/Admin';
+import { applyScenario, findScenario, listScenarios } from '../lab/scenario';
 
 const BOT_NAMES = ['Robo Rıza', 'Robo Nur', 'Robo Can', 'Robo Ece'];
 const CHAT_MAX_LEN = 200;
@@ -80,6 +82,9 @@ export const setupSocketHandlers = (io: Server) => {
             turnTimers.set(roomId, setTimeout(() => botTurn(roomId, game, current.id), think));
             return;
         }
+        // Test senaryosu masası: süre kapalıysa kimse otomatik oynamaz (koltuklar seat switcher ile oynanır)
+        const room = gameManager.getRoomById(roomId);
+        if (room?.labScenario && !room.labTimer) { turnDeadlines.delete(roomId); return; }
         const ms = overrideMs ?? (current.connected ? config.game.turnTimeout : config.game.disconnectedTurnTimeout);
         turnDeadlines.set(roomId, Date.now() + ms);
         turnTimers.set(roomId, setTimeout(() => autoPlay(roomId, game, current.id), ms));
@@ -397,6 +402,14 @@ export const setupSocketHandlers = (io: Server) => {
         if (room.game?.status === GameStatus.FINISHED && room.status === RoomStatus.PLAYING) resetRoomLater(room.id, room.game);
     });
 
+    // Admin anahtarı bağlantıda da verilebilir (handshake auth). Staging'e yalnızca admin bağlanır (parola korumasının ikinci katı)
+    io.use((socket, next) => {
+        const given = socket.handshake.auth?.adminToken;
+        if (given && checkToken(given)) socket.data.admin = true;
+        if (config.appEnv === 'staging' && !socket.data.admin) return next(new Error('admin-required'));
+        next();
+    });
+
     io.on('connection', (socket: Socket) => {
         console.log(`Yeni bağlantı: ${socket.id}`);
         logEvent('baglanti', { soket: socket.id, ua: String(socket.handshake.headers['user-agent'] || '').slice(0, 160) });
@@ -549,6 +562,73 @@ export const setupSocketHandlers = (io: Server) => {
             if (!text) throw new Error('Boş duyuru');
             logEvent('yonetim', { islem: 'duyuru', text });
             io.emit('server:announce', { text });
+            return {};
+        });
+
+        // Lab (test senaryoları): yalnızca staging / yerel ortamda ve admin için. Seat switcher ile admin masadaki
+        // herhangi bir koltuğa geçip o oyuncu yerine oynar, sohbete yazar.
+        const lab = (event: string, fn: (data: any) => unknown) => admin(event, (d) => {
+            if (!config.lab) throw new Error('Yalnızca test ortamında');
+            return fn(d);
+        });
+        const labRoom = (roomId: unknown) => {
+            const room = gameManager.getRoomById(String(roomId));
+            if (!room?.labScenario) throw new Error('Test masası değil');
+            return room;
+        };
+        const takeSeat = (room: Room, target: Player) => {
+            if (target.isBot) throw new Error('Yapay zekâ koltuğuna geçilemez');
+            const prev = gameManager.getPlayerBySocketId(socket.id);
+            if (prev && prev.id !== target.id) { gameManager.updatePlayerSocket(prev.id, `lab:${uuidv4()}`); }
+            gameManager.updatePlayerSocket(target.id, socket.id);
+            target.connected = true;
+            socket.join(room.id);
+            return { player: target.toJSON(), token: issueToken(target), room: room.toJSON() };
+        };
+        const labChat = (room: Room, chat: { seat: number; text: string }[] = []) => chatLogs.set(room.id, chat.map((c, i) => {
+            const p = room.players[c.seat] || room.players[0];
+            return { id: `lab-${i}`, playerId: p.id, name: p.name, text: String(c.text).slice(0, CHAT_MAX_LEN), ts: Date.now() - (chat.length - i) * 1000 };
+        }));
+        lab('lab:scenarios', () => ({ scenarios: listScenarios().map(({ id, title, description }) => ({ id, title, description })) }));
+        lab('lab:start', (d) => {
+            const s = findScenario(String(d?.id));
+            if (!s) throw new Error('Senaryo yok');
+            const seats = s.seats.map(seat => {
+                const p = gameManager.createPlayer(String(seat.name).slice(0, 20), `lab:${uuidv4()}`);
+                p.isBot = !!seat.bot;
+                p.connected = true;
+                p.setReady(true);
+                return p;
+            });
+            const room = gameManager.createRoom(`Test: ${s.title || s.id}`, seats[0].id)!;
+            seats.slice(1).forEach(p => gameManager.addPlayerToRoom(p.id, room.id));
+            room.labScenario = s.id!;
+            room.labTimer = !!s.timer;
+            try { applyScenario(room, s); } catch (error) { closeRoom(room.id, 'Senaryo yüklenemedi'); throw error; }
+            room.status = RoomStatus.PLAYING;
+            labChat(room, s.chat);
+            logEvent('yonetim', { islem: 'senaryo', senaryo: s.id, masa: room.no });
+            const seat = takeSeat(room, room.players.find(p => !p.isBot) || room.players[0]);
+            broadcastRooms();
+            scheduleTurn(room.id, room.game!);
+            return seat;
+        });
+        lab('lab:takeSeat', (d) => {
+            const target = gameManager.getPlayerById(String(d?.playerId));
+            if (!target?.roomId) throw new Error('Oyuncu yok');
+            return takeSeat(labRoom(target.roomId), target);
+        });
+        // Sıfırla: aynı senaryo aynı masada baştan kurulur; masadakiler ekranı yeniden alır
+        lab('lab:reset', (d) => {
+            const room = labRoom(d?.roomId);
+            const s = findScenario(room.labScenario!);
+            if (!s) throw new Error('Senaryo yok');
+            clearTimeout(turnTimers.get(room.id));
+            applyScenario(room, s);
+            room.status = RoomStatus.PLAYING;
+            labChat(room, s.chat);
+            io.to(room.id).emit('lab:reset', { roomId: room.id });
+            scheduleTurn(room.id, room.game!);
             return {};
         });
 

@@ -1122,7 +1122,7 @@ export class Game {
     }
 
     // Açılış/indirme grubunu türüne göre doğrula; 0 = geçersiz
-    private validateGroup(tiles: Tile[], kind: SetKind): number {
+    validateGroup(tiles: Tile[], kind: SetKind): number {
         return kind === 'cift' ? this.validatePairTiles(tiles) : this.validateSetTiles(tiles);
     }
 

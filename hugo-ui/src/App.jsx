@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import Lobby from './components/Lobby/Lobby'
 import Room from './components/Room'
 import socketService from './services/socketService'
+import AdminGate from './components/Lab/AdminGate'
 import './assets/css/global.css';
 import './assets/css/components/Screens.css';
 
@@ -28,6 +29,16 @@ function App() {
   const [restoring, setRestoring] = useState(() => !!socketService.savedSession())
   // Bağlantı geri gelince artar: oda/oyun ekranı sunucudaki güncel durumla yeniden kurulur
   const [syncKey, setSyncKey] = useState(0)
+  // Staging: sunucu admin anahtarı istedi (kaç kez reddedildi; bağlanınca 0)
+  const [adminRequired, setAdminRequired] = useState(0)
+
+  useEffect(() => {
+    const ask = () => setAdminRequired(n => n + 1)
+    const ok = () => setAdminRequired(0)
+    window.addEventListener('hugo:adminRequired', ask)
+    socketService.connect().on('connect', ok)
+    return () => { window.removeEventListener('hugo:adminRequired', ask); socketService.socket?.off('connect', ok) }
+  }, [])
 
   useEffect(() => {
     socketService.connect()
@@ -51,6 +62,8 @@ function App() {
       setRestoring(false)
     })
   }, [])
+
+  if (adminRequired) return <AdminGate retry={adminRequired} />
 
   if (restoring) {
     return <div className="screen"><p className="screen-note">Oturum geri yükleniyor…</p></div>

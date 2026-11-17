@@ -1,0 +1,22 @@
+{
+  "title": "Çift açma ve çift işleme",
+  "description": "1) Sen: desteden çek, çiftlerinle (13, 12, 11) aç, iki sarı 9'u Ayşe'nin çiftlerine işle, bir taş at. 2) Koltuk değiştir → Ayşe: çek, iki siyah 1'i senin çiftlerine işle, taş at. Ayşe çiftle 56 açmış; senin açılışın en az 57 olmalı.",
+  "round": 2,
+  "indicator": "r6",
+  "seats": [
+    { "name": "Sen", "hand": ["r13", "r13", "b12", "b12", "k11", "k11", "y9", "y9", "b3", "y5", "k8", "r2", "b1", "y2"] },
+    { "name": "Ayşe", "hand": ["k1", "k1", "b11", "y7", "r10", "r12"] },
+    { "name": "Mehmet", "hand": ["b2", "b4", "b6", "b9", "y1", "y3", "y4", "y6", "k2", "k3", "k4", "k5", "r1", "r3"] },
+    { "name": "Zeynep", "hand": ["b5", "b7", "b10", "b13", "y8", "y11", "y12", "y13", "k7", "k9", "k10", "k12", "r5", "r8"] }
+  ],
+  "tableSets": [
+    { "owner": 1, "kind": "cift", "tiles": ["y10", "y10"] },
+    { "owner": 1, "kind": "cift", "tiles": ["b8", "b8"] },
+    { "owner": 1, "kind": "cift", "tiles": ["k6", "k6"] },
+    { "owner": 1, "kind": "cift", "tiles": ["r4", "r4"] }
+  ],
+  "discards": [{ "owner": 3, "tile": "r11" }],
+  "deckTop": ["k13"],
+  "turn": 0,
+  "action": "draw"
+}

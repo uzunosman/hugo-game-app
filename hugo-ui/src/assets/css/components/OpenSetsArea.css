@@ -106,6 +106,10 @@
 
 .open-sets-left .open-set-group.expanded { transform-origin: left center; }
 .open-sets-right .open-set-group.expanded { transform-origin: right center; }
+/* Sürükleyerek işlenen taş yerine oturana kadar per büyük kalır (utils/flyTiles.js holdSet), sonra taşla birlikte küçülür */
+.open-set-group[data-hold] { transform: scale(1.5); z-index: 10; }
+.open-sets-left .open-set-group[data-hold] { transform-origin: left center; }
+.open-sets-right .open-set-group[data-hold] { transform-origin: right center; }
 
 /* ── Insertion slot ───── */
 .insertion-slot {

@@ -25,7 +25,8 @@
 - Kural değişikliğinde `hugo-server/src/models/Rules.selftest.ts` içine test ekle.
 
 ## Canlıya alma
-- Commit, push ve deploy yalnızca kullanıcı açıkça "canlıya al" / "deploy et" dediğinde.
+- Commit, push ve prod deploy yalnızca kullanıcı açıkça "canlıya al" / "deploy et" dediğinde. Staging deploy
+  (`./deploy/update.sh --staging`) test için serbest: geliştirme bitince kullanıcı testine hazırlamak için yapılır.
 - `./deploy/update.sh`: kodu VPS'e kopyalar, orada derler, servisi yeniden başlatır; sürüm `v1.<commit sayısı> <hash>` olarak
   ekranın sağ altında görünür. Deploy'dan önce commit at (sürüm numarası commit sayısından gelir).
 - VPS (`ssh hugola`, kullanıcı `deploy`): yalnızca `sudo systemctl restart hugo` yetkisi var; root gerektiren işleri kullanıcı yapar.
@@ -43,11 +44,16 @@
   `/opt/hugo-staging`'e kurar, `hugo-staging` servisi (port 3002, `APP_ENV=staging`, `hugo_staging` DB). Kurulum
   `deploy/staging-setup.sh` (root). Akış: görev → branch → staging → kullanıcı testi → onayda merge + prod deploy
   (`docs/plan-design-test-workflow.md`).
+- Lab (yalnızca staging / yerel, admin anahtarıyla; prod'da kapalı): lobide "Test senaryoları", oyunda koltuk çubuğu
+  (koltuk değiştir, sıfırla, adımlar). Senaryolar `hugo-server/scenarios/*.json` (taş kodları `r5`, `k13`, `j`; biçim
+  `src/lab/scenario.ts`). Her yeni test isteği için bir senaryo yaz; `npm test` her senaryoyu kurar (106 taş kontrolü).
+  Staging'de sunucu admin anahtarsız bağlantıyı reddeder (`admin-required`), arayüz anahtarı sorar.
 - Yönetim ekranı: https://hugola.io/admin (masaları canlı izle, kapat, duyuru, günlük istatistik, sorunlar). Veriler Socket.IO
   `admin:*` isteklerinden; anahtar `/var/lib/hugo/admin-token` (ya da `ADMIN_TOKEN`). Sunucu: `src/utils/Admin.ts`, arayüz: `components/Admin`.
 
 ## Dikkat
-- Oynayan oyuncu kendi işleme ve sürükleyerek atma animasyonunu görmez; diğer oyuncular görür. Çift tıkla atma, yere per açma,
-  desteden / yerden tıklayarak çekme ve ıstakaya bırakma animasyonludur (`PLACE_MS`).
+- Animasyonlar `utils/flyTiles.js` (`PLACE_MS`): işlenen taş bırakıldığı / ıstakadaki yerden pere süzülür (sürükleyerek
+  işlemede per taş oturana kadar büyük kalır: `holdSet`); diğer oyuncunun çektiği taş desteden / yerden kartına uçar
+  (`flyToPlayer`); işleme cezası üstten bildirim yerine taşın üstünde patlar (`utils/penaltyBurst.js`).
 - Istakadan çıkan taş sunucu cevabına kadar gizli kalır; reddedilirse geri kayar (`GameBoard` hide / rejectId).
 - Yapay zekâ adımları arası bekleme `BOT_STEP_MS` (testlerde 0).

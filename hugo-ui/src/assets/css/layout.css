@@ -9,6 +9,7 @@
     --top-band: 46px;
     --side-band: 72px;
     --self-band: 46px;
+    --pp-h: 40px; /* kendi kartının yüksekliği (bant içinde dikey ortalanır) */
     /* Masadaki her taş (açılan perler, atılan taşlar, deste, gösterge) aynı ölçüde */
     --set-tile-w: 36px;
     --set-tile-h: 50px;
@@ -335,45 +336,15 @@
 
 .tile-drop-zone .discard-top .tile.discarded { opacity: 1; } /* üstteki taş saydam değil: alttaki taş içinden görünmez */
 
-/* ══ Alt bant: ıstakanın üstünde süre çizgisi; ıstakanın solunda aksiyon düğmeleri, sağında dizme düğmeleri ve
-   onların üstünde kendi kartın. Düğmeler tek taş boyunda, ıstakaya yapışık, alt alta, arka plansız ══ */
-:root { --rack-w: calc(var(--tile-w, 40px) * 15 + 24px); --turn-bar-h: 2px; --tool-gap: 4px; }
-
-/* Süre çizgisi: yalnızca sıra sendeyken yavaşça belirir; ince, yeşilden kırmızıya, ucunda küçük daire */
-.turn-bar {
-    position: relative;
-    width: var(--rack-w);
-    max-width: 100%;
-    height: var(--turn-bar-h);
-    margin: 1px 0;
-    border-radius: 2px;
-    background: rgba(0, 0, 0, 0.2);
-    opacity: 0;
-    transition: opacity 0.4s ease;
+/* ══ Alt bant: kendi kartın masanın alt ortasında (diğer oyuncular gibi), ıstakanın solunda aksiyon düğmeleri, sağında
+   dizme düğmeleri. Düğmeler ıstaka yüksekliğini dolduran iki büyük taş boyunda, ıstakaya yapışık ══ */
+:root {
+    --rack-w: calc(var(--tile-w, 40px) * 15 + 24px);
+    --tool-gap: 4px;
+    /* Yan düğmeler (dizme / aksiyonlar): ıstaka yüksekliğinde iki düğme üst üste */
+    --side-btn-h: calc((var(--rack-h) - var(--rack-gap, 6px) - 2px - var(--tool-gap)) / 2);
+    --side-btn-w: calc(var(--side-btn-h) * 0.9);
 }
-.turn-bar.is-active { opacity: 1; }
-.turn-bar span {
-    position: absolute;
-    left: 0;
-    top: 0;
-    height: 100%;
-    border-radius: 2px;
-    background: var(--turn-color);
-    transition: width 1s linear, background-color 1s linear;
-}
-.turn-bar span::after {
-    content: '';
-    position: absolute;
-    right: -3px;
-    top: 50%;
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--turn-color);
-    box-shadow: 0 0 4px var(--turn-color);
-    transform: translateY(-50%);
-}
-@media (prefers-reduced-motion: reduce) { .turn-bar, .turn-bar span { transition: none; } }
 
 /* Ortak tek-taş düğmesi (dizme ve aksiyonlar) */
 .game-container .rack-tool-btn,
@@ -394,6 +365,16 @@
 }
 .game-container .rack-tool-btn:active, .game-container .open-hand-btn:active { background: rgba(0, 0, 0, 0.3); }
 .game-container .rack-tool-btn:focus-visible, .game-container .open-hand-btn:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+
+/* Yan düğmeler: tek-taş düğmesinin ölçüleri büyük düğmeye çevrilir (yelpaze ve yazı da büyür) */
+.game-container .tile-holder-container .rack-tools,
+.game-container .action-buttons { --set-tile-w: var(--side-btn-w); --set-tile-h: var(--side-btn-h); }
+.game-container .rack-tools .at-label,
+.game-container .action-buttons .at-label { font-size: max(8px, calc(var(--side-btn-h) * 0.15)); bottom: 3px; }
+.game-container .action-buttons .at-label-2 { line-height: 1.05; }
+.game-container .action-buttons .undo-turn .at-undo { inset: 0 0 38% 0; }
+.at-undo svg { width: 46%; height: auto; }
+.game-container .action-buttons .open-hand-score { font-size: max(9px, calc(var(--side-btn-h) * 0.15)); top: -8px; }
 
 /* Dizme: ıstakanın sağına yapışık */
 .game-container .tile-holder-container .rack-tools {
@@ -419,7 +400,9 @@
     transform: none;
     flex-direction: column-reverse; /* ilk düğme (aç) ıstakanın alt köşesine en yakın */
     align-items: center;
-    flex-wrap: nowrap;
+    flex-wrap: wrap-reverse;        /* üçüncü düğme ikinci sütuna (sola) geçer */
+    height: calc(var(--side-btn-h) * 2 + var(--tool-gap));
+    align-content: flex-start;
     gap: var(--tool-gap);
     max-width: none;
 }
@@ -469,15 +452,17 @@
     color: #fff;
 }
 
-/* Kendi kartın: dizme düğmelerinin üstünde, ıstakanın sağında */
+/* Kendi kartın: masanın alt ortasında, ıstakanın hemen üstünde; karşı oyuncu gibi tek satır */
 .game-container .player-panel.current-player {
-    left: calc(50% + var(--rack-w) / 2 + 3px);
+    left: 50%;
     right: auto;
-    bottom: calc(var(--rack-gap, 6px) + 2px + var(--set-tile-h, 32px) * 2 + var(--tool-gap) + 6px);
-    transform: none;
-    max-width: calc(50% - var(--rack-w) / 2 - 8px);
+    bottom: calc(var(--rack-h) + (var(--self-band) - var(--pp-h, 30px)) / 2);
+    transform: translateX(-50%);
+    max-width: var(--rack-w);
     z-index: 130;
 }
+.game-container .player-panel.current-player .pp-body { flex-direction: row; align-items: center; gap: 6px; }
+.game-container .player-panel.current-player .pp-meta { flex-wrap: nowrap; }
 
 /* Yelpaze: küçük taşlar alt ortadan dönerek açılır, birleşim yerlerinde üst üste biner */
 .rt-fan { position: absolute; inset: 0; }
@@ -515,4 +500,50 @@
     color: rgba(255, 255, 255, 0.45);
     pointer-events: none;
     user-select: none;
+}
+
+/* İşleme cezası patlaması (utils/penaltyBurst.js): taşın üst kenarından kırmızı kıvılcımlar ve değer yükselip söner.
+   Ölçüler taş genişliğine (--w) göre: telefonda da masadaki taştan küçük kalır */
+.penalty-burst { position: fixed; z-index: 600; width: 0; height: 0; pointer-events: none; }
+.pb-value {
+    position: absolute;
+    left: 0;
+    top: 0;
+    padding: 0.18em 0.42em 0.14em;
+    border-radius: 999px;
+    background: #c1121f;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.85), 0 2px 8px rgba(120, 0, 0, 0.45);
+    font: 800 calc(var(--w) * 0.44)/1 system-ui, sans-serif;
+    letter-spacing: -0.01em;
+    color: #fff;
+    white-space: nowrap;
+    animation: pb-rise 1150ms cubic-bezier(.2, .7, .3, 1) both;
+}
+.pb-spark {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: calc(var(--w) * 0.16);
+    height: calc(var(--w) * 0.16);
+    border-radius: 50%;
+    background: #ff3b30;
+    box-shadow: 0 0 4px rgba(255, 70, 60, 0.9);
+    animation: pb-spark 720ms cubic-bezier(.15, .75, .35, 1) both;
+}
+.pb-spark:nth-child(odd) { background: #c1121f; }
+.pb-spark:nth-child(3n) { width: calc(var(--w) * 0.1); height: calc(var(--w) * 0.1); background: #ff8a80; }
+@keyframes pb-rise {
+    0%   { transform: translate(-50%, -40%) scale(0.5); opacity: 0; }
+    14%  { opacity: 1; }
+    70%  { transform: translate(-50%, -190%) scale(1.05); opacity: 1; }
+    100% { transform: translate(-50%, -240%) scale(1.12); opacity: 0; }
+}
+@keyframes pb-spark {
+    0%   { transform: translate(-50%, -50%) scale(0.3); opacity: 1; }
+    60%  { opacity: 1; }
+    100% { transform: translate(calc(-50% + var(--dx) * var(--w) * 1.7), calc(-50% + var(--dy) * var(--w) * 1.7)) scale(var(--s)); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .pb-value { animation: pb-fade 1100ms ease both; transform: translate(-50%, -150%); }
+    @keyframes pb-fade { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
 }

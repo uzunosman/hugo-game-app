@@ -1,10 +1,11 @@
 /* Telefon yatay (kısa ekran): oyun burada oynanır. Taş boyu ekran yüksekliğinden hesaplanır.
    ┌ ayarlar · sohbet ───── karşı oyuncu ───── cezalar · el · tabela ┐
    │sol│                   MASA                                 │sağ│
-   ├ kendi kartın + butonlar │      ISTAKA (15 × 2)     │  dizme  ┤ */
+   ├──────────────────────── kendi kartın ─────────────────────────┤
+   │ aksiyonlar │           ISTAKA (15 × 2)           │  dizme  │ */
 @media (orientation: landscape) and (max-height: 500px) {
     html:root{
-        --tile-h: min(11.5dvh, 46px);
+        --tile-h: min(11dvh, 44px); /* kendi kartın masanın altına geldi: ıstaka biraz küçük */
         --tile-w: calc(var(--tile-h) / 1.5);
         --tile-font: calc(var(--tile-h) * 0.5);
         --tile-pb: calc(var(--tile-h) * 0.22);
@@ -17,7 +18,8 @@
         --tileholder-h: var(--rack-h);
         --top-band: 32px;
         --side-band: 46px;
-        --self-band: 4px; /* kendi kartın ıstakanın solunda: ayrı bant yok */
+        --self-band: 28px; /* kendi kartın: masanın alt ortasında, ıstakanın üstünde */
+        --pp-h: 26px;
         --set-tile-w: calc(var(--tile-w) * 0.7);
         --set-tile-h: calc(var(--tile-h) * 0.7);
         --set-tile-font: calc(var(--tile-h) * 0.34);
@@ -30,34 +32,7 @@
     html .tile-row-divider{ margin: 0; }
     html .tile{ border-radius: 3px; }
 
-    /* Kendi kartın sol altta, aksiyon butonları üstünde (ıstakanın solunda) */
-    html .player-panel.current-player{
-        left: 4px;
-        bottom: 4px;
-        transform: none;
-        max-width: calc((100vw - var(--tile-w) * 15 - 30px) / 2 - 8px);
-    }
-    html .action-buttons{
-        left: 4px;
-        right: auto;
-        bottom: 54px; /* kendi kartının (sıra ipucuyla 47px) üstünde */
-        transform: none;
-        flex-wrap: wrap;
-        gap: 4px;
-        max-width: calc((100vw - var(--tile-w) * 15 - 30px) / 2 - 8px);
-    }
-    html .open-hand-btn{ font-size: 11px; padding: 5px 9px; border-radius: 6px; }
-    html .open-hand-score{ font-size: 10px; padding: 0 4px; }
-
-    /* Dizme butonları sağ altta, alt alta */
-    html .tile-holder-container .rack-tools{
-        left: auto;
-        right: 4px;
-        bottom: 16px; /* sağ alttaki sürüm etiketiyle çakışmasın */
-        flex-direction: column;
-        gap: 4px;
-    }
-    html .rack-tool-btn{ font-size: 11px; padding: 5px 8px; }
+    /* Kendi kartın, aksiyon ve dizme düğmeleri: layout.css (masanın alt ortası, ıstakanın iki yanı) */
 
     /* Oyuncu kartları: küçük avatar, tek satır */
     html .player-panel{ gap: 5px; padding: 2px 7px 2px 2px; border-radius: 8px; }

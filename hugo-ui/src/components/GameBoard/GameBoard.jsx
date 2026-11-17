@@ -5,7 +5,7 @@ import DiscardAreas from '../DiscardAreas/DiscardAreas';
 import OpenSetsArea from '../OpenSetsArea/OpenSetsArea';
 import useBoardDrag from '../../hooks/useBoardDrag';
 import { fitTable } from '../../utils/tableFit';
-import { flyClone, PLACE_MS, rackTileEl, slideFrom, tileOrigins, whenRendered } from '../../utils/flyTiles';
+import { animateOwn, flyClone, holdSet, PLACE_MS, rackTileEl, slideFrom, tileOrigins, whenRendered } from '../../utils/flyTiles';
 import '../../assets/css/components/GameBoard.css';
 
 /**
@@ -54,7 +54,6 @@ const GameBoard = ({
     onWarn,
     canPlaySets,
     canSeeDiscards,
-    turnProgress, // sıra bendeyse kalan sürenin oranı (0-1), değilse null
     rejectId, // hamle reddedildi: gizlenen taş bırakıldığı yerden ıstakaya kayar
     kustuTileId
 }) => {
@@ -136,8 +135,9 @@ const GameBoard = ({
             moveGroup: onGroupMove,
             playGroup: (ids, from) => { if (canDiscardNow) hide(ids, from); onPlayGroup(ids); }, // per masaya sürüklendi: el aç / per indir
             discard, // köşeye atma ile aynı yol (sıra / aşama kontrolü orada)
-            addToSet: (tileId, setId, side, from) => { if (canPlaySets) hide([tileId], from); onAddTileToSet(tileId, setId, side, true); }, // sürükleyerek: kendi ekranında animasyonsuz
-            addPair: (ids, setId, from) => { if (canPlaySets) hide(ids, from); onAddPairToSet(ids, setId); },
+            // Sürükleyerek işleme: taş bırakıldığı yerden perdeki yerine süzülür, per inene kadar büyük kalır
+            addToSet: (tileId, setId, side, from) => { if (canPlaySets) { hide([tileId], from); holdSet(setId); } onAddTileToSet(tileId, setId, side); },
+            addPair: (ids, setId, from) => { if (canPlaySets) { hide(ids, from); ids.forEach(id => animateOwn.add(id)); } onAddPairToSet(ids, setId); },
             kustu: () => onKustu(false), // sürükleyerek kusma: atan oyuncu animasyon görmez
             drawDeck: handleDrawFromDeck,
             drawDiscard: handleDrawDiscardedTile,
@@ -247,7 +247,6 @@ const GameBoard = ({
                     onTileClick={handleTileClick}
                     onTileDoubleClick={(idx) => discard(idx)}
                     hiddenIds={hiddenIds}
-                    turnProgress={turnProgress}
                     selectedTileIndex={selectedTile}
                     dragView={dragView}
                     okeyTile={okeyTile}

@@ -1,0 +1,47 @@
+/* Test ortamı (lab): staging giriş, lobideki senaryo listesi, oyundaki koltuk çubuğu.
+   Amber şerit: oyuncu ekranından ayrı olduğu bir bakışta belli olsun. */
+.lab-gate {
+    display: grid; gap: 12px; width: min(360px, 100%);
+    background: #fffaf0; color: var(--screen-ink, #1d2b2f);
+    padding: 22px; border-radius: 14px; border-top: 6px solid #f2b84b;
+}
+.lab-gate h1 { margin: 0; font-size: 1.3rem; }
+.lab-gate p { margin: 0; }
+.lab-gate input { font: inherit; padding: 10px 12px; border-radius: 10px; border: 1px solid #c9c2b2; }
+.lab-gate-error { color: var(--screen-danger, #b3261e); }
+
+.lab-panel {
+    max-width: 560px; background: #fffaf0; color: var(--screen-ink, #1d2b2f);
+    border-radius: 12px; border-left: 6px solid #f2b84b; padding: 12px 14px;
+}
+.lab-panel h2 { margin: 0 0 8px; font-size: 1rem; }
+.lab-panel ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.lab-panel li { display: flex; gap: 12px; align-items: center; justify-content: space-between; }
+.lab-panel li p { margin: 2px 0 0; font-size: 0.85rem; opacity: 0.8; }
+.lab-panel .btn { flex: none; }
+
+.lab-bar {
+    position: fixed; z-index: 120;
+    /* sol üst, ayar düğmesinin sağı: ortadaki üst oyuncu kartını kapatmaz */
+    top: calc(6px + env(safe-area-inset-top, 0px)); left: calc(64px + env(safe-area-inset-left, 0px));
+    max-width: min(460px, calc(50vw - 120px));
+    background: rgba(20, 28, 30, 0.88); color: #fff;
+    border: 1px solid #f2b84b; border-radius: 10px;
+    padding: 4px 6px; font: 500 11px/1.2 system-ui, sans-serif;
+}
+.lab-bar-row { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+.lab-bar-tag { color: #f2b84b; font-weight: 700; padding: 0 4px; }
+.lab-seat {
+    font: inherit; color: inherit; background: rgba(255, 255, 255, 0.1);
+    border: 1px solid transparent; border-radius: 6px; padding: 4px 8px; cursor: pointer;
+}
+.lab-seat:hover:not(:disabled) { background: rgba(255, 255, 255, 0.2); }
+.lab-seat:focus-visible { outline: 2px solid #f2b84b; outline-offset: 1px; }
+.lab-seat.is-me { background: #f2b84b; color: #1d2b2f; }
+.lab-seat:disabled:not(.is-me) { opacity: 0.45; cursor: default; }
+.lab-bar-steps, .lab-bar-error { margin: 6px 4px 2px; max-width: 420px; font-weight: 400; }
+.lab-bar-error { color: #ffb4a9; }
+@media (orientation: landscape) and (max-height: 500px) {
+    .lab-bar { padding: 2px 4px; font-size: 10px; border-radius: 8px; }
+    .lab-seat { padding: 3px 6px; }
+}

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import socketService from '../../services/socketService';
 import { avatarFor, rememberAvatars } from '../../utils/avatar';
 import ProfileDialog from './ProfileDialog';
+import LabPanel from '../Lab/LabPanel';
 import './Lobby.css';
 
 // iPhone / iPad Safari sayfaya tam ekran izni vermez; ana ekrana eklenen uygulama çubuksuz açılır
@@ -129,6 +130,8 @@ function Lobby({ player, onRegister, onJoinRoom, notice }) {
             </form>
 
             {error && !pending && <p className="lobby-error" role="alert">{error}</p>}
+
+            <LabPanel />
 
             {rooms.length === 0 ? (
                 <p className="lobby-empty">Şu an açık masa yok. Bir ad yazıp ilk masayı sen aç.</p>

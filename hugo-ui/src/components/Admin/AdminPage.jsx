@@ -74,10 +74,12 @@ const describe = (e) => {
 function useAdminSocket(onAuthLost) {
     const ref = useRef(null);
     const [connected, setConnected] = useState(false);
+    const [rejected, setRejected] = useState(false); // staging: sunucu anahtarsız bağlantıyı reddetti
     useEffect(() => {
-        const s = io(SOCKET_URL);
+        const s = io(SOCKET_URL, { auth: (cb) => cb(store.get() ? { adminToken: store.get() } : {}) });
         ref.current = s;
-        s.on('connect', () => setConnected(true));
+        s.on('connect', () => { setConnected(true); setRejected(false); });
+        s.on('connect_error', (e) => { if (e?.message === 'admin-required') setRejected(true); });
         s.on('disconnect', () => setConnected(false));
         // Tarayıcı hataları sunucu günlüğüne gider (boş ekranın sebebi oradan okunur)
         const report = (data) => s.emit('admin:clientError', { ...data, ua: navigator.userAgent.slice(0, 160), vp: `${innerWidth}x${innerHeight}` });
@@ -97,7 +99,7 @@ function useAdminSocket(onAuthLost) {
             resolve(r);
         });
     }), [onAuthLost]);
-    return { connected, call, socket: ref };
+    return { connected, rejected, call, socket: ref };
 }
 
 function Login({ onLogin, error, busy }) {
@@ -259,7 +261,7 @@ function AdminScreen() {
     const [loginError, setLoginError] = useState('');
     const [busy, setBusy] = useState(false);
     const lost = useCallback(() => setAuthed(false), []);
-    const { connected, call, socket } = useAdminSocket(lost);
+    const { connected, rejected, call, socket } = useAdminSocket(lost);
     const [overview, setOverview] = useState(null);
     const [day, setDay] = useState('');
     const [stats, setStats] = useState(null);
@@ -288,11 +290,13 @@ function AdminScreen() {
     }, [overview]);
 
     const login = useCallback(async (token) => {
+        // Staging: bağlantı anahtarla kurulur (sonra kayıtlı anahtarla kendiliğinden girilir)
+        if (!socket.current?.connected) { store.set(token); socket.current?.connect(); return; }
         setBusy(true);
         const r = await call('admin:login', { token });
         setBusy(false);
         if (r?.success) { store.set(token); setAuthed(true); setLoginError(''); } else { store.set(''); setLoginError(r?.error || 'Girilemedi'); }
-    }, [call]);
+    }, [call, socket]);
 
     // Kayıtlı anahtarla kendiliğinden gir (bağlantı her kurulduğunda: sunucu yeniden başlarsa oturum yenilenir)
     useEffect(() => {
@@ -331,7 +335,7 @@ function AdminScreen() {
         setTimeout(() => setNotice(''), 3000);
     };
 
-    if (!authed) return <Login onLogin={login} error={connected ? loginError : 'Sunucuya bağlanılıyor…'} busy={busy || !connected} />;
+    if (!authed) return <Login onLogin={login} error={rejected ? (store.get() ? 'Anahtar kabul edilmedi' : '') : connected ? loginError : 'Sunucuya bağlanılıyor…'} busy={busy || (!connected && !rejected)} />;
 
     const tables = overview?.masalar || [];
     const table = tables.find(t => t.no === selected);

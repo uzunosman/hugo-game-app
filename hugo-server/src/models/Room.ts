@@ -20,6 +20,8 @@ export class Room {
     createdAt: Date;
     lastActivityAt: number;   // son insan hamlesi (ms); uzun süre boşta kalan masa arşivlenir
     finishedAt: number | null; // oyun bitip masa beklemeye döndüğü an; yeniden başlamazsa arşivlenir
+    labScenario: string | null = null; // test senaryosu masası (lab): senaryo kimliği
+    labTimer = false;                  // lab masasında sıra süresi işler mi
 
     constructor(name: string, owner: Player, maxPlayers: number = 4) {
         this.id = uuidv4();
@@ -133,7 +135,8 @@ export class Room {
             status: this.status,
             maxPlayers: this.maxPlayers,
             createdAt: this.createdAt,
-            game: this.game ? this.game.toPublicJSON() : null
+            game: this.game ? this.game.toPublicJSON() : null,
+            lab: this.labScenario
         };
     }
 } 

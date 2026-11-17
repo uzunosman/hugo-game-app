@@ -6,7 +6,7 @@ import '../../assets/css/components/TileHolder.css';
 
 // Istaka: 2 × 15 hücre. Sürükleme GameBoard'daki useBoardDrag ile yapılır; burada yalnızca çizilir.
 // dragView sürerken taşlar bırakınca alacakları yerde gösterilir, sürüklenen taş yerinden kalkar.
-const TileHolder = ({ tiles, tilePositions, onTileClick, onTileDoubleClick, selectedTileIndex, okeyTile, isHugo, flippedTileIds, onOkeyFlip, onArrange, dragView, hiddenIds, turnProgress = null }) => {
+const TileHolder = ({ tiles, tilePositions, onTileClick, onTileDoubleClick, selectedTileIndex, okeyTile, isHugo, flippedTileIds, onOkeyFlip, onArrange, dragView, hiddenIds }) => {
     const tilesMap = Object.fromEntries(tiles.map(t => [t.id, t]));
     const dragging = dragView?.dragging ? dragView : null;
     const { cells, preview, blocked } = rackPreview(tilePositions, dragging);
@@ -69,12 +69,6 @@ const TileHolder = ({ tiles, tilePositions, onTileClick, onTileDoubleClick, sele
                     </button>
                 </div>
             )}
-            {/* Sıra sendeyken ıstakanın hemen üstünde kalan süre: ince çizgi, süre azaldıkça yeşilden kırmızıya */}
-            <div className={`turn-bar ${turnProgress !== null ? 'is-active' : ''}`} aria-hidden="true">
-                {turnProgress !== null && (
-                    <span style={{ width: `${turnProgress * 100}%`, '--turn-color': `hsl(${Math.round(120 * turnProgress)}, 75%, 48%)` }} />
-                )}
-            </div>
             <div className="tile-holder">
                 <div className="tile-row first-row">{row(0)}</div>
                 <hr className="tile-row-divider" />

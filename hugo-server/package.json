@@ -8,8 +8,8 @@
     "debug": "nodemon --exec node --inspect -r ts-node/register src/index.ts",
     "debug-brk": "nodemon --exec node --inspect-brk -r ts-node/register src/index.ts",
     "build": "tsc",
-    "test": "ts-node src/models/Game.selftest.ts && ts-node src/models/Rules.selftest.ts && ts-node src/utils/Persistence.selftest.ts && ts-node src/ai/AiPlanner.selftest.ts && ts-node src/tools/stats.selftest.ts",
-    "test:e2e": "ts-node scripts/e2e-bots.ts && ts-node scripts/e2e-ai.ts && ts-node scripts/e2e-leave.ts && ts-node scripts/e2e-lobby.ts"
+    "test": "ts-node src/models/Game.selftest.ts && ts-node src/models/Rules.selftest.ts && ts-node src/utils/Persistence.selftest.ts && ts-node src/ai/AiPlanner.selftest.ts && ts-node src/tools/stats.selftest.ts && ts-node src/lab/scenario.selftest.ts",
+    "test:e2e": "ts-node scripts/e2e-bots.ts && ts-node scripts/e2e-ai.ts && ts-node scripts/e2e-leave.ts && ts-node scripts/e2e-lobby.ts && ts-node scripts/e2e-lab.ts"
   },
   "keywords": [],
   "author": "",

@@ -55,6 +55,8 @@ export default function useBoardDrag(props) {
             inRack: !!el?.closest('.tile-holder'),
             overSet: el?.closest('[data-hover-key]')?.dataset.hoverKey ?? null,
             overCorner: el?.closest('.tile-drop-zone')?.dataset.corner ?? null,
+            // Köşenin kendi alanı (sürüklerken genişleyen dokunma payı hariç): pay bölgesinde yakındaki per önceliklidir
+            cornerCore: (() => { const z = el?.closest('.tile-drop-zone'); if (!z) return false; const r = z.getBoundingClientRect(); return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom; })(),
             overTable: !!el?.closest('.game-board') && !el.closest('.tile-holder-container, .tile-drop-zone'),
         };
     };
@@ -138,7 +140,9 @@ export default function useBoardDrag(props) {
     // Sürüklenen taşın kilitlendiği per (yoksa null): doğrudan üstündeki, ya da az önce üstünde olduğu
     const lockSet = (s, hit) => {
         // Kendi köşesinin üstündeyse taş atılır: yakındaki pere kilit bırakılır
-        if (hit.overCorner && (hit.overCorner === latest.current.playerCorner || hit.overCorner === latest.current.kustuCorner)) { s.lock = null; return null; }
+        // (köşenin genişleyen payındaysa ve az önce bir pere kilitlenmişse per kazanır: doğu oyuncusunun alttaki perinin sağ ucu)
+        if (hit.overCorner && (hit.overCorner === latest.current.playerCorner || hit.overCorner === latest.current.kustuCorner)
+            && (hit.cornerCore || !s.lock)) { s.lock = null; return null; }
         const el = hit.overSet ? hit.el.closest('[data-hover-key]') : null;
         if (el) {
             if (s.lock?.key !== hit.overSet) navigator.vibrate?.(10);
@@ -197,8 +201,10 @@ export default function useBoardDrag(props) {
         // Son taş: ıstaka dışında nereye bırakılırsa atılır, el biter
         if (tiles.length === 1) return actions.discard(s.srcIdx, s.ghostRect);
         // Yandan alınan taş alındığı köşeye geri bırakıldı: kusulur
-        if (overCorner && overCorner === kustuCorner && s.tileId === kustuTileId) return actions.kustu?.();
-        if (overCorner && overCorner === playerCorner) return actions.discard(s.srcIdx, s.ghostRect); // köşe, yakındaki perden önce gelir
+        // Köşe, yakındaki perden önce gelir; köşenin genişleyen payında ise kilitli per kazanır (lockSet)
+        const corner = overCorner && (hit.cornerCore || !(s.kind === 'tile' && lockSet(s, hit))) ? overCorner : null;
+        if (corner && corner === kustuCorner && s.tileId === kustuTileId) return actions.kustu?.();
+        if (corner && corner === playerCorner) return actions.discard(s.srcIdx, s.ghostRect);
         const tileId = s.tileId;
         const slot = el?.closest('.insertion-slot');
         if (slot) return actions.addToSet(tileId, slot.dataset.setId, slot.dataset.position, s.ghostRect);
@@ -241,7 +247,7 @@ export default function useBoardDrag(props) {
         moveGhost(s);
         const hit = hitTest(s.x, s.y);
         const overSet = s.kind === 'tile' ? lockSet(s, hit) : null;
-        publish({ overCell: shownCell(s, hit.overCell), overSet, overSide: overSet ? sideOf(s) : null, overCorner: hit.overCorner, overTable: s.kind === 'group' && hit.overTable, overPairs: pairTarget(s, hit.el) });
+        publish({ overCell: shownCell(s, hit.overCell), overSet, overSide: overSet ? sideOf(s) : null, overCorner: overSet && !hit.cornerCore ? null : hit.overCorner, overTable: s.kind === 'group' && hit.overTable, overPairs: pairTarget(s, hit.el) });
     }
 
     function onUp(e) {

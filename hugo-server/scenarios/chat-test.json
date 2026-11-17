@@ -1,0 +1,144 @@
+{
+  "title": "Sohbet alanı",
+  "description": "30 mesajlık geçmişle açılır (kısa, uzun, emoji). Koltuk değiştirerek farklı oyuncular adına yaz; sohbet kutusunun boyutunu, yerini ve yazı boyutunu kontrol et.",
+  "round": 3,
+  "indicator": "b9",
+  "seats": [
+    {
+      "name": "Sen"
+    },
+    {
+      "name": "Ayşe"
+    },
+    {
+      "name": "Mehmet"
+    },
+    {
+      "name": "Zeynep"
+    }
+  ],
+  "turn": 0,
+  "action": "draw",
+  "chat": [
+    {
+      "seat": 0,
+      "text": "selam herkese"
+    },
+    {
+      "seat": 1,
+      "text": "hadi başlayalım 👋"
+    },
+    {
+      "seat": 2,
+      "text": "bu el benim"
+    },
+    {
+      "seat": 3,
+      "text": "okey kimde ya"
+    },
+    {
+      "seat": 0,
+      "text": "Ayşe çok hızlısın"
+    },
+    {
+      "seat": 1,
+      "text": "yandan alma cezası yedim 😅"
+    },
+    {
+      "seat": 2,
+      "text": "bir saniye telefon çaldı"
+    },
+    {
+      "seat": 3,
+      "text": "tamamdır geldim"
+    },
+    {
+      "seat": 0,
+      "text": "bu çok uzun bir mesaj, satır kaymasını ve sohbet kutusunun genişliğini test etmek için yazıldı, nasıl görünüyor bakalım"
+    },
+    {
+      "seat": 1,
+      "text": "👍"
+    },
+    {
+      "seat": 2,
+      "text": "😂😂😂"
+    },
+    {
+      "seat": 3,
+      "text": "iyi oyunlar"
+    },
+    {
+      "seat": 0,
+      "text": "kim işledi benim perime"
+    },
+    {
+      "seat": 1,
+      "text": "ceza yazıldı galiba"
+    },
+    {
+      "seat": 2,
+      "text": "100 açtım yıldız geldi ⭐"
+    },
+    {
+      "seat": 3,
+      "text": "şanslısın"
+    },
+    {
+      "seat": 0,
+      "text": "bir dahakine"
+    },
+    {
+      "seat": 1,
+      "text": "Mehmet uyudu mu"
+    },
+    {
+      "seat": 2,
+      "text": "buradayım buradayım"
+    },
+    {
+      "seat": 3,
+      "text": "sıra sende"
+    },
+    {
+      "seat": 0,
+      "text": "tamam"
+    },
+    {
+      "seat": 1,
+      "text": "çift mi açsam seri mi"
+    },
+    {
+      "seat": 2,
+      "text": "çift aç kesin"
+    },
+    {
+      "seat": 3,
+      "text": "kusmak serbest mi bu elde"
+    },
+    {
+      "seat": 0,
+      "text": "hayır işledin artık"
+    },
+    {
+      "seat": 1,
+      "text": "ok"
+    },
+    {
+      "seat": 2,
+      "text": "sonraki el Hugo eli"
+    },
+    {
+      "seat": 3,
+      "text": "dikkat ×2"
+    },
+    {
+      "seat": 0,
+      "text": "bitiriyorum"
+    },
+    {
+      "seat": 1,
+      "text": "eyvah"
+    }
+  ]
+}

@@ -14,6 +14,10 @@ export const config = {
     clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
     // Oyun durumu diske yazılır (data/state.json); kapatmak için PERSIST=false
     persist: process.env.PERSIST !== 'false',
+    // Ortam: production (hugola.io), staging (test.hugola.io; yalnızca admin bağlanır), development
+    appEnv: process.env.APP_ENV || (process.env.NODE_ENV === 'production' ? 'production' : 'development'),
+    // Lab (test senaryoları, koltuk değiştirme): prod'da hiç açılmaz
+    get lab() { return this.appEnv !== 'production'; },
 
     // Oyun yapılandırmaları
     game: {

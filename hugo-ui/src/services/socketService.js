@@ -22,6 +22,10 @@ const writeSession = (session) => {
     try { stores().forEach(s => (session ? s.setItem(SESSION_KEY, JSON.stringify(session)) : s.removeItem(SESSION_KEY))); } catch { /* depolama kapalı */ }
 };
 
+// Admin anahtarı (admin ekranıyla aynı): staging'e bağlanmak ve test senaryoları için bağlantıda gönderilir
+export const ADMIN_TOKEN_KEY = 'hugo.adminToken';
+const adminToken = () => { try { return localStorage.getItem(ADMIN_TOKEN_KEY) || ''; } catch { return ''; } };
+
 class SocketService {
     constructor() {
         this.socket = null;
@@ -32,7 +36,17 @@ class SocketService {
 
     connect() {
         if (!this.socket) {
-            this.socket = io(SOCKET_URL);
+            // auth işlev: her (yeniden) bağlanmada anahtar yeniden okunur
+            this.socket = io(SOCKET_URL, { auth: (cb) => cb(adminToken() ? { adminToken: adminToken() } : {}) });
+            // Staging: anahtarsız bağlantı reddedilir; App anahtar sorar (AdminGate)
+            this.socket.on('connect_error', (err) => {
+                if (err?.message === 'admin-required') window.dispatchEvent(new Event('hugo:adminRequired'));
+            });
+            // Test senaryosu sıfırlandı: ekran sunucudaki yeni durumla yeniden kurulur
+            this.socket.on('lab:reset', () => {
+                if (!this.playerId) return;
+                this.socket.emit('player:reconnect', { playerId: this.playerId, token: this.token }, (r) => this.resyncHandler?.(r || { success: false }));
+            });
             // Bağlantı kopup geri gelince (ağ kesintisi ya da sunucu yeniden başladı) sayfa yenilenmez:
             // aynı oyuncu olarak yeniden tanıtılır, ekran sunucudaki güncel durumla yeniden kurulur
             // (kopukken kaçan olaylar böyle telafi edilir); oyuncu sunucuda yoksa girişe dönülür
@@ -64,6 +78,33 @@ class SocketService {
     // Yeniden bağlanınca App ekranı tazeler
     onResync(callback) {
         this.resyncHandler = callback;
+    }
+
+    // Lab (test senaryoları): yalnızca staging / yerel ve admin anahtarıyla
+    labScenarios(callback) {
+        this.connect().emit('lab:scenarios', {}, callback); // alt bileşen App'in connect'inden önce çalışabilir
+    }
+
+    // Senaryo başlatma ve koltuk değiştirme: sunucu bu bağlantıyı o koltuğa bağlar, ekran o oyuncu olarak yeniden kurulur
+    labSeat(event, data, callback) {
+        this.socket.emit(event, data, (response) => {
+            if (response?.success) {
+                this.remember(response);
+                this.activeRoomId = response.room?.id || null;
+                this.resyncHandler?.(response);
+            }
+            callback?.(response);
+        });
+    }
+
+    labStart(id, callback) { this.labSeat('lab:start', { id }, callback); }
+    labTakeSeat(playerId, callback) { this.labSeat('lab:takeSeat', { playerId }, callback); }
+    labReset(roomId, callback) { this.socket.emit('lab:reset', { roomId }, callback); }
+
+    // Anahtar girildi: bağlantı yeniden denenir
+    setAdminToken(token) {
+        try { localStorage.setItem(ADMIN_TOKEN_KEY, token); } catch { /* özel pencere */ }
+        this.socket?.connect();
     }
 
     savedSession() {

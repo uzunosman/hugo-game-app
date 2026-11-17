@@ -16,6 +16,7 @@ import '../../assets/css/components/GameBoard.css';
 import '../../assets/css/layout.css';
 import '../../assets/css/mobile.css';
 import RotateHint from '../RotateHint/RotateHint';
+import SeatSwitcher from '../Lab/SeatSwitcher';
 
 /**
  * Ana Oyun bileşeni
@@ -111,11 +112,6 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
     const players = getOrderedPlayers(room.players, player.id);
     const currentPlayerIndex = getCurrentPlayerIndex(players, gameState.currentPlayerId);
     const isMyTurn = gameState.currentPlayerId === player.id;
-    // Istaka üstündeki süre çizgisi: sıranın başındaki süreye (uzatmalar dahil) oranla kalan süre
-    const turnMax = useRef(60);
-    useEffect(() => { turnMax.current = Math.max(60, timeLeft || 0); }, [gameState.currentPlayerId, gameState.round]); // eslint-disable-line react-hooks/exhaustive-deps
-    if (timeLeft > turnMax.current) turnMax.current = timeLeft;
-    const turnProgress = isMyTurn && typeof timeLeft === 'number' ? Math.max(0, Math.min(1, timeLeft / turnMax.current)) : null;
     const myCorner = getPlayerCorner(0); // Kendimiz her zaman 0. indeksteyiz
 
     // En son taş atan oyuncunun köşesini hesapla (sıradaki oyuncunun çekebileceği köşe)
@@ -366,9 +362,10 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
     }, []);
 
     // İşleme handler'ı — seç & tıkla veya sürükle & bırak (pozisyon dahil)
-    const onAddTileToSet = (tileId, targetSetId, position, viaDrag = false) => {
+    const onAddTileToSet = (tileId, targetSetId, position) => {
         if (!myOpenState.isOpen || !isMyTurn) return;
-        if (!viaDrag) animateOwn.add(tileId); // tıklayarak işleme: taş ıstakadaki yerinden pere uçar
+        // Tıklayarak: taş ıstakadaki yerinden, sürükleyerek: bırakıldığı yerden pere süzülür
+        animateOwn.add(tileId);
 
         // Hedef çiftse elindeki eşiyle birlikte çift olarak işle; çiftte okey varsa ve taş okeyin eşiyse okey alınır
         const targetSet = tableSets.find(s => s.id === targetSetId);
@@ -612,7 +609,7 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
                             aria-label="Geri al"
                             title={`Geri al: bu sırada masaya oynadıkların ele döner, ${gameState.isHugoRound ? 200 : 100} ceza`}
                         >
-                            <span className="at-undo" aria-hidden="true">↶</span><span className="at-label" aria-hidden="true">Geri al</span>
+                            <span className="at-undo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></svg></span><span className="at-label at-label-2" aria-hidden="true">Geri<br />al</span>
                             <span className="open-hand-score">+{gameState.isHugoRound ? 200 : 100}</span>
                         </button>
                     )}
@@ -687,7 +684,6 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
                 onAddPairToSet={onAddPairToSet}
                 kustuTileId={kustuCorner ? takenInfo?.tileId : null}
                 rejectId={rejectId}
-                turnProgress={turnProgress}
                 onTileDragStart={handleTileDragStart}
                 onTileDragEnd={handleTileDragEnd}
                 flippedTileIds={flippedTileIds}
@@ -700,6 +696,7 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
 
             {/* Sağ üst: el bilgisi ve tabela */}
             {room?.no ? <div className="table-no" aria-label={`Masa numarası ${room.no}`}>#{room.no}</div> : null}
+            {room?.lab && <SeatSwitcher room={room} player={player} />}
             <div className="top-right-tools">
                 <div className="round-chip" aria-label={`${gameState.round}. el${gameState.isHugoRound ? ', Hugo eli' : ''}`}>
                     El {gameState.round}/9

@@ -38,9 +38,14 @@ export const flyTilesIn = (tileIds, playerId, myId, own = false) => {
             const land = () => { incomingTiles.delete(id); target?.classList.remove('incoming'); };
             if (!target || !target.animate) return land();
             const to = target.getBoundingClientRect();
-            if (origins[id]) { // kendi taşı: bıraktığın yerden masadaki yerine süzülür
+            if (origins[id]) { // kendi taşı: bıraktığın yerden masadaki yerine süzülür; büyümüş per taşla birlikte kapanır
                 target.style.visibility = 'hidden';
-                return flyClone(target, origins[id], to, PLACE_MS, () => { target.style.visibility = ''; land(); });
+                return flyClone(target, origins[id], to, PLACE_MS, () => {
+                    target.style.visibility = '';
+                    land();
+                    const group = target.closest('.open-set-group[data-hold]');
+                    if (group) setTimeout(() => group.removeAttribute('data-hold'), 60);
+                });
             }
             if (!from) return land();
             const ghost = target.cloneNode(true);
@@ -154,3 +159,38 @@ export const whenRendered = (find, fn, timeout = 2000) => {
 };
 
 export const rackTileEl = (tileId) => document.querySelector(`.tile-holder .tile[data-tile-id="${tileId}"]`);
+
+// Başka oyuncu taş çekti: taş desteden (kapalı) ya da yerden (açık) o oyuncunun kartına doğru küçülerek uçar ve kartta söner
+export const flyToPlayer = (srcEl, playerId) => {
+    const to = playerPanelRect(playerId);
+    if (!srcEl || !to || reducedMotion()) return;
+    const from = srcEl.getBoundingClientRect();
+    if (!from.width) return;
+    const ghost = srcEl.cloneNode(true);
+    ghost.classList.remove('selected', 'disabled', 'can-drag');
+    ghost.classList.add('flying-discard');
+    ghost.querySelectorAll('.draw-hint, .remaining-count').forEach(n => n.remove());
+    Object.assign(ghost.style, {
+        position: 'fixed', left: `${from.left}px`, top: `${from.top}px`, width: `${from.width}px`, height: `${from.height}px`,
+        margin: '0', zIndex: 500, pointerEvents: 'none', opacity: '1', filter: 'none',
+    });
+    document.body.appendChild(ghost);
+    const dx = to.left + to.width / 2 - (from.left + from.width / 2);
+    const dy = to.top + to.height / 2 - (from.top + from.height / 2);
+    const lift = -Math.min(30, Math.hypot(dx, dy) * 0.12); // yolun ortasında hafif yükselir
+    ghost.animate([
+        { transform: 'translate(0, 0) scale(1)', opacity: 1 },
+        { transform: `translate(${dx * 0.55}px, ${dy * 0.55 + lift}px) scale(0.85)`, opacity: 1, offset: 0.6 },
+        { transform: `translate(${dx}px, ${dy}px) scale(0.5)`, opacity: 0 },
+    ], { duration: PLACE_MS + 120, easing: EASE }).finished.catch(() => {}).finally(() => ghost.remove());
+    setTimeout(() => ghost.remove(), PLACE_MS + 1500); // arka plan sekmesi
+};
+
+// Sürükleyerek işleme: bırakınca per büyük kalır (taş yerine otururken), taş inince birlikte küçülür (flyTilesIn kaldırır).
+// İşleme reddedilirse ya da taş gelmezse kısa süre sonra kendiliğinden kapanır.
+export const holdSet = (setId) => {
+    const group = document.querySelector(`.open-set-group[data-set-id="${setId}"]`);
+    if (!group || reducedMotion()) return;
+    group.dataset.hold = '1';
+    setTimeout(() => group.removeAttribute('data-hold'), 2000);
+};

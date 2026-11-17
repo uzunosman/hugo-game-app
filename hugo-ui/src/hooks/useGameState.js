@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import socketService from '../services/socketService';
-import { flyTilesIn, flyToCorner, playerPanelRect } from '../utils/flyTiles';
+import { flyTilesIn, flyToCorner, flyToPlayer, playerPanelRect } from '../utils/flyTiles';
+import { penaltyBurst } from '../utils/penaltyBurst';
 import { reconcilePositions } from '../utils/tileHandlers';
 
 const rackKey = (playerId) => `hugo.rack.${playerId}`;
@@ -141,7 +142,11 @@ const useGameState = (player, room) => {
             if (response.success) {
                 // Başka bir oyuncu taş çekti
                 if (response.playerId !== player.id) {
-                    console.log('Başka bir oyuncu taş çekti:', response.playerId, response.fromDiscard);
+                    // Çekilen taş desteden (kapalı) ya da köşedeki yerden (açık, köşeden kalkmadan önce) oyuncunun kartına uçar
+                    const fromCorner = response.fromDiscard && response.fromDiscardOfPlayerId ? getCornerByPlayerId(response.fromDiscardOfPlayerId) : null;
+                    flyToPlayer(fromCorner
+                        ? document.querySelector(`.tile-drop-zone[data-corner="${fromCorner}"] .discard-top .tile`)
+                        : document.querySelector('.deck-tile-wrapper .center-tile') || document.querySelector('.deck-tile-wrapper'), response.playerId);
 
                     // Desteden çekildiyse deckCount'u düşür (sunucu sayıyı gönderiyorsa o esas)
                     if (typeof response.deckCount === 'number') syncDeck(response.deckCount);
@@ -234,11 +239,14 @@ const useGameState = (player, room) => {
             if (r.openState) setPlayerOpenStates(prev => ({ ...prev, [r.playerId]: { ...prev[r.playerId], ...r.openState } }));
         };
         const notOnTable = (tiles) => tiles.map(t => t.id).filter(id => !document.querySelector(`.open-set-tile[data-tile-id="${id}"]`));
+        // Son işlenen taşlar: ardından gelen işleme cezası bu taşın üstünde patlar (sunucu önce işlemeyi, sonra cezayı yollar)
+        let lastPlaced = { ids: [], at: 0 };
+        const placed = (ids) => { lastPlaced = { ids, at: Date.now() }; return ids; };
 
         socketService.onTileAddedToSet((response) => {
             if (response.success && response.updatedSet) {
                 applyOpenState(response);
-                flyTilesIn(notOnTable(response.updatedSet.tiles), response.playerId, player.id);
+                flyTilesIn(placed(notOnTable(response.updatedSet.tiles)), response.playerId, player.id);
                 setTableSets(prev => prev.map(s =>
                     s.id === response.updatedSet.id ? response.updatedSet : s
                 ));
@@ -252,7 +260,7 @@ const useGameState = (player, room) => {
                 applyOpenState(response);
                 // İndirilen per de, başkasının çiftlerine işlenen çift de indirenin yerinden uçarak gelir
                 // Kendi per indirmen uçar; başkasının çiftlerine işlediğin çift (işleme) kendi ekranında uçmaz
-                flyTilesIn(notOnTable(response.newSets.flatMap(st => st.tiles)), response.playerId, player.id, response.newSets.every(st => st.playerId === response.playerId));
+                flyTilesIn(placed(notOnTable(response.newSets.flatMap(st => st.tiles))), response.playerId, player.id, response.newSets.every(st => st.playerId === response.playerId));
                 setTableSets(prev => [...prev, ...response.newSets]);
             }
         });
@@ -289,7 +297,10 @@ const useGameState = (player, room) => {
                 return { ...prev, [playerId]: { ...prev[playerId], penaltyScore, penaltyEntries: entries } };
             });
             setPenaltyLog(prev => [...prev, { id: `${Date.now()}-${prev.length}`, tag, playerName, tile, amount }].slice(-30));
-            if (playerId === player.id) setError(`${reason}: ${amount > 0 ? '+' : ''}${amount} ceza`);
+            // İşleme / çift işleme / okey alma: bildirim yerine taşın üstünde patlama (herkes görür)
+            const onTile = ['işleme', 'çift işleme', 'okey'].includes(tag) && Date.now() - lastPlaced.at < 3000;
+            if (onTile) penaltyBurst(lastPlaced.ids, amount);
+            else if (playerId === player.id) setError(`${reason}: ${amount > 0 ? '+' : ''}${amount} ceza`);
         });
 
         // Geri al: masadaki setler ve oyuncunun açık durumu bu sıranın başına döner

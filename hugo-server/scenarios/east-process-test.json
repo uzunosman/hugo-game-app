@@ -1,0 +1,96 @@
+{
+  "title": "Doğu oyuncusunun perine işleme",
+  "description": "Ayşe (sağında, doğu) 4 perle açmış, sen de açmışsın. Desteden çek (siyah 13 gelir). Istakadaki kırmızı 13'ü sağdaki en alttaki perin (kırmızı 10-11-12) SAĞINA sürükleyip işle: taş atılmamalı, pere işlenmeli. Sonra mavi 6'yı en üstteki perin (mavi 3-4-5) sağına, kırmızı 9'u en alttaki perin soluna dene. Sıfırla ile tekrar dene.",
+  "round": 2,
+  "indicator": "y2",
+  "seats": [
+    {
+      "name": "Sen",
+      "hand": [
+        "r13",
+        "b6",
+        "r9",
+        "k9",
+        "y12",
+        "b10",
+        "r2",
+        "k12"
+      ]
+    },
+    {
+      "name": "Ayşe",
+      "hand": [
+        "y1",
+        "b1",
+        "k11"
+      ]
+    },
+    {
+      "name": "Mehmet"
+    },
+    {
+      "name": "Zeynep"
+    }
+  ],
+  "tableSets": [
+    {
+      "owner": 0,
+      "tiles": [
+        "k1",
+        "k2",
+        "k3"
+      ]
+    },
+    {
+      "owner": 0,
+      "tiles": [
+        "y4",
+        "y5",
+        "y6"
+      ]
+    },
+    {
+      "owner": 1,
+      "tiles": [
+        "b3",
+        "b4",
+        "b5"
+      ]
+    },
+    {
+      "owner": 1,
+      "tiles": [
+        "y9",
+        "y10",
+        "y11"
+      ]
+    },
+    {
+      "owner": 1,
+      "tiles": [
+        "k6",
+        "k7",
+        "k8"
+      ]
+    },
+    {
+      "owner": 1,
+      "tiles": [
+        "r10",
+        "r11",
+        "r12"
+      ]
+    }
+  ],
+  "discards": [
+    {
+      "owner": 3,
+      "tile": "b8"
+    }
+  ],
+  "deckTop": [
+    "k13"
+  ],
+  "turn": 0,
+  "action": "draw"
+}
