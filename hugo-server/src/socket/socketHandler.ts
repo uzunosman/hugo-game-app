@@ -449,7 +449,7 @@ export const setupSocketHandlers = (io: Server) => {
             if (d.type !== 'dokunma' && d.type !== 'dizme') logEvent('istemci', { oyuncu: who, ...d });
         });
 
-        // Yönetim ekranı (/yonetim): anahtarla girilir; masaları izler, kapatır, herkese duyuru gönderir
+        // Yönetim ekranı (/admin): anahtarla girilir; masaları izler, kapatır, herkese duyuru gönderir
         let adminFails = 0;
         const admin = (event: string, fn: (data: any) => unknown) => socket.on(event, (data: any, callback?: (r: unknown) => void) => {
             if (typeof callback !== 'function') return;
@@ -461,7 +461,18 @@ export const setupSocketHandlers = (io: Server) => {
             if (adminFails >= 5) return callback({ success: false, error: 'Çok fazla hatalı deneme' });
             if (!checkToken(data?.token)) { adminFails++; logEvent('yonetim', { islem: 'hatali-giris', soket: socket.id }); return callback({ success: false, error: 'Anahtar yanlış' }); }
             socket.data.admin = true;
+            logEvent('yonetim', { islem: 'giris', soket: socket.id });
             callback({ success: true });
+        });
+        // Yönetim ekranındaki tarayıcı hatası (giriş öncesi de): sunucu günlüğüne ve oyun kaydına
+        let adminErrors = 0;
+        socket.on('admin:clientError', (data: unknown) => {
+            if (++adminErrors > 20) return;
+            console.warn('Yönetim ekranı hatası:', JSON.stringify(data).slice(0, 1500));
+            const d = (data && typeof data === 'object' ? data : {}) as Record<string, unknown>;
+            // 'acildi' teşhis bilgisidir (sorun listesine düşmez); diğerleri ekran hatası
+            if (d.type === 'acildi') logEvent('yonetim', { islem: 'acildi', ...d });
+            else logEvent('istemci', { oyuncu: 'yönetim', type: 'yonetim-hata', ...d });
         });
         admin('admin:overview', () => ({
             sunucu: { calisma: Math.round(process.uptime()), bellekMb: Math.round(process.memoryUsage().rss / 1048576), baglanti: io.engine.clientsCount },

@@ -155,3 +155,9 @@ html:has(.ad) .app-version, html:has(.ad-login) .app-version, html:has(.ad) .set
     .ad-numbers { grid-template-columns: repeat(2, 1fr); }
     .ad-number b { font-size: 20px; }
 }
+
+.ad-crash { width: min(480px, 100%); display: grid; gap: 10px; padding: 24px; background: var(--surface); border-radius: 14px; border: 1px solid var(--danger); }
+.ad-crash h1 { margin: 0; font-size: 18px; }
+.ad-crash p { margin: 0; color: var(--muted); }
+.ad-crash pre { margin: 0; padding: 10px; border-radius: 8px; background: var(--bg); color: #ff9b94; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
+.ad-crash button { justify-self: start; padding: 8px 14px; border: 0; border-radius: 8px; background: var(--turn); color: #1d1606; font-weight: 600; cursor: pointer; }

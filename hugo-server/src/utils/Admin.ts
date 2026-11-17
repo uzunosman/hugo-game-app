@@ -1,4 +1,4 @@
-// Yönetim ekranı (hugola.io/yonetim) için veri: anahtar, günlük kayıt okuma, masa izleme, son sorunlar.
+// Yönetim ekranı (hugola.io/admin) için veri: anahtar, günlük kayıt okuma, masa izleme, son sorunlar.
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';

@@ -6,7 +6,7 @@ import Announce from './components/Announce/Announce.jsx'
 
 // Yönetim ekranı ayrı dosyada yüklenir: oyuncuların indirdiği kod büyümez
 const AdminPage = lazy(() => import('./components/Admin/AdminPage.jsx'))
-const isAdmin = location.pathname.replace(/\/+$/, '') === '/yonetim'
+const isAdmin = location.pathname.replace(/\/+$/, '') === '/admin'
 
 // Sağ altta küçük sürüm etiketi: test edilen sürüm buradan doğrulanır (deploy/update.sh verir)
 const VERSION = import.meta.env.VITE_APP_VERSION || 'dev'
@@ -43,6 +43,8 @@ if (import.meta.env.PROD) {
 // (üst sıradaki taşa altından dokunmak gerekir). Dönüşten sonra kayma sıfırlanır ve teşhis için günlüğe yazılır.
 {
   const reset = () => setTimeout(() => {
+    // Yalnızca oyun ekranında: lobi / yönetim gibi kaydırılan sayfalarda adres çubuğu küçülünce de resize gelir
+    if (!document.querySelector('.game-container')) return;
     const vv = window.visualViewport;
     const off = { x: scrollX, y: scrollY, vx: Math.round(vv?.offsetLeft || 0), vy: Math.round(vv?.offsetTop || 0) };
     if (off.x || off.y || off.vx || off.vy) {

@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Component, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import { SOCKET_URL } from '../../services/socketService';
 import './Admin.css';
 
-// Yönetim ekranı (hugola.io/yonetim): masaları canlı izler, masa kapatır, duyuru gönderir, günlük istatistiği gösterir.
+// Yönetim ekranı (hugola.io/admin): masaları canlı izler, masa kapatır, duyuru gönderir, günlük istatistiği gösterir.
 // Veriler oyunun Socket.IO bağlantısından (admin:* istekleri) gelir; anahtar sunucudaki /var/lib/hugo/admin-token dosyasında.
 
 const TOKEN_KEY = 'hugo.adminToken';
@@ -78,7 +78,14 @@ function useAdminSocket(onAuthLost) {
         ref.current = s;
         s.on('connect', () => setConnected(true));
         s.on('disconnect', () => setConnected(false));
-        return () => s.close();
+        // Tarayıcı hataları sunucu günlüğüne gider (boş ekranın sebebi oradan okunur)
+        const report = (data) => s.emit('admin:clientError', { ...data, ua: navigator.userAgent.slice(0, 160), vp: `${innerWidth}x${innerHeight}` });
+        const onError = (e) => report({ msg: e.message, at: `${e.filename}:${e.lineno}:${e.colno}`, stack: e.error?.stack?.slice(0, 600) });
+        const onRejection = (e) => report({ msg: String(e.reason?.message || e.reason), stack: e.reason?.stack?.slice(0, 600) });
+        window.addEventListener('error', onError);
+        window.addEventListener('unhandledrejection', onRejection);
+        window.__adminReport = report;
+        return () => { window.removeEventListener('error', onError); window.removeEventListener('unhandledrejection', onRejection); s.close(); };
     }, []);
     const call = useCallback((event, data = {}) => new Promise((resolve) => {
         const s = ref.current;
@@ -97,7 +104,7 @@ function Login({ onLogin, error, busy }) {
     return (
         <main className="ad-login">
             <form onSubmit={(e) => { e.preventDefault(); onLogin(token.trim()); }}>
-                <h1>Hugo yönetim</h1>
+                <h1>Hugo admin</h1>
                 <label htmlFor="ad-token">Yönetim anahtarı</label>
                 <input id="ad-token" type="password" autoComplete="current-password" value={token} onChange={(e) => setToken(e.target.value)} autoFocus />
                 {error && <p className="ad-error" role="alert">{error}</p>}
@@ -219,7 +226,31 @@ function Hourly({ data }) {
     );
 }
 
+// Ekran çizilirken hata olursa boş sayfa yerine hata yazılır ve sunucuya bildirilir
+class AdminErrorBoundary extends Component {
+    state = { error: null };
+    static getDerivedStateFromError(error) { return { error }; }
+    componentDidCatch(error, info) { window.__adminReport?.({ msg: error.message, stack: error.stack?.slice(0, 600), component: info.componentStack?.slice(0, 600) }); }
+    render() {
+        if (!this.state.error) return this.props.children;
+        return (
+            <main className="ad-login">
+                <div className="ad-crash" role="alert">
+                    <h1>Yönetim ekranı açılamadı</h1>
+                    <p>Hata sunucu günlüğüne yazıldı. Sayfayı yenileyip tekrar dene.</p>
+                    <pre>{String(this.state.error.message || this.state.error)}</pre>
+                    <button type="button" onClick={() => location.reload()}>Yenile</button>
+                </div>
+            </main>
+        );
+    }
+}
+
 export default function AdminPage() {
+    return <AdminErrorBoundary><AdminScreen /></AdminErrorBoundary>;
+}
+
+function AdminScreen() {
     const [authed, setAuthed] = useState(false);
     const [loginError, setLoginError] = useState('');
     const [busy, setBusy] = useState(false);
@@ -233,7 +264,24 @@ export default function AdminPage() {
     const [announce, setAnnounce] = useState('');
     const [notice, setNotice] = useState('');
 
-    useEffect(() => { document.title = 'Hugo yönetim'; }, []);
+    useEffect(() => { document.title = 'Hugo admin'; }, []);
+
+    // Teşhis: giriş sonrası ilk veri gelince sayfanın gerçekten çizilip çizilmediği sunucuya yazılır (koyu ekran sorunu)
+    const reported = useRef(false);
+    useEffect(() => {
+        if (!overview || reported.current) return;
+        reported.current = true;
+        requestAnimationFrame(() => {
+            const ad = document.querySelector('.ad');
+            const r = ad?.getBoundingClientRect();
+            window.__adminReport?.({
+                type: 'acildi', hasDestek: CSS.supports?.('selector(:has(a))') ?? null,
+                ad: r ? `${Math.round(r.left)},${Math.round(r.top)} ${Math.round(r.width)}x${Math.round(r.height)}` : null,
+                sayfa: `${document.documentElement.scrollWidth}x${document.documentElement.scrollHeight}`, kaydirma: scrollY,
+                renk: ad ? getComputedStyle(ad).color : null, gorunurluk: ad ? getComputedStyle(ad).visibility + '/' + getComputedStyle(ad).opacity : null,
+            });
+        });
+    }, [overview]);
 
     const login = useCallback(async (token) => {
         setBusy(true);
@@ -298,7 +346,7 @@ export default function AdminPage() {
     return (
         <div className="ad">
             <header className="ad-top">
-                <h1>Hugo yönetim</h1>
+                <h1>Hugo admin</h1>
                 <div className="ad-server">
                     <span className={`ad-dot ${connected ? 'on' : ''}`} aria-hidden="true" />
                     {overview ? <>
