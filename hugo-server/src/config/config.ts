@@ -31,6 +31,8 @@ export const config = {
         botThinkMs: Number(process.env.BOT_THINK_MS) || 900, // yapay zekânın düşünme payı (bu ile 2 katı arası)
         // Yapay zekânın masaya oynadığı adımlar arası bekleme: diğer oyuncular uçuş animasyonunu bitmiş görür (testte 0)
         botStepMs: process.env.BOT_STEP_MS !== undefined ? Number(process.env.BOT_STEP_MS) : 700,
+        // Taş çekme ile atma arası bekleme (yapay zekâ ve süresi dolan oyuncu): çekilen taşın uçuşu görünsün (testte 0)
+        drawGapMs: process.env.DRAW_GAP_MS !== undefined ? Number(process.env.DRAW_GAP_MS) : 1250,
         // Masa arşivleme: insan hamlesi olmadan bu süre geçerse, ya da oyun bitip yeniden başlamazsa
         idleRoomMs: Number(process.env.IDLE_ROOM_MS) || 30 * 60 * 1000,
         finishedRoomMs: Number(process.env.FINISHED_ROOM_MS) || 10 * 60 * 1000,

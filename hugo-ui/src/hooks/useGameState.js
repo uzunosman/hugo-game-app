@@ -296,7 +296,7 @@ const useGameState = (player, room) => {
                 } else entries.push(amount);
                 return { ...prev, [playerId]: { ...prev[playerId], penaltyScore, penaltyEntries: entries } };
             });
-            setPenaltyLog(prev => [...prev, { id: `${Date.now()}-${prev.length}`, tag, playerName, tile, amount }].slice(-30));
+            setPenaltyLog(prev => [...prev, { id: `${Date.now()}-${prev.length}`, playerId, tag, playerName, tile, amount }].slice(-30));
             // İşleme / çift işleme / okey alma: bildirim yerine taşın üstünde patlama (herkes görür)
             const onTile = ['işleme', 'çift işleme', 'okey'].includes(tag) && Date.now() - lastPlaced.at < 3000;
             if (onTile) penaltyBurst(lastPlaced.ids, amount);

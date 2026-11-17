@@ -353,26 +353,6 @@ export const arrangeTiles = (tiles, mode, okeyTile, isHugo) => {
     const plain = played.filter(t => !wild.includes(t));
 
     const byColor = (a, b) => colorIdx(a) - colorIdx(b) || a.value - b.value;
-    const byValue = (a, b) => a.value - b.value || colorIdx(a) - colorIdx(b);
-
-    // Seriler: aynı renk ardışık (çift taşlar ayrı seriye düşer)
-    const takeRuns = (pool) => {
-        const runs = [];
-        for (const t of [...pool].sort(byColor)) {
-            const g = runs.find(r => r[r.length - 1].color === t.color && r[r.length - 1].value + 1 === t.value);
-            if (g) g.push(t); else runs.push([t]);
-        }
-        return runs;
-    };
-    // Aynı sayı perleri: farklı renkler (aynı renkten ikinci taş ayrı gruba düşer)
-    const takeSameNumber = (pool) => {
-        const sets = [];
-        for (const t of [...pool].sort(byValue)) {
-            const g = sets.find(r => r[0].value === t.value && !r.some(x => x.color === t.color) && r.length < 4);
-            if (g) g.push(t); else sets.push([t]);
-        }
-        return sets;
-    };
 
     // Çift diz: aynı taşları yan yana; okeyler en değerli tek taşla eşleşir
     if (mode === 'cift') {
@@ -388,19 +368,83 @@ export const arrangeTiles = (tiles, mode, okeyTile, isHugo) => {
         return placeGroups([...pairs, ...(singles.length || wilds.length ? [[...singles, ...wilds]] : [])]);
     }
 
-    // Seri diz: önce seriler, kalanlardan aynı sayı perleri, artanlar sıralı
-    const [first, second] = [takeRuns, takeSameNumber];
-    const firstGroups = first(plain);
-    const kept = firstGroups.filter(g => g.length >= 3);
-    const rest = firstGroups.filter(g => g.length < 3).flat();
-    const secondGroups = second(rest);
-    kept.push(...secondGroups.filter(g => g.length >= 3));
-    const singles = secondGroups.filter(g => g.length < 3).flat().sort(byColor);
-
-    const groups = [...kept];
+    // Seri diz: eldeki taşlar (okeyler dahil) toplam değeri en yüksek olacak şekilde perlere ayrılır; artanlar renge göre sıralı
+    const { sets, wildsLeft } = bestSets(plain, wild);
+    const used = new Set(sets.flat().map(t => t.id));
+    const singles = plain.filter(t => !used.has(t.id)).sort(byColor);
+    const groups = [...sets];
     if (singles.length) groups.push(singles);
-    if (wild.length) groups.push(wild);
+    if (wildsLeft.length) groups.push(wildsLeft);
     return placeGroups(groups);
+};
+
+// En yüksek toplamlı per bölüşümü: aday perler (aynı renk seriler 1-13, aynı sayı farklı renk 3-4 taş; eksik yerlere okey)
+// üretilir, sonra çakışmayan adaylardan toplamı en büyük olanlar seçilir (taş maskesi + kalan okey sayısıyla hafızalı arama).
+// Elde en çok 15 taş olduğundan 2^15 × 3 durumu geçmez.
+const bestSets = (plain, wild) => {
+    const n = plain.length;
+    const W = wild.length;
+    const idxOf = (color, value) => plain.map((t, i) => (t.color === color && t.value === value ? i : -1)).filter(i => i !== -1);
+    const cands = []; // { mask, wilds, slots: [index | 'w'], value }
+    // Yuvaların taş seçenekleri (aynı taştan iki tane varsa ikisi de denenir) → aday perler
+    const expand = (slots, value) => {
+        const real = slots.filter(o => o.length).length;
+        const wilds = slots.length - real;
+        if (wilds > W || real === 0) return;
+        let combos = [[]];
+        for (const opts of slots) {
+            combos = opts.length ? combos.flatMap(c => opts.map(i => [...c, i])) : combos.map(c => [...c, 'w']);
+            if (combos.length > 16) combos = combos.slice(0, 16);
+        }
+        for (const c of combos) {
+            const mask = c.reduce((m, i) => (i === 'w' ? m : m | (1 << i)), 0);
+            cands.push({ mask, wilds, slots: c, value });
+        }
+    };
+    const COLORS = ['red', 'yellow', 'blue', 'black'];
+    for (const color of COLORS) {
+        for (let start = 1; start <= 11; start++) {
+            for (let end = start + 2; end <= 13; end++) {
+                const slots = [];
+                let value = 0;
+                for (let v = start; v <= end; v++) { slots.push(idxOf(color, v)); value += v; }
+                expand(slots, value);
+            }
+        }
+    }
+    for (let v = 1; v <= 13; v++) {
+        const present = COLORS.filter(c => idxOf(c, v).length);
+        // Renk alt kümeleri (en az bir gerçek taş) + okeyle 3-4 taş
+        for (let m = 1; m < 1 << present.length; m++) {
+            const cols = present.filter((_, k) => m & (1 << k));
+            for (let w = 0; w <= W && cols.length + w <= 4; w++) {
+                if (cols.length + w < 3) continue;
+                expand([...cols.map(c => idxOf(c, v)), ...Array(w).fill([])], v * (cols.length + w));
+            }
+        }
+    }
+    const byIdx = Array.from({ length: n }, () => []);
+    cands.forEach(c => { for (let i = 0; i < n; i++) if (c.mask & (1 << i)) { byIdx[i].push(c); break; } }); // en küçük taşına göre
+    const memo = new Map();
+    const solve = (mask, w) => {
+        let i = 0;
+        while (i < n && mask & (1 << i)) i++;
+        if (i === n) return { value: 0, picks: [] };
+        const key = mask * 3 + w;
+        if (memo.has(key)) return memo.get(key);
+        let best = solve(mask | (1 << i), w); // bu taş pere girmez
+        for (const c of byIdx[i]) {
+            if (c.mask & mask || c.wilds > w) continue;
+            const r = solve(mask | c.mask, w - c.wilds);
+            if (r.value + c.value > best.value) best = { value: r.value + c.value, picks: [c, ...r.picks] };
+        }
+        memo.set(key, best);
+        return best;
+    };
+    const { picks } = solve(0, W);
+    const wildsLeft = [...wild];
+    const sets = picks.map(c => c.slots.map(i => (i === 'w' ? wildsLeft.shift() : plain[i])));
+    return { sets, wildsLeft };
 };
 
 // Grupları satırlara aralarında bir boşlukla yerleştirir; satıra sığmayan grup alt satıra geçer

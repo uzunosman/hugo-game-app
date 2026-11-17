@@ -106,10 +106,14 @@
 
 .open-sets-left .open-set-group.expanded { transform-origin: left center; }
 .open-sets-right .open-set-group.expanded { transform-origin: right center; }
-/* Sürükleyerek işlenen taş yerine oturana kadar per büyük kalır (utils/flyTiles.js holdSet), sonra taşla birlikte küçülür */
-.open-set-group[data-hold] { transform: scale(1.5); z-index: 10; }
-.open-sets-left .open-set-group[data-hold] { transform-origin: left center; }
-.open-sets-right .open-set-group[data-hold] { transform-origin: right center; }
+/* Sürükleyerek işlenen taş oturunca per küçülür, bekletilen yuvalar daralarak kaybolur (utils/flyTiles.js holdSet, COLLAPSE_MS) */
+.open-set-group { transition: transform 0.32s cubic-bezier(.22, .61, .36, 1); }
+/* Büyüme merkezi her zaman aynı: küçülürken merkez değişip per sıçramasın */
+.open-sets-left .open-set-group { transform-origin: left center; }
+.open-sets-right .open-set-group { transform-origin: right center; }
+.open-set-group.collapsing { z-index: 10; }
+.open-set-group .insertion-slot.held { transition: width 0.32s cubic-bezier(.22, .61, .36, 1), margin 0.32s; }
+.open-set-group.collapsing .insertion-slot.held { width: 0; margin: 0 -1px; }
 
 /* ── Insertion slot ───── */
 .insertion-slot {

@@ -11,7 +11,7 @@ import socketService from '../../services/socketService';
 import { getOrderedPlayers, getPlayerPosition, getPlayerCorner, getCurrentPlayerIndex, calculateHandScore, calculatePairScore, canTakePairOkey, getConsecutiveGroups, validateSet, validatePair, arrangeTiles } from '../../utils/gameUtils';
 import { handleDrawTile, handleTileMove, handleDrawDiscardedTile } from '../../utils/tileHandlers';
 import { moveGroup } from '../../utils/rackDrag';
-import { animateOwn, flyToCorner, PLACE_MS, rackTileEl, slideFrom, whenRendered } from '../../utils/flyTiles';
+import { animateOwn, flyToCorner, PLACE_MS, rackTileEl, slideFrom, whenRendered, releaseSet } from '../../utils/flyTiles';
 import '../../assets/css/components/GameBoard.css';
 import '../../assets/css/layout.css';
 import '../../assets/css/mobile.css';
@@ -376,6 +376,7 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
 
         rememberRack();
         socketService.addTileToSet(tileId, targetSetId, position, (response) => {
+            if (!response.success) releaseSet(); // reddedildi: bekletilen per küçülür
             if (response.success) {
                 setPlayedThisTurn(true);
                 const remaining = response.remainingTiles || [];
@@ -542,8 +543,9 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
                 </div>
             )}
 
-            {/* Oyuncu Panelleri */}
+            {/* Oyuncu Panelleri (en yüksek açanın rozeti yeşil) */}
             {players.map((p, index) => {
+                const topOpened = Math.max(0, ...Object.values(playerOpenStates).filter(s => s.isOpen).map(s => s.openedTotal || 0));
                 const openState = playerOpenStates[p.id];
                 return (
                     <PlayerPanel
@@ -554,14 +556,10 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
                         position={getPlayerPosition(index)}
                         isCurrentPlayer={p.id === gameState.currentPlayerId}
                         timeLeft={p.id === gameState.currentPlayerId ? timeLeft : null}
-                        setScore={index === 0 ? (rackMode === 'cift' ? pairScore.pairTotal : handScore.setTotal) : null}
-                        setLabel={rackMode === 'cift' ? 'Çift' : 'Per'}
-                        canOpenWith={index === 0 && (() => {
-                            const v = rackMode === 'cift' ? pairScore.pairTotal : handScore.setTotal;
-                            return maxOpenedValue === 0 ? v >= 51 : v > maxOpenedValue; // açabilecek durumdaysa yeşil
-                        })()}
                         isOpen={openState?.isOpen}
                         openedTotal={openState?.openedTotal}
+                        openedWithPairs={!!openState?.openedWithPairs}
+                        isTopOpener={!!openState?.isOpen && topOpened > 0 && openState.openedTotal === topOpened}
                         penaltyScore={openState?.penaltyScore || 0}
                         connected={openState?.connected !== false}
                         bubble={chatBubbles[p.id]}
@@ -569,63 +567,52 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
                 );
             })}
 
-            {/* Açmadan önce: Tümünü aç (per) ve Çift Aç; per masaya sürüklenerek tek tek de açılır. Açtıktan sonra: Perleri indir */}
-            {/* Aksiyonlar: ıstakanın soluna yapışık, dizme bloğu gibi tek taş boyunda düğmeler (alt alta).
-                Taş yelpazesi + işaret (↑ aç, ↓ indir, ↶ geri al), üstte küçük değer etiketi; açabilecek durumdaysa yeşil */}
-            {canAct && (
-                <div className="action-buttons">
-                    {/* Açma düğmesi yalnızca elde per / çift varken ve dizme kipine göre tek: seri dizdeyse "Tümünü aç",
-                        çift dizdeyse "Çift aç" */}
-                    {!myOpenState.isOpen && (
-                        <>
-                            {rackMode !== 'cift' && handScore.validSetCount > 0 && <button
-                                className={`open-hand-btn ${canOpenHand ? 'active' : 'disabled'} ${canOpenHand && openHandShort ? 'short' : ''}`}
-                                onClick={() => onOpenHand('seri')}
-                                disabled={!canOpenHand}
-                                aria-label="Tümünü aç"
-                                title={canOpenHand && openHandShort ? `Tümünü aç: değer yetersiz (${maxOpenedValue === 0 ? 'en az 51' : `${maxOpenedValue}'i geçmeli`})` : 'Tümünü aç'}
-                            >
-                                {actionFan([3, 4, 5])}<span className="at-label" aria-hidden="true">Aç</span>
-                                {openTotal > 0 && <span className="open-hand-score">{openTotal}</span>}
-                            </button>}
-                            {rackMode === 'cift' && pairScore.pairCount > 0 && (
-                                <button
-                                    className={`open-hand-btn ${canOpenPairs ? 'active' : 'disabled'} ${canOpenPairs && openPairsShort ? 'short' : ''}`}
-                                    onClick={() => onOpenHand('cift')}
-                                    disabled={!canOpenPairs}
-                                    aria-label="Çift aç"
-                                    title={openPairsShort ? `Çift aç: değer yetersiz (${maxOpenedValue === 0 ? 'en az 51' : `${maxOpenedValue}'i geçmeli`})` : 'Çift aç'}
-                                >
-                                    {actionFan([5, 5])}<span className="at-label" aria-hidden="true">Aç</span>
-                                    <span className="open-hand-score">{pairScore.pairTotal}</span>
-                                </button>
-                            )}
-                        </>
-                    )}
-                    {playedThisTurn && (
+            {/* Aksiyonlar (ıstakanın solu): açma / indirme düğmesi her zaman yerinde, uygun değilken pasif. Değer etiketi
+                ıstakadaki per (seri diz) ya da çift (çift diz) toplamı; "Aç" yazısı yalnızca açılabilecekken görünür.
+                Geri al, bu sırada masaya oynadıysan açma düğmesinin üstünde */}
+            <div className="action-buttons">
+                {myOpenState.isOpen ? (
+                    <button
+                        className={`open-hand-btn drop-per ${canDropPer ? 'active' : 'disabled'}`}
+                        onClick={() => onDropPer()}
+                        disabled={!canDropPer}
+                        aria-label={myOpenState.openedWithPairs ? 'Çiftleri indir' : 'Perleri indir'}
+                        title={myOpenState.openedWithPairs ? 'Çiftleri indir' : 'Perleri indir'}
+                    >
+                        {actionFan(myOpenState.openedWithPairs ? [5, 5] : [3, 4, 5])}
+                        {canDropPer && <span className="at-label" aria-hidden="true">İndir</span>}
+                    </button>
+                ) : (() => {
+                    const pairs = rackMode === 'cift';
+                    const can = pairs ? canOpenPairs : canOpenHand;
+                    const short = pairs ? openPairsShort : openHandShort;
+                    const need = maxOpenedValue === 0 ? 'en az 51' : `${maxOpenedValue}'i geçmeli`;
+                    return (
                         <button
-                            className="open-hand-btn undo-turn active"
-                            onClick={onUndoTurn}
-                            aria-label="Geri al"
-                            title={`Geri al: bu sırada masaya oynadıkların ele döner, ${gameState.isHugoRound ? 200 : 100} ceza`}
+                            className={`open-hand-btn ${can ? 'active' : 'disabled'} ${can && short ? 'short' : ''}`}
+                            onClick={() => onOpenHand(pairs ? 'cift' : 'seri')}
+                            disabled={!can}
+                            aria-label={pairs ? 'Çift aç' : 'Tümünü aç'}
+                            title={can && short ? `${pairs ? 'Çift aç' : 'Tümünü aç'}: değer yetersiz (${need})` : pairs ? 'Çift aç' : 'Tümünü aç'}
                         >
-                            <span className="at-undo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></svg></span><span className="at-label at-label-2" aria-hidden="true">Geri<br />al</span>
-                            <span className="open-hand-score">+{gameState.isHugoRound ? 200 : 100}</span>
+                            {actionFan(pairs ? [5, 5] : [3, 4, 5])}
+                            {can && !short && <span className="at-label" aria-hidden="true">Aç</span>}
+                            <span className="open-hand-score" title={pairs ? 'Istakadaki çiftlerin değeri' : 'Istakadaki perlerin değeri'}>{pairs ? pairScore.pairTotal : openTotal}</span>
                         </button>
-                    )}
-                    {myOpenState.isOpen && canDropPer && (
-                        <button
-                            className={`open-hand-btn drop-per ${canDropPer ? 'active' : 'disabled'}`}
-                            onClick={() => onDropPer()}
-                            disabled={!canDropPer}
-                            aria-label={myOpenState.openedWithPairs ? 'Çiftleri indir' : 'Perleri indir'}
-                            title={myOpenState.openedWithPairs ? 'Çiftleri indir' : 'Perleri indir'}
-                        >
-                            {actionFan(myOpenState.openedWithPairs ? [5, 5] : [3, 4, 5])}<span className="at-label" aria-hidden="true">İndir</span>
-                        </button>
-                    )}
-                </div>
-            )}
+                    );
+                })()}
+                {playedThisTurn && (
+                    <button
+                        className="open-hand-btn undo-turn active"
+                        onClick={onUndoTurn}
+                        aria-label="Geri al"
+                        title={`Geri al: bu sırada masaya oynadıkların ele döner, ${gameState.isHugoRound ? 200 : 100} ceza`}
+                    >
+                        <span className="at-undo" aria-hidden="true">↶</span><span className="at-label" aria-hidden="true">Geri al</span>
+                        <span className="open-hand-score">+{gameState.isHugoRound ? 200 : 100}</span>
+                    </button>
+                )}
+            </div>
 
             {/* Oyun Tahtası */}
             <GameBoard
@@ -691,7 +678,7 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
             />
 
             <RotateHint />
-            <PenaltyLog entries={penaltyLog} round={gameState.round} />
+            <PenaltyLog entries={penaltyLog} round={gameState.round} myId={player.id} />
             <Chat playerId={player.id} />
 
             {/* Sağ üst: el bilgisi ve tabela */}

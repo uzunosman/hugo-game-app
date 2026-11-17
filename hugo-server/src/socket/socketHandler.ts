@@ -204,8 +204,21 @@ export const setupSocketHandlers = (io: Server) => {
             io.to(roomId).except(player.socketId).emit('game:tileDraw', {
                 success: true, deckCount: game.deck.length, playerId, fromDiscard: false, fromDiscardOfPlayerId: null
             });
+            // Çekilen taş görünsün: atma biraz sonra (bu arada sıra başka yoldan ilerlerse atılmaz)
+            if (config.game.drawGapMs > 0) {
+                turnTimers.set(roomId, setTimeout(() => {
+                    turnTimers.delete(roomId);
+                    if (game.isPlayerTurn(playerId) && game.turnAction === TurnAction.DISCARD) autoDiscard(roomId, game, playerId, drawn);
+                }, config.game.drawGapMs));
+                return;
+            }
         }
+        autoDiscard(roomId, game, playerId, drawn);
+    };
 
+    const autoDiscard = (roomId: string, game: Game, playerId: string, drawn: Tile | null) => {
+        const player = game.getPlayerById(playerId);
+        if (!player) return;
         const tile = game.pickAutoDiscard(playerId);
         if (!tile) return;
         // Oyuncunun kendi ekranı: çekilen taşı ekle, atılan taşı çıkar
@@ -256,6 +269,8 @@ export const setupSocketHandlers = (io: Server) => {
                     return;
                 }
                 io.to(roomId).emit('game:tileDraw', { success: true, deckCount: game.deck.length, playerId: botId, fromDiscard: false, fromDiscardOfPlayerId: null });
+                // Çekilen taşın uçuşu görünsün, hemen atılmasın
+                if (step > 0 && !await pause(config.game.drawGapMs)) return;
             }
 
             if (!bot.isOpen) {

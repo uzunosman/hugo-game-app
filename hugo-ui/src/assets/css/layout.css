@@ -5,11 +5,14 @@
    ├──── kendi bandı: aksiyon butonları · kendi kartın · dizme butonları ──────────┤
    └──────────────────────────────── ıstaka ───────────────────────────────────────┘ */
 :root {
-    --rack-h: calc(var(--tile-h, 60px) * 2 + 34px);
+    --rack-h: calc(var(--tile-h, 60px) * 2 + 33px); /* ıstakanın gerçek yüksekliği (kart ve yan düğmeler buna hizalanır) */
     --top-band: 46px;
     --side-band: 72px;
     --self-band: 46px;
     --pp-h: 40px; /* kendi kartının yüksekliği (bant içinde dikey ortalanır) */
+    --icon-btn: 40px; /* ayarlar, sohbet, cezalar: aynı boy */
+    --ob-h: 40px;     /* açılış rozeti (PlayerPanel.css): kart yüksekliğinde */
+    --board-r: 18px;  /* masanın köşe yuvarlaklığı */
     /* Masadaki her taş (açılan perler, atılan taşlar, deste, gösterge) aynı ölçüde */
     --set-tile-w: 36px;
     --set-tile-h: 50px;
@@ -38,7 +41,7 @@
     min-height: 0;
     max-height: none;
     margin: 0;
-    border-radius: 18px;
+    border-radius: var(--board-r);
 }
 .game-container .board-content { max-width: none; }
 
@@ -342,7 +345,7 @@
     --rack-w: calc(var(--tile-w, 40px) * 15 + 24px);
     --tool-gap: 4px;
     /* Yan düğmeler (dizme / aksiyonlar): ıstaka yüksekliğinde iki düğme üst üste */
-    --side-btn-h: calc((var(--rack-h) - var(--rack-gap, 6px) - 2px - var(--tool-gap)) / 2);
+    --side-btn-h: calc((var(--rack-h) - var(--rack-gap, 6px) - var(--tool-gap)) / 2);
     --side-btn-w: calc(var(--side-btn-h) * 0.9);
 }
 
@@ -371,9 +374,8 @@
 .game-container .action-buttons { --set-tile-w: var(--side-btn-w); --set-tile-h: var(--side-btn-h); }
 .game-container .rack-tools .at-label,
 .game-container .action-buttons .at-label { font-size: max(8px, calc(var(--side-btn-h) * 0.15)); bottom: 3px; }
-.game-container .action-buttons .at-label-2 { line-height: 1.05; }
-.game-container .action-buttons .undo-turn .at-undo { inset: 0 0 38% 0; }
-.at-undo svg { width: 46%; height: auto; }
+/* Geri al her zaman en üstte (sütun alttan dolar: sırası en sonda) */
+.game-container .action-buttons .undo-turn { order: 9; }
 .game-container .action-buttons .open-hand-score { font-size: max(9px, calc(var(--side-btn-h) * 0.15)); top: -8px; }
 
 /* Dizme: ıstakanın sağına yapışık */
@@ -381,7 +383,7 @@
     position: fixed;
     left: calc(50% + var(--rack-w) / 2 + 3px);
     right: auto;
-    bottom: calc(var(--rack-gap, 6px) + 2px);
+    bottom: var(--rack-gap, 6px); /* ıstakanın alt kenarıyla aynı çizgide */
     flex-direction: column;
     align-items: center;
     gap: var(--tool-gap);
@@ -396,7 +398,7 @@
 .game-container .action-buttons {
     left: auto;
     right: calc(50% + var(--rack-w) / 2 + 3px);
-    bottom: calc(var(--rack-gap, 6px) + 2px);
+    bottom: var(--rack-gap, 6px); /* ıstakanın alt kenarıyla aynı çizgide */
     transform: none;
     flex-direction: column-reverse; /* ilk düğme (aç) ıstakanın alt köşesine en yakın */
     align-items: center;
@@ -517,7 +519,7 @@
     letter-spacing: -0.01em;
     color: #fff;
     white-space: nowrap;
-    animation: pb-rise 1150ms cubic-bezier(.2, .7, .3, 1) both;
+    animation: pb-rise 1500ms cubic-bezier(.2, .7, .3, 1) both;
 }
 .pb-spark {
     position: absolute;
@@ -535,7 +537,7 @@
 @keyframes pb-rise {
     0%   { transform: translate(-50%, -40%) scale(0.5); opacity: 0; }
     14%  { opacity: 1; }
-    70%  { transform: translate(-50%, -190%) scale(1.05); opacity: 1; }
+    78%  { transform: translate(-50%, -195%) scale(1.06); opacity: 1; }
     100% { transform: translate(-50%, -240%) scale(1.12); opacity: 0; }
 }
 @keyframes pb-spark {
@@ -547,3 +549,24 @@
     .pb-value { animation: pb-fade 1100ms ease both; transform: translate(-50%, -150%); }
     @keyframes pb-fade { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
 }
+
+/* Sohbet ve ceza kaydı düğmeleri: masanın kenarından çıkan sekme gibi, masayla aynı zeminde; masanın dış kenarına yapışık,
+   yuvarlak köşesinin hemen üstünde. Ayarlar düğmesi boyunda */
+.game-container .chat, .game-container .penalty-log { bottom: calc(var(--rack-h) + var(--self-band) + var(--board-r)); }
+.game-container .penalty-log { left: calc(var(--side-band) - var(--icon-btn)); }
+.game-container .chat { right: calc(var(--side-band) - var(--icon-btn)); }
+.game-container .chat-toggle, .game-container .pl-toggle {
+    width: var(--icon-btn);
+    height: var(--icon-btn);
+    background: var(--board-bg, rgba(0, 0, 0, 0.1));
+    border: 0;
+    color: rgba(255, 255, 255, 0.9);
+}
+.game-container .pl-toggle { border-radius: calc(var(--icon-btn) / 3) 0 0 calc(var(--icon-btn) / 3); }
+.game-container .chat-toggle { border-radius: 0 calc(var(--icon-btn) / 3) calc(var(--icon-btn) / 3) 0; }
+.game-container .chat-toggle:hover, .game-container .pl-toggle:hover { background: rgba(0, 0, 0, 0.2); }
+/* Tasarım temalarında sekme masanın zemin rengini alır */
+html[data-ui="kiraathane"] { --board-bg: #5a3420; }
+html[data-ui="gece"] { --board-bg: #17224a; }
+html[data-ui="cini"] { --board-bg: #1d3f8f; }
+html[data-ui="karatahta"] { --board-bg: #a77a3f; }

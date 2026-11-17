@@ -5,7 +5,7 @@ import DiscardAreas from '../DiscardAreas/DiscardAreas';
 import OpenSetsArea from '../OpenSetsArea/OpenSetsArea';
 import useBoardDrag from '../../hooks/useBoardDrag';
 import { fitTable } from '../../utils/tableFit';
-import { animateOwn, flyClone, holdSet, PLACE_MS, rackTileEl, slideFrom, tileOrigins, whenRendered } from '../../utils/flyTiles';
+import { animateOwn, flyClone, holdSet, PLACE_MS, rackTileEl, slideFrom, tileLooks, tileOrigins, whenRendered } from '../../utils/flyTiles';
 import '../../assets/css/components/GameBoard.css';
 
 /**
@@ -68,7 +68,12 @@ const GameBoard = ({
     // from: bırakılan yer (tek dikdörtgen ya da taş başına dizi); reddedilince taş oradan ıstakaya kayar
     const hide = (ids, from) => {
         const rectOf = (i) => (Array.isArray(from) ? from[i] : from);
-        ids.forEach((id, i) => { if (id && rectOf(i)) tileOrigins.set(id, rectOf(i)); }); // yere açılışta uçuş buradan başlar
+        ids.forEach((id, i) => {
+            if (!id || !rectOf(i)) return;
+            tileOrigins.set(id, rectOf(i)); // yere açılışta / işlemede uçuş buradan başlar
+            const el = rackTileEl(id); // ıstakadaki görünüm: yerine süzülürken masa taşına dönüşür
+            if (el && !tileLooks.has(id)) tileLooks.set(id, { el: el.cloneNode(true), w: el.offsetWidth, h: el.offsetHeight });
+        });
         outRect.current = rectOf(0) || null;
         setHiddenIds(new Set(ids.filter(Boolean)));
         clearTimeout(hideTimer.current);
@@ -136,7 +141,7 @@ const GameBoard = ({
             playGroup: (ids, from) => { if (canDiscardNow) hide(ids, from); onPlayGroup(ids); }, // per masaya sürüklendi: el aç / per indir
             discard, // köşeye atma ile aynı yol (sıra / aşama kontrolü orada)
             // Sürükleyerek işleme: taş bırakıldığı yerden perdeki yerine süzülür, per inene kadar büyük kalır
-            addToSet: (tileId, setId, side, from) => { if (canPlaySets) { hide([tileId], from); holdSet(setId); } onAddTileToSet(tileId, setId, side); },
+            addToSet: (tileId, setId, side, from) => { if (canPlaySets) { holdSet(setId, tileId); hide([tileId], from); } onAddTileToSet(tileId, setId, side); },
             addPair: (ids, setId, from) => { if (canPlaySets) { hide(ids, from); ids.forEach(id => animateOwn.add(id)); } onAddPairToSet(ids, setId); },
             kustu: () => onKustu(false), // sürükleyerek kusma: atan oyuncu animasyon görmez
             drawDeck: handleDrawFromDeck,

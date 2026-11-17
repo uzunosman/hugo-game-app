@@ -41,10 +41,10 @@ const row = (cells) => [...cells, ...Array(CELLS_PER_ROW * 2 - cells.length).fil
     const seri = arrangeTiles(hand, 'seri', null, true);
     assert.strictEqual(seri.filter(Boolean).length, hand.length, 'hiçbir taş kaybolmamalı');
     const groups = getConsecutiveGroups(seri, hand).map(g => g.map(t => `${t.color}${t.value}`));
-    assert.ok(groups.some(g => g.join() === 'red11,red12,red13'), 'kırmızı 11-12-13 seri olmalı');
+    assert.ok(groups.some(g => g.join() === 'purpleH,red11,red12,red13'), 'okey (10) + kırmızı 11-12-13 seri olmalı');
 
-    // Seri diz kalan taşlardan aynı sayı perini de kurar: 11-12-13 + 9-9-9 = 63
-    assert.strictEqual(calculateHandScore(seri, hand, null, null, true).setTotal, 63, 'seri + çift per birlikte 63 olmalı');
+    // Seri diz en yüksek toplamı kurar, okey dahil: okey 10 olur → 10-11-12-13 (46) + 9-9-9 (27) = 73
+    assert.strictEqual(calculateHandScore(seri, hand, null, null, true).setTotal, 73, 'okeyle birlikte en yüksek toplam 73 olmalı');
 
     // Çift diz: aynı taşlar yan yana; Hugo elinde joker okeydir ve en değerli tek taşla eşleşir
     const pairHand = [
@@ -85,6 +85,18 @@ const row = (cells) => [...cells, ...Array(CELLS_PER_ROW * 2 - cells.length).fil
     assert.strictEqual(findPairPartner(b5, [b5, r6, b5b, k9], okey, false), b5b.id, 'aynı taş okeye tercih edilir');
     assert.strictEqual(findPairPartner(k9, [b5, r6, k9], okey, false), r6.id, 'eş yoksa okey');
     assert.strictEqual(findPairPartner(k9, [b5, k9], okey, false), null);
+}
+
+// Açgözlü dizme yetmez: kırmızı 1-2-3-4 + sarı 4 + mavi 4 → kırmızı 1-2-3 (6) ve 4-4-4 (12) = 18 (1-4 serisi yalnızca 10)
+{
+    const hand = [tile('red', 1), tile('red', 2), tile('red', 3), tile('red', 4), tile('yellow', 4), tile('blue', 4), tile('black', 9)];
+    const pos = arrangeTiles(hand, 'seri', null, false);
+    assert.strictEqual(calculateHandScore(pos, hand, null, null, false).setTotal, 18, 'en yüksek per toplamı 18 olmalı');
+    // Normal elde gerçek okey (gösterge+1) boşluğu doldurur: kırmızı 11-_-13 + okey = 36
+    const ok = { color: 'black', value: 5 };
+    const hand2 = [tile('red', 11), tile('red', 13), tile('black', 5), tile('blue', 2)];
+    const pos2 = arrangeTiles(hand2, 'seri', ok, false);
+    assert.strictEqual(calculateHandScore(pos2, hand2, null, ok, false).setTotal, 36, 'okey 12 yerine geçmeli');
 }
 
 // 15 dağınık taş taşmadan iki satıra sığar

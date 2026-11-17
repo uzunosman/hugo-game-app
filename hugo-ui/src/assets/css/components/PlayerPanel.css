@@ -41,7 +41,7 @@
 .pp-avatar::before {
     content: '';
     position: absolute;
-    inset: -3px;
+    inset: -2px; /* kartın kenarıyla halka arasında en az 2px boşluk kalsın */
     border-radius: 50%;
     background: conic-gradient(var(--pp-turn) calc(var(--ring, 0) * 360deg), rgba(255, 255, 255, 0.16) 0);
     -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2px));
@@ -290,3 +290,45 @@
     .player-panel.current-player .pp-bubble { left: 0; --bx: 0; }
     .player-panel.current-player .pp-bubble::after { left: 18px; }
 }
+
+/* Açılış değeri rozeti: dizme düğmesi gibi koyu, ince çerçeveli küçük taş; üstte seri (3-4-5) ya da çift (5-5) yelpazesi,
+   hemen altında açılış sayısı (belirgin). Kuzey ve güneyde kartın solunda, doğu ve batıda kartın üstünde: orta alanı daraltmaz */
+.pp-opened {
+    --set-tile-h: var(--ob-h, 40px); /* yelpaze taşlarının yazı boyu rozetin boyuna göre */
+    position: absolute;
+    width: calc(var(--ob-h, 40px) * 0.82);
+    height: var(--ob-h, 40px);
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.32);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+    pointer-events: none;
+}
+.pp-opened .rt-tile { bottom: 42%; height: 46%; }
+.pp-opened .rt-tile { bottom: 38%; }
+/* Açılış sayısı: rozetin alt kenarına oturan siyah hap; en yüksek açan yeşil, diğerleri sarı */
+.pp-opened b {
+    position: absolute;
+    left: 50%;
+    bottom: -5px;
+    transform: translateX(-50%);
+    min-width: 70%;
+    padding: 2px 4px 1px;
+    border-radius: 999px;
+    background: #0b1215;
+    border: 1.5px solid #ffc94d;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+    text-align: center;
+    font: 800 calc(var(--ob-h, 40px) * 0.36)/1 system-ui, sans-serif;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    color: #ffd166;
+    white-space: nowrap;
+}
+.pp-opened.is-top b { border-color: #34d399; color: #4ade80; }
+.player-panel.top .pp-opened,
+.player-panel.current-player .pp-opened { right: calc(100% + 4px); top: 50%; transform: translateY(-50%); }
+.player-panel.left .pp-opened,
+.player-panel.right .pp-opened { bottom: calc(100% + 8px); /* alttaki sayı hapı karta değmesin */ left: 50%; transform: translateX(-50%); }
+/* Kendi kartında sayı hapı ıstakaya değmesin: rozet biraz yukarıda */
+.player-panel.current-player .pp-opened { transform: translateY(calc(-50% - 3px)); }

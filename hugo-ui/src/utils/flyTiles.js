@@ -1,3 +1,5 @@
+import { useSyncExternalStore } from 'react';
+
 // Masaya gelen taş animasyonu (işleme, el açma, per indirme): taş, oynayan oyuncunun kartından (kendin için ıstakadan) çıkıp
 // masadaki perdeki yerine kısa bir yayla iner. Herkesin ekranında, sunucunun işleme olayıyla oynar.
 
@@ -38,14 +40,11 @@ export const flyTilesIn = (tileIds, playerId, myId, own = false) => {
             const land = () => { incomingTiles.delete(id); target?.classList.remove('incoming'); };
             if (!target || !target.animate) return land();
             const to = target.getBoundingClientRect();
-            if (origins[id]) { // kendi taşı: bıraktığın yerden masadaki yerine süzülür; büyümüş per taşla birlikte kapanır
+            if (origins[id]) { // kendi taşı: bıraktığın yerden masadaki yerine süzülür; büyümüş per sonra taşla birlikte küçülür
                 target.style.visibility = 'hidden';
-                return flyClone(target, origins[id], to, PLACE_MS, () => {
-                    target.style.visibility = '';
-                    land();
-                    const group = target.closest('.open-set-group[data-hold]');
-                    if (group) setTimeout(() => group.removeAttribute('data-hold'), 60);
-                });
+                const look = tileLooks.get(id);
+                tileLooks.delete(id);
+                return morphFly(look, target, origins[id], to, () => { target.style.visibility = ''; land(); releaseSet(); });
             }
             if (!from) return land();
             const ghost = target.cloneNode(true);
@@ -186,11 +185,68 @@ export const flyToPlayer = (srcEl, playerId) => {
     setTimeout(() => ghost.remove(), PLACE_MS + 1500); // arka plan sekmesi
 };
 
-// Sürükleyerek işleme: bırakınca per büyük kalır (taş yerine otururken), taş inince birlikte küçülür (flyTilesIn kaldırır).
+// ── Sürükleyerek işleme ──
+// Bırakılan taşın ıstakadaki görünümü (GameBoard alır): yerine süzülürken masa taşı görünümüne yumuşakça döner
+export const tileLooks = new Map(); // id → { el, w, h }
+export const SETTLE_MS = 520;
+export const COLLAPSE_MS = 320; // OpenSetsArea.css: per küçülme geçişi
+
+// İki kopya aynı yoldan gider (ıstaka taşı → masa taşı): biri sönerken öbürü belirir; ölçek her ikisinde de sürekli
+// olduğundan yazı boyu sıçramaz. Varışta masa taşı kopyası gerçek taşla birebir aynı boyda (büyümüş perin içinde).
+const morphFly = (look, target, from, to, done) => {
+    if (reducedMotion() || !target.animate) return done();
+    const make = (el, w, h) => {
+        const g = el.cloneNode(true);
+        g.classList.remove('selected', 'dragging', 'incoming');
+        g.classList.add('flying-discard');
+        g.querySelectorAll('.draw-hint, .remaining-count').forEach(n => n.remove());
+        Object.assign(g.style, {
+            position: 'fixed', left: `${to.left}px`, top: `${to.top}px`, width: `${w}px`, height: `${h}px`, margin: '0',
+            zIndex: 500, pointerEvents: 'none', visibility: 'visible', opacity: '1', transformOrigin: '0 0', transition: 'none',
+        });
+        document.body.appendChild(g);
+        return g;
+    };
+    const path = (w, h) => [
+        { transform: `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${from.width / w}, ${from.height / h})` },
+        { transform: `translate(0, 0) scale(${to.width / w}, ${to.height / h})` },
+    ];
+    const opts = { duration: SETTLE_MS, easing: EASE, fill: 'forwards' };
+    const tw = target.offsetWidth || to.width, th = target.offsetHeight || to.height;
+    const end = make(target, tw, th);
+    let finished = false;
+    const finish = () => { if (finished) return; finished = true; done(); end.remove(); };
+    end.animate(path(tw, th), opts);
+    if (look?.el) {
+        const start = make(look.el, look.w, look.h);
+        start.animate(path(look.w, look.h), opts);
+        start.animate([{ opacity: 1 }, { opacity: 1, offset: 0.3 }, { opacity: 0 }], opts).finished.catch(() => {}).finally(() => start.remove());
+        end.animate([{ opacity: 0 }, { opacity: 0, offset: 0.3 }, { opacity: 1 }], opts).finished.catch(() => {}).finally(finish);
+    } else {
+        end.getAnimations()[0]?.finished.catch(() => {}).finally(finish);
+    }
+    setTimeout(finish, SETTLE_MS + 1500); // arka plan sekmesi
+};
+
+// Bırakınca per büyük ve yuvalarıyla kalır (OpenSetsArea); taş oturunca küçülür ve yuvalar daralarak kaybolur.
 // İşleme reddedilirse ya da taş gelmezse kısa süre sonra kendiliğinden kapanır.
-export const holdSet = (setId) => {
+let held = null; // { setId, tileId, start, end, phase: 'hold' | 'collapse' }
+const holdSubs = new Set();
+const setHeld = (v) => { held = v; holdSubs.forEach(f => f()); };
+let holdTimer;
+export const holdSet = (setId, tileId) => {
     const group = document.querySelector(`.open-set-group[data-set-id="${setId}"]`);
     if (!group || reducedMotion()) return;
-    group.dataset.hold = '1';
-    setTimeout(() => group.removeAttribute('data-hold'), 2000);
+    const slot = (side) => !!group.querySelector(`.insertion-slot[data-position="${side}"]`);
+    setHeld({ setId, tileId, start: slot('start'), end: slot('end'), phase: 'hold' });
+    clearTimeout(holdTimer);
+    holdTimer = setTimeout(releaseSet, 2500);
 };
+export const releaseSet = () => {
+    if (held?.phase !== 'hold') return;
+    clearTimeout(holdTimer);
+    setHeld({ ...held, phase: 'collapse' });
+    holdTimer = setTimeout(() => setHeld(null), COLLAPSE_MS + 40);
+};
+const subscribeHeld = (cb) => { holdSubs.add(cb); return () => holdSubs.delete(cb); };
+export const useHeldSet = () => useSyncExternalStore(subscribeHeld, () => held);

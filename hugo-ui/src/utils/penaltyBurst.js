@@ -11,14 +11,12 @@ const tileEl = (id) => document.querySelector(`.open-set-tile[data-tile-id="${id
 export const penaltyBurst = (tileIds, amount) => {
     if (!(amount > 0) || !tileIds?.length) return;
     const t0 = Date.now();
-    let held = false;
     const wait = () => {
         const id = tileIds.find(tileEl);
         const el = id && tileEl(id);
-        // Sürükleyerek işlenen taşın peri büyük bekliyor: per küçülünce (0,3 sn geçiş) taşın son yerinde patlar
-        if (el?.closest('.open-set-group[data-hold]')) held = true;
-        else if (el && !incomingTiles.has(id)) {
-            return held ? setTimeout(() => burst(el.getBoundingClientRect(), amount), 320) : burst(el.getBoundingClientRect(), amount);
+        // Peri büyükse (sürükleyerek işlendi, küçülmeyi bekliyor) ya da küçülüyorsa: taşın son yerinde patlar
+        if (el && !incomingTiles.has(id) && !el.closest('.open-set-group.expanded, .open-set-group.collapsing')) {
+            return burst(el.getBoundingClientRect(), amount);
         }
         if (Date.now() - t0 < 2500) requestAnimationFrame(wait);
     };
@@ -51,5 +49,5 @@ const burst = (r, amount) => {
         }
     }
     document.body.appendChild(root);
-    setTimeout(() => root.remove(), 1300);
+    setTimeout(() => root.remove(), 1650);
 };

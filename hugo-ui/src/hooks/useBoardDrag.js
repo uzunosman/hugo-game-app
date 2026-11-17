@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { perGroupAt } from '../utils/rackDrag';
-import { rackTileEl, settleFrom } from '../utils/flyTiles';
+import { rackTileEl, settleFrom, tileLooks } from '../utils/flyTiles';
 
 // Masadaki tüm sürükle-bırak: fare, dokunmatik ve kalem aynı Pointer Events yolunu kullanır.
 //  - Istaka taşı: sürükle → ıstakada yer değiştir, köşeye at, masadaki pere işle (son taş ıstaka dışında her yere: at)
@@ -106,6 +106,9 @@ export default function useBoardDrag(props) {
         window.removeEventListener('pointercancel', s.h.cancel);
         window.removeEventListener('contextmenu', s.h.ctx, true);
         if (s.ghost) { s.ghostRect = s.ghost.firstChild?.getBoundingClientRect(); s.ghostRects = [...s.ghost.children].map(c => c.getBoundingClientRect()); } // reddedilince geri kayma buradan
+        // Sürüklenen taşın görünümü: masaya bırakılırsa yerine süzülürken masa taşına dönüşür (flyTiles morphFly)
+        const ids = s.kind === 'group' ? s.groupIds : s.kind === 'tile' ? [s.tileId] : [];
+        [...(s.ghost?.children || [])].forEach((c, i) => { if (ids[i]) tileLooks.set(ids[i], { el: c.cloneNode(true), w: parseFloat(c.style.width), h: parseFloat(c.style.height) }); });
         s.ghost?.remove();
         if (s.kind === 'discard' && s.el) s.el.style.visibility = '';
         if (s.dragging && s.kind === 'tile') latest.current.actions.dragEnd?.();

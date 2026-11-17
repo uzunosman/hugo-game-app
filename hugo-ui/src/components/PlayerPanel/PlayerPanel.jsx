@@ -4,12 +4,12 @@ import '../../assets/css/components/PlayerPanel.css';
 
 const TURN_SECONDS = 60;
 
-// canOpenWith: ıstakadaki per / çift değeri açmaya yetiyor mu (masada açan yoksa 51, varsa en yüksek açılışı geçmeli)
-const PlayerPanel = ({ playerId, name, isBot = false, position, isCurrentPlayer, timeLeft, setScore, setLabel = 'Per', canOpenWith = false, isOpen, openedTotal, penaltyScore, connected = true, bubble = null }) => {
+// Açan oyuncunun açılış değeri: dizme düğmesine benzer küçük taş rozeti (pp-opened): üstte seri / çift yelpazesi, altında sayı.
+// Kuzey ve güneyde avatarın solunda, doğu ve batıda avatarın üstünde
+const PlayerPanel = ({ playerId, name, isBot = false, position, isCurrentPlayer, timeLeft, isOpen, openedTotal, openedWithPairs = false, isTopOpener = false, penaltyScore, connected = true, bubble = null }) => {
     const seconds = isCurrentPlayer && typeof timeLeft === 'number' ? timeLeft : null;
     const progress = seconds === null ? 0 : Math.max(0, Math.min(1, seconds / TURN_SECONDS));
     const isWarning = seconds !== null && seconds <= 10;
-    const showSetScore = setScore !== null && setScore !== undefined && !isOpen;
 
     return (
         <div
@@ -27,13 +27,17 @@ const PlayerPanel = ({ playerId, name, isBot = false, position, isCurrentPlayer,
                 <div className="pp-name" title={name}>{name}</div>
                 <div className="pp-meta">
                     {!connected && <span className="pp-chip pp-offline">Koptu</span>}
-                    {isOpen && openedTotal > 0 && <span className="pp-chip pp-open" title="Açılış değeri">Açık {openedTotal}</span>}
                     {penaltyScore > 0 && <span className="pp-chip pp-penalty" title="Bu eldeki ceza">Ceza {penaltyScore}</span>}
-                    {showSetScore && (
-                        <span className={`pp-chip pp-set ${canOpenWith ? 'valid' : ''}`} title={setLabel === 'Çift' ? 'Istakadaki çiftlerin değeri' : 'Istakadaki perlerin değeri'}>{setLabel} {setScore}</span>
-                    )}
                 </div>
             </div>
+            {isOpen && openedTotal > 0 && (
+                <div className={`pp-opened ${isTopOpener ? 'is-top' : ''}`} title={openedWithPairs ? 'Çiftle açtı' : 'Seriyle açtı'} aria-label={`${openedWithPairs ? 'Çiftle' : 'Seriyle'} açtı: ${openedTotal}`}>
+                    {openedWithPairs
+                        ? <span className="rt-fan rt-fan-2" aria-hidden="true"><span className="rt-tile">5</span><span className="rt-tile">5</span></span>
+                        : <span className="rt-fan rt-fan-3" aria-hidden="true"><span className="rt-tile">3</span><span className="rt-tile">4</span><span className="rt-tile">5</span></span>}
+                    <b>{openedTotal}</b>
+                </div>
+            )}
             {/* Sohbet balonu: yazanın kartının yanında birkaç saniye görünür (Game yönetir) */}
             {bubble && <div key={bubble.id} className="pp-bubble" role="status">{bubble.text}</div>}
         </div>

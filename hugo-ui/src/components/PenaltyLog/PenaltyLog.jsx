@@ -5,7 +5,7 @@ import '../../assets/css/components/PenaltyLog.css';
 
 // Masadaki herkesin gördüğü bu elin ceza kaydı. Sağ alt köşede yalnızca simge; dokununca ıstakanın sağındaki boşlukta
 // (masanın altında) açılır. Her elin başında kapanır. Önceki ellerin cezaları tabelada, ele tıklanınca görünür.
-const PenaltyLog = ({ entries, round }) => {
+const PenaltyLog = ({ entries, round, myId }) => {
     const [open, setOpen] = useState(false);
     const listRef = useRef(null);
     useEffect(() => { setOpen(false); }, [round]);
@@ -19,7 +19,7 @@ const PenaltyLog = ({ entries, round }) => {
                 <ul ref={listRef} className="pl-list" aria-live="polite">
                     {entries.length === 0 && <li className="pl-empty">Bu elde henüz ceza yok</li>}
                     {entries.map(e => (
-                        <li key={e.id} className={e.amount < 0 ? 'cancel' : undefined}>
+                        <li key={e.id} className={`${e.amount < 0 ? 'cancel' : ''} ${e.playerId === myId ? 'mine' : ''}`}>
                             <b className="pl-name">{e.playerName}</b>
                             <span className="pl-tiles"><PenaltyTiles label={e.tile} tag={e.tag} /></span>
                             {/* Kusulan taşın ceza iadesi tutar yerine "Kustu" yazar */}

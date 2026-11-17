@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { isOkeyTile, asPlayedTile, canTakePairOkey } from '../../utils/gameUtils';
 import '../../assets/css/components/OpenSetsArea.css';
-import { incomingTiles } from '../../utils/flyTiles';
+import { incomingTiles, useHeldSet } from '../../utils/flyTiles';
 import JokerFace from '../Tile/JokerFace';
 
 /**
@@ -162,6 +162,7 @@ function isGroupSet(set, okeyTile, isHugo) {
 // canPlay: oyuncu yere açmış ve sırası onda; değilse perler üstüne gelince büyümez
 const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTileToSet, okeyTile, isHugo, dragOverKey, dragOverSide, dragOverPairs, pendingSetIds, canPlay = true }) => {
     const [hovered, setHovered] = useState(null); // { setId, tileId }: üstüne gelinen per, o anda seçili taşla
+    const held = useHeldSet(); // sürükleyerek işlenen taş yerine oturana kadar per büyük ve yuvalarıyla kalır
 
     const positionMap = { 0: 'bottom', 1: 'right', 2: 'top', 3: 'left' };
 
@@ -206,19 +207,26 @@ const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTil
         const activeSide = dragOverKey === set.id
             ? (hasStartSlot && hasEndSlot ? dragOverSide : hasStartSlot ? 'start' : 'end')
             : null;
+        // Bekletilen per: bırakıldığı andaki yuvalar kalır; taş hangi uca geldiyse o uçtaki yuvanın yerini alır (kayma olmaz)
+        const isHeld = held?.setId === set.id && !isExpanded;
+        const heldAt = isHeld ? set.tiles.findIndex(t => t.id === held.tileId) : -1;
+        const heldSide = heldAt === -1 ? null : heldAt === 0 ? 'start' : 'end';
+        const showStart = (isExpanded && hasStartSlot) || (isHeld && held.start && heldSide !== 'start');
+        const showEnd = (isExpanded && hasEndSlot) || (isHeld && held.end && heldSide !== 'end');
+        const slotClass = (side) => `insertion-slot ${isHeld ? 'held' : activeSide === side ? 'active' : ''}`;
 
         return (
             <div
                 key={set.id}
-                className={`open-set-group ${isExpanded ? 'expanded' : ''} ${pendingSetIds?.includes(set.id) ? 'is-pending' : ''} ${set.tiles.length > 10 ? 'long-set' : ''} ${isInteractive && canPlay && (set.kind !== 'cift' ? (!fullGroup || fullHasOkey) : pairOkey) ? 'droppable' : ''}`}
+                className={`open-set-group ${isExpanded || (isHeld && held.phase === 'hold') ? 'expanded' : ''} ${isHeld && held.phase === 'collapse' ? 'collapsing' : ''} ${pendingSetIds?.includes(set.id) ? 'is-pending' : ''} ${set.tiles.length > 10 ? 'long-set' : ''} ${isInteractive && canPlay && (set.kind !== 'cift' ? (!fullGroup || fullHasOkey) : pairOkey) ? 'droppable' : ''}`}
                 data-set-id={set.id}
                 data-hover-key={canPlay && (!fullGroup || fullHasOkey) ? set.id : undefined}
                 onMouseEnter={() => handleMouseEnter(set.id)}
                 onMouseLeave={() => handleMouseLeave(set.id)}
             >
-                {isExpanded && hasStartSlot && (
+                {showStart && (
                     <div
-                        className={`insertion-slot ${activeSide === 'start' ? 'active' : ''}`}
+                        className={slotClass('start')}
                         data-set-id={set.id}
                         data-position="start"
                         onClick={() => handleSlotClick(set.id, 'start')}
@@ -240,9 +248,9 @@ const OpenSetsArea = ({ tableSets, players, selectedTileId, activeTile, onAddTil
                         </div>
                     );
                 })}
-                {isExpanded && hasEndSlot && (
+                {showEnd && (
                     <div
-                        className={`insertion-slot ${activeSide === 'end' ? 'active' : ''}`}
+                        className={slotClass('end')}
                         data-set-id={set.id}
                         data-position="end"
                         onClick={() => handleSlotClick(set.id, 'end')}
