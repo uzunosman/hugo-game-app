@@ -44,4 +44,12 @@ const res = g.discardTile(p1.id, p1.tiles[0].id);
 assert.ok(res.tile, `geri yüklenen oyunda taş atılabilmeli: ${res.error}`);
 assert.strictEqual(g.currentPlayerIndex, 2);
 
+// Oturum anahtarı: legacyAuth alanı olmadan kaydedilmiş anahtar geçiş için işaretlenir, kayıtlı alan korunur
+const legacy = JSON.parse(serialize(gm));
+legacy.players[0].authToken = 'eski'; delete legacy.players[0].legacyAuth;
+legacy.players[1].authToken = 'yeni'; legacy.players[1].legacyAuth = false;
+const lp = deserialize(JSON.stringify(legacy)).players;
+assert.strictEqual(lp[0].legacyAuth, true);
+assert.strictEqual(lp[1].legacyAuth, false);
+
 console.log('Persistence.selftest: kaydet → yükle sonrası oyun aynı ve oynanabilir ✓');

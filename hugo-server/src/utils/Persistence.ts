@@ -40,7 +40,11 @@ export const deserialize = (json: string): { players: Player[]; rooms: Room[]; n
     if (data.version !== VERSION) throw new Error(`Bilinmeyen durum sürümü: ${data.version}`);
 
     const players: Player[] = data.players.map((o: Plain) =>
-        Object.assign(Object.create(Player.prototype), o, { tiles: tiles(o.tiles), socketId: o.isBot ? o.socketId : '', connected: !!o.isBot })
+        Object.assign(Object.create(Player.prototype), o, {
+            tiles: tiles(o.tiles), socketId: o.isBot ? o.socketId : '', connected: !!o.isBot,
+            // legacyAuth alanı olmadan kaydedilmiş anahtar, geçiş sürümünde eski istemciye verilmiş olabilir
+            legacyAuth: o.legacyAuth ?? !!o.authToken,
+        })
     );
     const byId = new Map(players.map(p => [p.id, p]));
     const pick = (id: string) => {

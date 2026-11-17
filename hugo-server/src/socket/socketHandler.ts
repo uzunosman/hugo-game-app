@@ -1415,9 +1415,12 @@ export const setupSocketHandlers = (io: Server) => {
         socket.on('player:reconnect', (data: { playerId: string; token?: string }, callback) => {
             const player = data?.playerId ? gameManager.getPlayerById(data.playerId) : undefined;
             if (!player || player.isBot) return callback?.({ success: false, error: 'Oyuncu bulunamadı' });
-            // Anahtar çıkmadan önce kaydolan oyuncu (geçiş): kimlikle kabul edilir ve anahtar verilir
-            if (player.authToken && !tokenMatches(player, data?.token)) return callback?.({ success: false, error: 'Oturum geçersiz' });
-            if (!player.authToken) issueToken(player);
+            // Geçiş: anahtar çıkmadan önce kaydolan oyuncu kimlikle kabul edilir; anahtarı eski istemci saklayamamış olabileceğinden
+            // anahtarla bir kez dönene kadar (legacyAuth) anahtarsız istek de kabul edilir
+            const legacy = !player.authToken || (player.legacyAuth && !data?.token);
+            if (!legacy && !tokenMatches(player, data?.token)) return callback?.({ success: false, error: 'Oturum geçersiz' });
+            if (!player.authToken) { issueToken(player); player.legacyAuth = true; }
+            else if (!legacy) player.legacyAuth = false;
 
             gameManager.updatePlayerSocket(player.id, socket.id);
             player.connected = true;

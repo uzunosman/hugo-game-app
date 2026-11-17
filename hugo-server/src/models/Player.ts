@@ -23,6 +23,7 @@ export class Player {
     isBot: boolean;           // yapay zekâ oyuncu: sunucuda oynar, soketi yoktur
     avatar: string;           // oyuncunun seçtiği avatar tohumu (boşsa kimlikten üretilir)
     authToken = '';           // gizli oturum anahtarı: yalnızca sahibine verilir, yeniden bağlanmada istenir (toJSON'a girmez)
+    legacyAuth = false;       // anahtar eski istemciye verildi (saklayamamış olabilir): anahtarla bir kez dönene kadar anahtarsız da kabul
 
     constructor(name: string, socketId: string) {
         this.id = uuidv4();
