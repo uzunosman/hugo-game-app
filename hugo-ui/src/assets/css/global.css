@@ -92,3 +92,23 @@ input, textarea, [contenteditable="true"] { -webkit-user-select: text; user-sele
 
 /* Oyun ekranı kaydırılamaz: telefon dikey → yatay dönünce sayfa kaymış kalıp dokunma alanları taşlardan kaymasın (iOS) */
 html:has(.game-container), html:has(.game-container) body { overflow: hidden; overscroll-behavior: none; }
+
+/* Yönetici duyurusu: üstte ortada */
+.announce {
+    position: fixed;
+    top: calc(8px + env(safe-area-inset-top, 0px));
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 6000;
+    max-width: min(560px, calc(100vw - 32px));
+    padding: 8px 16px;
+    border-radius: 10px;
+    background: #f2b84b;
+    color: #1d1606;
+    font: 600 14px/1.35 system-ui, sans-serif;
+    text-align: center;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    animation: announce-in 0.25s ease-out;
+}
+@keyframes announce-in { from { opacity: 0; transform: translate(-50%, -8px); } }
+@media (prefers-reduced-motion: reduce) { .announce { animation: none; } }

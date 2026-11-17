@@ -31,6 +31,8 @@
 - Oyun kaydı: `/var/lib/hugo/events/YYYY-MM-DD.jsonl` (her istek `ev:"istek"`, masaya giden her olay `ev:"masa"`, el başında
   eller ve deste sırası `dagitim`; masa `#101701` gibi `masa` numarasıyla). Günlük istatistik:
   `ssh hugola 'cd /opt/hugo/hugo-server && STATE_FILE=/var/lib/hugo/state.json node dist/tools/stats.js [YYYY-MM-DD]'`
+- Yönetim ekranı: https://hugola.io/yonetim (masaları canlı izle, kapat, duyuru, günlük istatistik, sorunlar). Veriler Socket.IO
+  `admin:*` isteklerinden; anahtar `/var/lib/hugo/admin-token` (ya da `ADMIN_TOKEN`). Sunucu: `src/utils/Admin.ts`, arayüz: `components/Admin`.
 
 ## Dikkat
 - Oynayan oyuncu kendi işleme ve sürükleyerek atma animasyonunu görmez; diğer oyuncular görür. Çift tıkla atma, yere per açma,

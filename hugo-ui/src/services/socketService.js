@@ -2,7 +2,7 @@ import { io } from 'socket.io-client';
 
 // Sunucu adresi: geliştirmede sayfanın açıldığı makinenin 3001 portu (yerel ağda telefondan da çalışır);
 // yayında sayfanın kendi adresi (Caddy /socket.io isteklerini Node'a iletir). VITE_SOCKET_URL ikisini de ezer.
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL
+export const SOCKET_URL = import.meta.env.VITE_SOCKET_URL
     || (import.meta.env.DEV ? `${window.location.protocol}//${window.location.hostname}:3001` : window.location.origin);
 const SESSION_KEY = 'hugo.playerId'; // sekme başına oturum: yenilemede aynı koltuğa dönülür
 
@@ -23,6 +23,8 @@ class SocketService {
             // aynı oyuncu olarak yeniden tanıtılır, ekran sunucudaki güncel durumla yeniden kurulur
             // (kopukken kaçan olaylar böyle telafi edilir); oyuncu sunucuda yoksa girişe dönülür
             let connectedBefore = false;
+            // Yönetici duyurusu: ekranın üstünde birkaç saniye görünür (Announce)
+            this.socket.on('server:announce', (d) => window.dispatchEvent(new CustomEvent('hugo:announce', { detail: d })));
             this.socket.on('connect', () => {
                 // Yeniden bağlanma çoğunlukla sunucu güncellemesidir: yeni sürüm yayındaysa sayfa yenilenir (main.jsx)
                 if (connectedBefore) window.dispatchEvent(new Event('hugo:reconnected'));

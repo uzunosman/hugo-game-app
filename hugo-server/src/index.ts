@@ -6,6 +6,7 @@ import { config } from './config/config';
 import { setupSocketHandlers } from './socket/socketHandler';
 import { GameManager } from './utils/GameManager';
 import { loadState, saveState } from './utils/Persistence';
+import { adminToken } from './utils/Admin';
 
 // Express uygulaması oluştur
 const app = express();
@@ -34,6 +35,7 @@ const io = new Server(server, {
 
 // Kayıtlı oyun durumu varsa yükle, sonra Socket.IO işleyicilerini ayarla
 if (config.persist) loadState(GameManager.getInstance());
+if (config.persist) adminToken(); // yönetim anahtarı dosyası yoksa şimdi üretilir
 setupSocketHandlers(io);
 
 // Temel API rotası

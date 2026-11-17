@@ -7,7 +7,8 @@ import { Player } from '../models/Player';
 import { RoomStatus } from '../models/Room';
 import { appendArchive, saveState } from '../utils/Persistence';
 import { planOpening, planSets } from '../ai/AiPlanner';
-import { dealSnapshot, findTile, logEvent, tileLabel } from '../utils/EventLog';
+import { dayOf, dealSnapshot, findTile, logEvent, tileLabel } from '../utils/EventLog';
+import { checkToken, days, problems, statsOf, tableEvents } from '../utils/Admin';
 
 const BOT_NAMES = ['Robo Rıza', 'Robo Nur', 'Robo Can', 'Robo Ece'];
 const CHAT_MAX_LEN = 200;
@@ -32,6 +33,7 @@ export const setupSocketHandlers = (io: Server) => {
             const game = room.game;
             logEvent('masa', {
                 masa: room.no, oyun: game?.id ?? null, el: game?.round ?? null, olay: ev,
+                ...(payload?.playerId && { kim: room.getPlayerById(payload.playerId)?.name ?? null }),
                 // Atılan taşın tüm alanları yerine adı ve kimliği yazılır (kayıt küçük kalsın)
                 veri: payload?.tile ? { ...payload, tile: { id: payload.tile.id, playerId: payload.tile.playerId } } : payload,
                 ...(payload?.tile && { tas: tileLabel(payload.tile) }),
@@ -391,7 +393,7 @@ export const setupSocketHandlers = (io: Server) => {
         // Her istek oyun kaydına yazılır (sonucu ve taşların adlarıyla); reddedilen istek ayrıca sunucu günlüğüne
         socket.use((packet, next) => {
             const event = String(packet[0]);
-            if (QUIET_EVENTS.has(event)) return next();
+            if (QUIET_EVENTS.has(event) || event.startsWith('admin:')) return next();
             const me = gameManager.getPlayerBySocketId(socket.id);
             const room = me?.roomId ? gameManager.getRoomById(me.roomId) : undefined;
             const args = packet.length > 1 && typeof packet[1] === 'object' && packet[1] ? { ...packet[1] } : {};
@@ -443,6 +445,53 @@ export const setupSocketHandlers = (io: Server) => {
             if (++clientLogs > 30) return;
             const who = gameManager.getPlayerById(String((data as any)?.playerId || ''))?.name || '?';
             console.warn(`İstemci [${who}]:`, JSON.stringify(data).slice(0, 1500));
+            const d = (data && typeof data === 'object' ? data : {}) as Record<string, unknown>;
+            if (d.type !== 'dokunma' && d.type !== 'dizme') logEvent('istemci', { oyuncu: who, ...d });
+        });
+
+        // Yönetim ekranı (/yonetim): anahtarla girilir; masaları izler, kapatır, herkese duyuru gönderir
+        let adminFails = 0;
+        const admin = (event: string, fn: (data: any) => unknown) => socket.on(event, (data: any, callback?: (r: unknown) => void) => {
+            if (typeof callback !== 'function') return;
+            if (!socket.data.admin) return callback({ success: false, error: 'Yönetim anahtarı gerekli' });
+            try { callback({ success: true, ...(fn(data) as object) }); } catch (error) { callback({ success: false, error: (error as Error).message || 'Sunucu hatası' }); }
+        });
+        socket.on('admin:login', (data: { token?: string }, callback?: (r: unknown) => void) => {
+            if (typeof callback !== 'function') return;
+            if (adminFails >= 5) return callback({ success: false, error: 'Çok fazla hatalı deneme' });
+            if (!checkToken(data?.token)) { adminFails++; logEvent('yonetim', { islem: 'hatali-giris', soket: socket.id }); return callback({ success: false, error: 'Anahtar yanlış' }); }
+            socket.data.admin = true;
+            callback({ success: true });
+        });
+        admin('admin:overview', () => ({
+            sunucu: { calisma: Math.round(process.uptime()), bellekMb: Math.round(process.memoryUsage().rss / 1048576), baglanti: io.engine.clientsCount },
+            insanCevrimici: gameManager.getAllPlayers().filter(p => !p.isBot && p.connected).length,
+            masalar: gameManager.getAllRooms().map(r => ({
+                no: r.no, ad: r.name, durum: r.status, olusturma: r.createdAt, sonHareket: r.lastActivityAt,
+                el: r.game?.round ?? null, hugo: r.game ? r.game.isHugoRound() : false, deste: r.game?.deck.length ?? null,
+                sira: r.game?.status === GameStatus.STARTED ? r.game.players[r.game.currentPlayerIndex]?.name ?? null : null,
+                oyuncular: r.players.map(p => ({ ad: p.name, bot: !!p.isBot, bagli: !!p.connected, puan: p.getTotalScore(), ceza: p.penaltyScore, tas: p.tiles.length, acik: !!p.isOpen })),
+            })),
+            bugun: statsOf(),
+        }));
+        admin('admin:stats', (d) => ({ gun: d?.day || dayOf(), gunler: days(), istatistik: statsOf(d?.day || dayOf()) }));
+        admin('admin:tableLog', (d) => ({ olaylar: tableEvents(Number(d?.no), d?.day || dayOf()) }));
+        admin('admin:problems', (d) => ({ olaylar: problems(d?.day || dayOf()) }));
+        admin('admin:closeTable', (d) => {
+            const room = gameManager.getAllRooms().find(r => r.no === Number(d?.no));
+            if (!room) throw new Error('Masa yok');
+            logEvent('yonetim', { islem: 'masa-kapat', masa: room.no });
+            closeRoom(room.id, 'Yönetici masayı kapattı');
+            broadcastRooms();
+            persist();
+            return {};
+        });
+        admin('admin:announce', (d) => {
+            const text = String(d?.text ?? '').replace(/\s+/g, ' ').trim().slice(0, 200);
+            if (!text) throw new Error('Boş duyuru');
+            logEvent('yonetim', { islem: 'duyuru', text });
+            io.emit('server:announce', { text });
+            return {};
         });
 
         socket.on('chat:send', (data: { playerId: string; text: string }, callback) => {

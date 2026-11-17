@@ -1,15 +1,19 @@
-import { StrictMode } from 'react'
+import { StrictMode, Suspense, lazy } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App.jsx'
 import DesignSwitcher from './components/DesignSwitcher/DesignSwitcher.jsx'
+import Announce from './components/Announce/Announce.jsx'
+
+// Yönetim ekranı ayrı dosyada yüklenir: oyuncuların indirdiği kod büyümez
+const AdminPage = lazy(() => import('./components/Admin/AdminPage.jsx'))
+const isAdmin = location.pathname.replace(/\/+$/, '') === '/yonetim'
 
 // Sağ altta küçük sürüm etiketi: test edilen sürüm buradan doğrulanır (deploy/update.sh verir)
 const VERSION = import.meta.env.VITE_APP_VERSION || 'dev'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <App />
-    <DesignSwitcher />
+    {isAdmin ? <Suspense fallback={null}><AdminPage /></Suspense> : <><App /><DesignSwitcher /><Announce /></>}
     <div className="app-version" aria-hidden="true">{VERSION}</div>
   </StrictMode>,
 )

@@ -11,13 +11,26 @@ import type { Tile } from '../models/Tile';
 export const eventsDir = () => process.env.EVENTS_DIR || path.join(path.dirname(stateFile()), 'events');
 export const dayOf = (d = new Date()) => d.toLocaleDateString('sv-SE', { timeZone: 'Europe/Istanbul' });
 
+// Masaların son olayları bellekte de tutulur: yönetim ekranındaki canlı izleme dosyayı okumadan anında görür
+const RECENT_PER_TABLE = 400;
+const recent = new Map<number, Record<string, unknown>[]>();
+export const recentTableEvents = (no: number) => recent.get(no);
+
 let dirReady = false;
 export const logEvent = (ev: string, data: Record<string, unknown>): void => {
     if (!config.persist) return;
     try {
-        if (!dirReady) { fs.mkdirSync(eventsDir(), { recursive: true }); dirReady = true; }
         const now = new Date();
-        fs.appendFileSync(path.join(eventsDir(), `${dayOf(now)}.jsonl`), JSON.stringify({ t: now.toISOString(), ev, ...data }) + '\n');
+        const entry = { t: now.toISOString(), ev, ...data };
+        if (typeof data.masa === 'number') {
+            const list = recent.get(data.masa) || [];
+            list.push(entry);
+            if (list.length > RECENT_PER_TABLE) list.shift();
+            recent.delete(data.masa); recent.set(data.masa, list); // en son oynanan masa sona
+            if (recent.size > 300) recent.delete(recent.keys().next().value!);
+        }
+        if (!dirReady) { fs.mkdirSync(eventsDir(), { recursive: true }); dirReady = true; }
+        fs.appendFileSync(path.join(eventsDir(), `${dayOf(now)}.jsonl`), JSON.stringify(entry) + '\n');
     } catch (error) {
         console.error('Olay kaydı yazılamadı:', error);
     }
@@ -38,7 +51,7 @@ export const findTile = (game: Game | null | undefined, id: string) => {
 // El başı: eller, gösterge, okey ve deste sırası (desteden çekilen taşlar buradan izlenebilir)
 export const dealSnapshot = (game: Game) => ({
     gosterge: tileLabel(game.indicatorTile),
-    okey: tileLabel(game.okeyTile),
+    okey: tileLabel(game.okeyTile) ?? 'sahte okey', // Hugo elinde okey yok: sahte okeyler okey yerine geçer
     eller: Object.fromEntries(game.players.map(p => [p.name, p.tiles.map(tileLabel)])),
     deste: game.deck.map(tileLabel),
 });
