@@ -86,7 +86,9 @@ export const setupSocketHandlers = (io: Server) => {
         // Test senaryosu masası: süre kapalıysa kimse otomatik oynamaz (koltuklar seat switcher ile oynanır)
         const room = gameManager.getRoomById(roomId);
         if (room?.labScenario && !room.labTimer) { turnDeadlines.delete(roomId); return; }
-        const ms = overrideMs ?? (current.connected ? config.game.turnTimeout : config.game.disconnectedTurnTimeout);
+        // Tek gerçek oyuncu koptuysa sırası 2 saat bekler (dönerse oynar, dönmezse otomatik oynanır, oyun sürer)
+        const ms = !current.connected && room?.soloAwayHuman() === current ? config.game.soloAwayTurnMs
+            : overrideMs ?? (current.connected ? config.game.turnTimeout : config.game.disconnectedTurnTimeout);
         turnDeadlines.set(roomId, Date.now() + ms);
         turnTimers.set(roomId, setTimeout(() => autoPlay(roomId, game, current.id), ms));
     };
@@ -401,7 +403,11 @@ export const setupSocketHandlers = (io: Server) => {
         const now = Date.now();
         let closed = false;
         gameManager.getAllRooms().forEach(room => {
+            // Tek gerçek oyuncu koptu, oyun sürüyor: masa boşta sayılmaz; kopmasından 6 saat sonra hâlâ yoksa kapanır
+            const away = room.status === RoomStatus.PLAYING ? room.soloAwayHuman() : null;
+            if (away) away.disconnectedAt ??= now; // yeniden başlatmada geri yüklenen oyuncu: süre şimdiden sayılır
             const reason = !room.firstHuman() ? 'Masada yalnızca yapay zekâ kaldı'
+                : away ? (now - away.disconnectedAt! > config.game.soloAwayMaxMs ? 'Oyuncu uzun süre dönmedi' : null)
                 : now - room.lastActivityAt > config.game.idleRoomMs ? 'Masa uzun süre oynanmadı'
                 : room.finishedAt && room.status === RoomStatus.WAITING && now - room.finishedAt > config.game.finishedRoomMs ? 'Oyun bitti, yeniden başlamadı'
                 : null;
@@ -1524,9 +1530,11 @@ export const setupSocketHandlers = (io: Server) => {
 
             gameManager.updatePlayerSocket(player.id, socket.id);
             player.connected = true;
+            player.disconnectedAt = null;
 
             const room = player.roomId ? gameManager.getRoomById(player.roomId) : undefined;
             if (room) {
+                room.lastActivityAt = Date.now(); // saatler sonra dönen oyuncunun masası "uzun süre oynanmadı" diye kapanmasın
                 socket.join(room.id);
                 io.to(room.id).emit('player:connection', { playerId: player.id, connected: true });
                 // Sırası kısa kopukluk süresiyle bekliyorsa tam süreyi geri ver
@@ -1548,6 +1556,7 @@ export const setupSocketHandlers = (io: Server) => {
             const playingRoom = player?.roomId ? gameManager.getRoomById(player.roomId) : undefined;
             if (player && playingRoom?.game && playingRoom.status === RoomStatus.PLAYING) {
                 player.connected = false;
+                player.disconnectedAt = Date.now();
                 io.to(playingRoom.id).emit('player:connection', { playerId: player.id, connected: false });
                 if (playingRoom.game.isPlayerTurn(player.id)) scheduleTurn(playingRoom.id, playingRoom.game);
                 return;

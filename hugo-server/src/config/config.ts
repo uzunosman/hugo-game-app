@@ -35,6 +35,10 @@ export const config = {
         drawGapMs: process.env.DRAW_GAP_MS !== undefined ? Number(process.env.DRAW_GAP_MS) : 1250,
         // Masa arşivleme: insan hamlesi olmadan bu süre geçerse, ya da oyun bitip yeniden başlamazsa
         idleRoomMs: Number(process.env.IDLE_ROOM_MS) || 30 * 60 * 1000,
+        // Tek gerçek oyuncu (3 yapay zekâya karşı) koptuysa: sırası geldiğinde bu kadar beklenir, dönmezse otomatik oynanır;
+        // kopmasından bu kadar sonra hâlâ yoksa masa kapanır
+        soloAwayTurnMs: Number(process.env.SOLO_AWAY_TURN_MS) || 2 * 60 * 60 * 1000,
+        soloAwayMaxMs: Number(process.env.SOLO_AWAY_MAX_MS) || 6 * 60 * 60 * 1000,
         finishedRoomMs: Number(process.env.FINISHED_ROOM_MS) || 10 * 60 * 1000,
         roomSweepMs: Number(process.env.ROOM_SWEEP_MS) || 60 * 1000,
         maxRounds: 9,

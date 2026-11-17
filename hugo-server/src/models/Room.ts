@@ -127,6 +127,12 @@ export class Room {
             this.players.every(player => player.isReady);
     }
 
+    // Masadaki tek gerçek oyuncu koptu mu (diğerleri yapay zekâ): masa onu saatlerce bekler (socketHandler soloAway)
+    soloAwayHuman(): Player | null {
+        const humans = this.players.filter(p => !p.isBot);
+        return humans.length === 1 && !humans[0].connected ? humans[0] : null;
+    }
+
     toJSON(): Record<string, any> {
         return {
             id: this.id,

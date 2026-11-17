@@ -59,4 +59,6 @@
   işlemede per taş oturana kadar büyük kalır: `holdSet`); diğer oyuncunun çektiği taş desteden / yerden kartına uçar
   (`flyToPlayer`); işleme cezası üstten bildirim yerine taşın üstünde patlar (`utils/penaltyBurst.js`).
 - Istakadan çıkan taş sunucu cevabına kadar gizli kalır; reddedilirse geri kayar (`GameBoard` hide / rejectId).
-- Yapay zekâ adımları arası bekleme `BOT_STEP_MS` (testlerde 0).
+- Yapay zekâ adımları arası bekleme `BOT_STEP_MS` (testlerde 0); çekme-atma arası `DRAW_GAP_MS` (1,25 sn).
+- Tek gerçek oyuncu 3 yapay zekâya karşı oynarken koparsa masa kapanmaz: sırası 2 saat bekler (`SOLO_AWAY_TURN_MS`), dönmezse
+  otomatik oynanır; kopmasından 6 saat sonra hâlâ yoksa masa kapanır (`SOLO_AWAY_MAX_MS`). Test: `scripts/e2e-solo.ts`.

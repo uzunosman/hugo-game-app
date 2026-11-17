@@ -113,6 +113,16 @@ const row = (cells) => [...cells, ...Array(CELLS_PER_ROW * 2 - cells.length).fil
     assert.strictEqual(isIslekTile(tile('yellow', 3), sets, null, false), false);
 }
 
+// Dizince artan taşlar sağ alta yaslanır, en küçük taş en sağ alttaki hücrede (seri diz ve çift diz)
+{
+    const hand = [tile('red', 5), tile('red', 6), tile('red', 7), tile('blue', 9), tile('black', 2), tile('yellow', 12)];
+    const seri = arrangeTiles(hand, 'seri', null, false);
+    assert.strictEqual(seri[29], hand[4].id, 'en küçük artan (siyah 2) en sağ altta');
+    assert.strictEqual(seri[28], hand[3].id, 'ondan büyük artan solunda');
+    const cift = arrangeTiles([...hand, tile('blue', 9)], 'cift', null, false);
+    assert.strictEqual(cift[29], hand[4].id, 'çift dizde de en küçük artan en sağ altta');
+}
+
 // 15 dağınık taş taşmadan iki satıra sığar
 {
     const many = Array.from({ length: 15 }, (_, i) => tile(['red', 'blue', 'black', 'yellow'][i % 4], (i * 3) % 13 + 1));

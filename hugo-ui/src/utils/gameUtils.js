@@ -353,6 +353,7 @@ export const arrangeTiles = (tiles, mode, okeyTile, isHugo) => {
     const plain = played.filter(t => !wild.includes(t));
 
     const byColor = (a, b) => colorIdx(a) - colorIdx(b) || a.value - b.value;
+    const bySmallestLast = (a, b) => b.value - a.value || colorIdx(a) - colorIdx(b); // büyükten küçüğe: en küçük sonda
 
     // Çift diz: aynı taşları yan yana; okeyler en değerli tek taşla eşleşir
     if (mode === 'cift') {
@@ -365,17 +366,18 @@ export const arrangeTiles = (tiles, mode, okeyTile, isHugo) => {
         }
         const wilds = [...wild];
         while (wilds.length && singles.length) pairs.push([singles.shift(), wilds.shift()]);
-        return placeGroups([...pairs, ...(singles.length || wilds.length ? [[...singles, ...wilds]] : [])]);
+        // Artanlar sağ alta: en küçük taş en sağ alttaki hücrede (atılacak taş hep aynı yerde)
+        return placeGroups([...pairs, ...(wilds.length ? [wilds] : [])], [...singles].sort(bySmallestLast));
     }
 
     // Seri diz: eldeki taşlar (okeyler dahil) toplam değeri en yüksek olacak şekilde perlere ayrılır; artanlar renge göre sıralı
     const { sets, wildsLeft } = bestSets(plain, wild);
     const used = new Set(sets.flat().map(t => t.id));
-    const singles = plain.filter(t => !used.has(t.id)).sort(byColor);
+    const singles = plain.filter(t => !used.has(t.id)).sort(bySmallestLast);
     const groups = [...sets];
-    if (singles.length) groups.push(singles);
     if (wildsLeft.length) groups.push(wildsLeft);
-    return placeGroups(groups);
+    // Artanlar sağ alta: en küçük taş en sağ alttaki hücrede (atılacak taş hep aynı yerde)
+    return placeGroups(groups, singles);
 };
 
 // En yüksek toplamlı per bölüşümü: aday perler (aynı renk seriler 1-13, aynı sayı farklı renk 3-4 taş; eksik yerlere okey)
@@ -448,7 +450,8 @@ const bestSets = (plain, wild) => {
 };
 
 // Grupları satırlara aralarında bir boşlukla yerleştirir; satıra sığmayan grup alt satıra geçer
-const placeGroups = (groups) => {
+// tail: ıstakanın sonuna (sağ alt) yaslanır; son elemanı en sağ alttaki hücreye gelir
+const placeGroups = (groups, tail = []) => {
     const positions = Array(CELLS_PER_ROW * 2).fill(null);
     let cursor = 0;
     const leftovers = [];
@@ -458,6 +461,13 @@ const placeGroups = (groups) => {
         if (cursor + g.length > positions.length) { leftovers.push(...g); continue; }
         g.forEach((t, i) => { positions[cursor + i] = t.id; });
         cursor += g.length + 1; // gruplar arası boşluk
+    }
+    // Sağ alttan geriye: en sondaki taş son hücreye, öncekiler soluna (dolu hücre atlanır)
+    let cell = positions.length - 1;
+    for (const t of [...tail].reverse()) {
+        while (cell >= 0 && positions[cell] !== null) cell--;
+        if (cell < 0) { leftovers.push(t); continue; }
+        positions[cell--] = t.id;
     }
     // Sığmayanları kalan boş hücrelere koy (hiçbir taş kaybolmaz)
     for (const t of leftovers) positions[positions.indexOf(null)] = t.id;
