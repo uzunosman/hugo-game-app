@@ -473,3 +473,20 @@ export const canTakePairOkey = (set, tile, okeyTile, isHugo) => {
     const a = asPlayedTile(tile, okeyTile, isHugo), b = asPlayedTile(mate, okeyTile, isHugo);
     return a.color === b.color && a.value === b.value;
 };
+
+// İşlek taş: masadaki bir seri / aynı sayı perinin başına ya da sonuna uyuyor ya da perdeki okeyin yerini tutuyor
+// (sunucu Game.islekPenalty ile aynı kural). Yardımlı masada bu taşlar ıstakada işaretlenir ve atılamaz.
+const sameNumber = (tiles, isOkey) => {
+    const normal = tiles.filter(t => !isOkey(t));
+    return normal.length > 0 && normal.every(t => t.value === normal[0].value);
+};
+export const isIslekTile = (tile, tableSets, okeyTile, isHugo) => {
+    const played = asPlayedTile(tile, okeyTile, isHugo);
+    if (isOkeyTile(played, okeyTile, isHugo) || typeof played.value !== 'number') return false;
+    const opts = { okeyTile, isHugo };
+    const isOkey = (t) => isOkeyTile(asPlayedTile(t, okeyTile, isHugo), okeyTile, isHugo);
+    const replacesOkey = (set) => !(sameNumber(set.tiles.map(t => asPlayedTile(t, okeyTile, isHugo)), isOkey) && set.tiles.length !== 4)
+        && set.tiles.some((x, i) => isOkey(x) && validateSet(set.tiles.map((y, j) => (j === i ? tile : y)), opts) > 0);
+    return (tableSets || []).some(set => set.kind !== 'cift'
+        && (validateSet([tile, ...set.tiles], opts) > 0 || validateSet([...set.tiles, tile], opts) > 0 || replacesOkey(set)));
+};

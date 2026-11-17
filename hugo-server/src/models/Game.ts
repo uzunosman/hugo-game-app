@@ -514,6 +514,16 @@ export class Game {
         return { success: true, penalty, reverts, tableSets: this.tableSets.map(st => this.tableSetToJSON(st)) };
     }
 
+    // Yardımlı mod: işlenebilir taş atılamaz. Eli bitiren son taş, açmadan bitiş ve elde atılabilecek başka taş
+    // kalmadığı durum hariç (o zaman eski kural: atılır, işlek cezası yazılır). Okey kendi kuralıyla (ceza) atılır.
+    islekBlocked(playerId: string, tileId: string, finishing = false): boolean {
+        const player = this.getPlayerById(playerId);
+        if (!player || finishing || player.tiles.length <= 1) return false;
+        const tile = player.tiles.find(x => x.id === tileId);
+        if (!tile || this.isOkeyTile(tile) || this.islekPenalty(tile) === 0) return false;
+        return player.tiles.some(x => x.id !== tileId && x.id !== this.takenDiscardTileId && !this.isOkeyTile(x) && this.islekPenalty(x) === 0);
+    }
+
     // Taş masadaki bir perin başına ya da sonuna eklenebiliyorsa sabit ceza: 100, Hugo elinde 200
     islekPenalty(tile: Tile): number {
         const played = this.asPlayed(tile); // sahte okey, okeyin değeriyle işlenebilir

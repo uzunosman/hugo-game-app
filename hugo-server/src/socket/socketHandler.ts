@@ -7,6 +7,7 @@ import { Game, GameStatus, Penalty, SetKind, TurnAction } from '../models/Game';
 import { Tile } from '../models/Tile';
 import { Player } from '../models/Player';
 import { Room, RoomStatus } from '../models/Room';
+import { settingsOf } from '../models/GameSettings';
 import { appendArchive, saveState } from '../utils/Persistence';
 import { planOpening, planSets } from '../ai/AiPlanner';
 import { dayOf, dealSnapshot, findTile, logEvent, tileLabel } from '../utils/EventLog';
@@ -1250,6 +1251,10 @@ export const setupSocketHandlers = (io: Server) => {
                 // Açmadan bitme perleri: yalnızca dizi-dizisi string kabul edilir (doğrulama Game'de)
                 const finishSets = Array.isArray(data.finishSets) && data.finishSets.every(st => Array.isArray(st) && st.every(id => typeof id === 'string'))
                     ? data.finishSets : undefined;
+                // Yardımlı masa: işlenebilir taş atılmaz (yapay zekâ ve süre dolunca otomatik atma bu yoldan geçmez)
+                if (settingsOf(room.settings).assisted && room.game.islekBlocked(playerId, tileId, !!finishSets)) {
+                    return callback({ success: false, error: 'Bu taş masadaki bir pere işlenebilir: işle ya da başka taş at' });
+                }
                 callback(discardAndAdvance(player.roomId, room.game, playerId, tileId, finishSets));
             } catch (error) {
                 console.error('Taş atma hatası:', error);

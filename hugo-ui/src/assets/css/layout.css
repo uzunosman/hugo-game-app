@@ -41,7 +41,7 @@
     min-height: 0;
     max-height: none;
     margin: 0;
-    border-radius: var(--board-r);
+    border-radius: var(--board-r) var(--board-r) 0 0; /* alt köşeler düz: sohbet / ceza sekmeleri köşeye oturur */
 }
 .game-container .board-content { max-width: none; }
 
@@ -552,18 +552,20 @@
 
 /* Sohbet ve ceza kaydı düğmeleri: masanın kenarından çıkan sekme gibi, masayla aynı zeminde; masanın dış kenarına yapışık,
    yuvarlak köşesinin hemen üstünde. Ayarlar düğmesi boyunda */
-.game-container .chat, .game-container .penalty-log { bottom: calc(var(--rack-h) + var(--self-band) + var(--board-r)); }
-.game-container .penalty-log { left: calc(var(--side-band) - var(--icon-btn)); }
-.game-container .chat { right: calc(var(--side-band) - var(--icon-btn)); }
+.game-container .chat, .game-container .penalty-log { bottom: calc(var(--rack-h) + var(--self-band)); } /* masanın alt kenarında */
+.game-container { --tab-btn: calc(var(--icon-btn) + 4px); } /* ayarlar düğmesinden bir tık büyük */
+.game-container .penalty-log { left: calc(var(--side-band) - var(--tab-btn)); }
+.game-container .chat { right: calc(var(--side-band) - var(--tab-btn)); }
 .game-container .chat-toggle, .game-container .pl-toggle {
-    width: var(--icon-btn);
-    height: var(--icon-btn);
+    width: var(--tab-btn);
+    height: var(--tab-btn);
     background: var(--board-bg, rgba(0, 0, 0, 0.1));
     border: 0;
     color: rgba(255, 255, 255, 0.9);
 }
-.game-container .pl-toggle { border-radius: calc(var(--icon-btn) / 3) 0 0 calc(var(--icon-btn) / 3); }
-.game-container .chat-toggle { border-radius: 0 calc(var(--icon-btn) / 3) calc(var(--icon-btn) / 3) 0; }
+.game-container .pl-toggle { border-radius: calc(var(--tab-btn) / 3) 0 0 calc(var(--tab-btn) / 3); }
+.game-container .chat-toggle { border-radius: 0 calc(var(--tab-btn) / 3) calc(var(--tab-btn) / 3) 0; }
+.game-container .chat-toggle svg, .game-container .pl-toggle svg { width: 58%; height: 58%; }
 .game-container .chat-toggle:hover, .game-container .pl-toggle:hover { background: rgba(0, 0, 0, 0.2); }
 /* Tasarım temalarında sekme masanın zemin rengini alır */
 html[data-ui="kiraathane"] { --board-bg: #5a3420; }

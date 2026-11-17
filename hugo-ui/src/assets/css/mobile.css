@@ -63,7 +63,7 @@
     /* Sohbet ve ceza kaydı: sol alt / sağ alt köşede simge (Chat.css, PenaltyLog.css) */
 
     /* Masa */
-    html .game-container .game-board{ border-radius: var(--board-r); }
+    html .game-container .game-board{ border-radius: var(--board-r) var(--board-r) 0 0; }
     html .open-sets-top{ top: 6px; }
     html .open-sets-bottom{ bottom: 6px; }
     html .open-sets-left{ left: calc(6% + 5px); }

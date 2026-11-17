@@ -705,4 +705,22 @@ for (const [round, amount] of [[2, 100], [5, 200]]) {
     assert.deepStrictEqual(f.game.discardTile(f.p0.id, j2.id).penalties, [], 'okeyle bitiren ceza almaz');
 }
 
-console.log('Rules.selftest: el açma, set doğrulama, sıra, işleme, yandan alma, işlek taş, otomatik atış, Hugo, sahte okey, çift açma, çift işleme ve el sonu puanlama kuralları ✓');
+
+// Yardımlı mod: işlek taş atılamaz; elde başka atılabilecek taş yoksa, son taşta ve okeyde engel yok
+{
+    const { game, p0 } = setup();
+    game.tableSets = [{ id: 'k', playerId: game.players[1].id, tiles: [t(RED, 5), t(RED, 6), t(RED, 7)], value: 18 }];
+    const [r8, b3] = give(p0, [t(RED, 8), t(BLUE, 3)]);
+    assert.strictEqual(game.islekBlocked(p0.id, r8.id), true, 'işlek kırmızı 8 atılamaz (mavi 3 atılabilir)');
+    assert.strictEqual(game.islekBlocked(p0.id, b3.id), false, 'işlek olmayan atılır');
+    const [r4, r9] = give(p0, [t(RED, 4), t(RED, 8)]);
+    assert.strictEqual(game.islekBlocked(p0.id, r4.id), false, 'elde yalnızca işlek taş varsa atılabilir (ceza yazılır)');
+    void r9;
+    const [last] = give(p0, [t(RED, 8)]);
+    assert.strictEqual(game.islekBlocked(p0.id, last.id), false, 'eli bitiren son taş engellenmez');
+    const [ok, b5] = give(p0, [t(YELLOW, 2), t(BLUE, 5)]);
+    assert.strictEqual(game.islekBlocked(p0.id, ok.id), false, 'okey bu kuralla engellenmez (okey atma cezası ayrı)');
+    void b5;
+}
+
+console.log('Rules.selftest: el açma, set doğrulama, sıra, işleme, yandan alma, işlek taş (yardımlı modda atılamaz), otomatik atış, Hugo, sahte okey, çift açma, çift işleme ve el sonu puanlama kuralları ✓');

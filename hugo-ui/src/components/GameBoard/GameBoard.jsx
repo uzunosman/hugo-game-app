@@ -47,6 +47,8 @@ const GameBoard = ({
     onTileDragStart,
     onTileDragEnd,
     flippedTileIds,
+    islekIds, // yardımlı masa: işlek taşlar (ıstakada işaretli)
+    islekBlocked, // işlek taş atılamaz (elde atılabilecek başka taş var)
     onOkeyFlip,
     onGroupMove,
     onPlayGroup,
@@ -100,6 +102,15 @@ const GameBoard = ({
             onWarn?.(tilePositions[idx] === kustuTileId
                 ? 'Yandan aldığın taş atılamaz: pere ekle ya da Kustu ile geri koy'
                 : 'Önce yandan aldığın taşı kullan: pere ekle ya da Kustu ile geri koy');
+            return;
+        }
+        // Yardımlı masa: işlek taş atılmaz; taş yerinde sallanır, işlek olduğu söylenir (sürüklenen taş ıstakaya döner)
+        if (canDiscardNow && islekBlocked && islekIds?.has(tilePositions[idx])) {
+            rackTileEl(tilePositions[idx])?.animate?.([
+                { transform: 'translateX(0)' }, { transform: 'translateX(-4px)' }, { transform: 'translateX(4px)' },
+                { transform: 'translateX(-3px)' }, { transform: 'translateX(2px)' }, { transform: 'translateX(0)' },
+            ], { duration: 360, easing: 'ease-out' });
+            onWarn?.('Bu taş işlek: masadaki bir pere işlenebilir. İşle ya da başka taş at');
             return;
         }
         if (canDiscardNow) {
@@ -257,6 +268,7 @@ const GameBoard = ({
                     okeyTile={okeyTile}
                     isHugo={isHugoRound}
                     flippedTileIds={flippedTileIds || new Set()}
+                    islekIds={islekIds}
                     onOkeyFlip={onOkeyFlip}
                     onArrange={onArrange}
                 />

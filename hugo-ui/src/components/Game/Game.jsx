@@ -8,7 +8,7 @@ import PenaltyLog from '../PenaltyLog/PenaltyLog';
 import Chat from '../Chat/Chat';
 import useGameState from '../../hooks/useGameState';
 import socketService from '../../services/socketService';
-import { getOrderedPlayers, getPlayerPosition, getPlayerCorner, getCurrentPlayerIndex, calculateHandScore, calculatePairScore, canTakePairOkey, getConsecutiveGroups, validateSet, validatePair, arrangeTiles } from '../../utils/gameUtils';
+import { getOrderedPlayers, getPlayerPosition, getPlayerCorner, getCurrentPlayerIndex, calculateHandScore, calculatePairScore, canTakePairOkey, getConsecutiveGroups, validateSet, validatePair, arrangeTiles, isIslekTile, isOkeyTile } from '../../utils/gameUtils';
 import { handleDrawTile, handleTileMove, handleDrawDiscardedTile } from '../../utils/tileHandlers';
 import { moveGroup } from '../../utils/rackDrag';
 import { animateOwn, flyToCorner, PLACE_MS, rackTileEl, slideFrom, whenRendered, releaseSet } from '../../utils/flyTiles';
@@ -318,6 +318,13 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
     const openHandShort = maxOpenedValue === 0 ? openTotal < 51 : openTotal <= maxOpenedValue;
 
     const myOpenState = playerOpenStates[player.id] || { isOpen: false, openedTotal: 0 };
+
+    // Yardımlı masa (room.settings.assisted, şimdilik hep açık): işlek taşlar ıstakada mor çentikle işaretlenir; atılmak
+    // istenince atılmaz, işlek olduğu söylenir. Elde atılabilecek başka taş yoksa (ya da son taşsa) eski kural: atılır, ceza yazılır.
+    const assisted = room?.settings?.assisted !== false;
+    const islekIds = new Set(assisted ? tiles.filter(t => isIslekTile(t, tableSets, gameState.okeyTile, gameState.isHugoRound)).map(t => t.id) : []);
+    const islekBlocked = islekIds.size > 0 && tiles.length > 1
+        && tiles.some(t => !islekIds.has(t.id) && t.id !== takenInfo?.tileId && !isOkeyTile(t, gameState.okeyTile, gameState.isHugoRound));
     const canAct = isMyTurn && (gameState.turnAction === 'discard' || isFirstHandBlock);
 
     // Çiftle açma: seriyle aynı eşik (ilk açılış 51, sonra masadaki en yüksek açılışı geçmeli)
@@ -674,6 +681,8 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
                 onTileDragStart={handleTileDragStart}
                 onTileDragEnd={handleTileDragEnd}
                 flippedTileIds={flippedTileIds}
+                islekIds={islekIds}
+                islekBlocked={islekBlocked}
                 onOkeyFlip={handleOkeyFlip}
             />
 

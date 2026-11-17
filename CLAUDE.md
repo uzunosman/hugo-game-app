@@ -48,6 +48,9 @@
   (koltuk değiştir, sıfırla, adımlar). Senaryolar `hugo-server/scenarios/*.json` (taş kodları `r5`, `k13`, `j`; biçim
   `src/lab/scenario.ts`). Her yeni test isteği için bir senaryo yaz; `npm test` her senaryoyu kurar (106 taş kontrolü).
   Staging'de sunucu admin anahtarsız bağlantıyı reddeder (`admin-required`), arayüz anahtarı sorar.
+- Masa ayarları (oyun modu): `hugo-server/src/models/GameSettings.ts` (`room.settings`, istemciye `room.settings`). Şimdilik
+  hepsi varsayılan; ileride masa açılırken seçilecek. `assisted` (yardımlı, açık): işlek taşın sağ üst köşesi mor, kıvrık (ambalaj açılışı gibi) ve
+  atılamaz (sunucu `Game.islekBlocked`, istemci `isIslekTile`); elde başka atılabilecek taş yoksa eski kural (ceza).
 - Yönetim ekranı: https://hugola.io/admin (masaları canlı izle, kapat, duyuru, günlük istatistik, sorunlar). Veriler Socket.IO
   `admin:*` isteklerinden; anahtar `/var/lib/hugo/admin-token` (ya da `ADMIN_TOKEN`). Sunucu: `src/utils/Admin.ts`, arayüz: `components/Admin`.
 

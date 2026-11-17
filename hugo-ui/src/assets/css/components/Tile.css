@@ -189,3 +189,16 @@
     line-height: 1;
     bottom: calc(var(--tile-dot-b, 8px) - var(--tile-dot, 8px) * 0.7);
 }
+
+/* Yardımlı masa: işlek taş (masadaki bir pere işlenebilir, atılmaz): sağ üst köşede mor üçgen (köşenin kendisi, dışa bakan) */
+.tile-holder .tile.is-islek::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: calc(var(--tile-w, 40px) * 0.36);
+    height: calc(var(--tile-w, 40px) * 0.36);
+    background: linear-gradient(225deg, #7c3aed 0%, #a78bfa 50%, transparent 50%);
+    border-top-right-radius: inherit;
+    pointer-events: none;
+}

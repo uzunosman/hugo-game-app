@@ -3,7 +3,7 @@ import '../../assets/css/components/Tile.css';
 import JokerFace from './JokerFace';
 
 // Taş görünümü. Sürükleme useBoardDrag'dadır (Pointer Events); burada HTML5 sürükle-bırak yok.
-const Tile = ({ value, color, onClick, onDoubleClick, index, tile, isDiscarded, canDrag, discardedFrom, isSelected, isFlipped, isOkey, onContextMenu }) => {
+const Tile = ({ value, color, onClick, onDoubleClick, index, tile, isDiscarded, canDrag, discardedFrom, isSelected, isFlipped, isOkey, isIslek, onContextMenu }) => {
     const tileRef = useRef(null);
     const [prevIndex, setPrevIndex] = useState(index);
 
@@ -46,7 +46,7 @@ const Tile = ({ value, color, onClick, onDoubleClick, index, tile, isDiscarded, 
     return (
         <div
             ref={tileRef}
-            className={`tile ${tileColor} ${tile?.isJoker ? 'is-joker' : ''} ${isDiscarded ? 'discarded' : ''} ${canDrag && isDiscarded ? 'can-drag' : ''} ${isSelected ? 'selected' : ''} ${isFlipped ? 'tile-flipped' : ''} ${isOkey ? 'is-okey' : ''}`}
+            className={`tile ${tileColor} ${tile?.isJoker ? 'is-joker' : ''} ${isDiscarded ? 'discarded' : ''} ${canDrag && isDiscarded ? 'can-drag' : ''} ${isSelected ? 'selected' : ''} ${isFlipped ? 'tile-flipped' : ''} ${isOkey ? 'is-okey' : ''} ${isIslek ? 'is-islek' : ''}`}
             onClick={handleClick}
             onDoubleClick={onDoubleClick}
             onContextMenu={onContextMenu}

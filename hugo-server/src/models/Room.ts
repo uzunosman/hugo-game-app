@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Player } from './Player';
 import { Game } from './Game';
+import { DEFAULT_SETTINGS, GameSettings } from './GameSettings';
 
 export enum RoomStatus {
     WAITING = 'waiting',
@@ -20,6 +21,7 @@ export class Room {
     createdAt: Date;
     lastActivityAt: number;   // son insan hamlesi (ms); uzun süre boşta kalan masa arşivlenir
     finishedAt: number | null; // oyun bitip masa beklemeye döndüğü an; yeniden başlamazsa arşivlenir
+    settings: GameSettings = { ...DEFAULT_SETTINGS }; // oyun modu (masa açılırken seçilecek)
     labScenario: string | null = null; // test senaryosu masası (lab): senaryo kimliği
     labTimer = false;                  // lab masasında sıra süresi işler mi
 
@@ -136,7 +138,8 @@ export class Room {
             maxPlayers: this.maxPlayers,
             createdAt: this.createdAt,
             game: this.game ? this.game.toPublicJSON() : null,
-            lab: this.labScenario
+            lab: this.labScenario,
+            settings: this.settings
         };
     }
 } 

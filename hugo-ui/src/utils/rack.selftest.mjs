@@ -1,6 +1,6 @@
 // Istaka mantığı öz-testi: `npm test` ile çalışır (saf fonksiyonlar, tarayıcı gerekmez).
 import assert from 'node:assert';
-import { getConsecutiveGroups, arrangeTiles, calculateHandScore, calculatePairScore, findPairPartner, validatePair, validateSet, CELLS_PER_ROW } from './gameUtils.js';
+import { isIslekTile, getConsecutiveGroups, arrangeTiles, calculateHandScore, calculatePairScore, findPairPartner, validatePair, validateSet, CELLS_PER_ROW } from './gameUtils.js';
 import { insertShift, rackGroupAt, reconcilePositions, drawSlot } from './tileHandlers.js';
 import { moveGroup, rackPreview, perGroupAt } from './rackDrag.js';
 
@@ -97,6 +97,20 @@ const row = (cells) => [...cells, ...Array(CELLS_PER_ROW * 2 - cells.length).fil
     const hand2 = [tile('red', 11), tile('red', 13), tile('black', 5), tile('blue', 2)];
     const pos2 = arrangeTiles(hand2, 'seri', ok, false);
     assert.strictEqual(calculateHandScore(pos2, hand2, null, ok, false).setTotal, 36, 'okey 12 yerine geçmeli');
+}
+
+// İşlek taş (sunucu kuralıyla aynı): seri / aynı sayı perinin ucuna uyan, okeyin yerini tutan; çiftlere uyan işlek değil
+{
+    const sets = [
+        { id: 's', kind: 'seri', tiles: [tile('red', 5), tile('red', 6), tile('red', 7)] },
+        { id: 'c', kind: 'cift', tiles: [tile('blue', 9), tile('blue', 9)] },
+        { id: 'n', tiles: [tile('black', 11), tile('yellow', 11), tile('blue', 11)] },
+    ];
+    assert.strictEqual(isIslekTile(tile('red', 8), sets, null, false), true, 'kırmızı 8 seriye uyar');
+    assert.strictEqual(isIslekTile(tile('red', 4), sets, null, false), true, 'kırmızı 4 serinin başına uyar');
+    assert.strictEqual(isIslekTile(tile('red', 11), sets, null, false), true, 'kırmızı 11 aynı sayı perine uyar');
+    assert.strictEqual(isIslekTile(tile('blue', 9), sets, null, false), false, 'çiftlere uyan taş işlek değil');
+    assert.strictEqual(isIslekTile(tile('yellow', 3), sets, null, false), false);
 }
 
 // 15 dağınık taş taşmadan iki satıra sığar

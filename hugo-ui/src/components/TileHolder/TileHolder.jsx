@@ -6,7 +6,7 @@ import '../../assets/css/components/TileHolder.css';
 
 // Istaka: 2 × 15 hücre. Sürükleme GameBoard'daki useBoardDrag ile yapılır; burada yalnızca çizilir.
 // dragView sürerken taşlar bırakınca alacakları yerde gösterilir, sürüklenen taş yerinden kalkar.
-const TileHolder = ({ tiles, tilePositions, onTileClick, onTileDoubleClick, selectedTileIndex, okeyTile, isHugo, flippedTileIds, onOkeyFlip, onArrange, dragView, hiddenIds }) => {
+const TileHolder = ({ tiles, tilePositions, onTileClick, onTileDoubleClick, selectedTileIndex, okeyTile, isHugo, flippedTileIds, onOkeyFlip, onArrange, dragView, hiddenIds, islekIds }) => {
     const tilesMap = Object.fromEntries(tiles.map(t => [t.id, t]));
     const dragging = dragView?.dragging ? dragView : null;
     const { cells, preview, blocked } = rackPreview(tilePositions, dragging);
@@ -40,6 +40,7 @@ const TileHolder = ({ tiles, tilePositions, onTileClick, onTileDoubleClick, sele
                         tileId={tileId}
                         isSelected={isSelected}
                         isFlipped={flippedTileIds?.has(tileId)}
+                        isIslek={islekIds?.has(tileId)}
                         isOkey={isOkeyTile(tile, okeyTile, isHugo)}
                         onClick={() => onTileClick(index)}
                         // Okeye çift tıklama atmaz, okey simgesine çevirir (sürükleyip köşeye bırakınca yine atılır)
