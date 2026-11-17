@@ -23,6 +23,14 @@ const g = r.game!;
 // Nesne bağları: odadaki ve oyundaki oyuncu aynı nesne, sahip de öyle
 r.players.forEach((p, i) => assert.strictEqual(g.players[i], p, 'oda ve oyun aynı oyuncu nesnesini paylaşmalı'));
 assert.strictEqual(r.owner, r.players[0]);
+// Masa numarası korunur, sayaç geri yüklenince geriye gitmez (numarasız eski masa da numara alır)
+assert.strictEqual(r.no, room.no);
+assert.strictEqual(restored.nextTableNo, room.no + 1);
+const fresh: GameManager = new (GameManager as any)();
+const old = { ...r, no: 0 } as typeof r;
+fresh.restore(restored.players, [r, Object.assign(Object.create(Object.getPrototypeOf(r)), old, { id: 'eski' })], restored.nextTableNo);
+assert.strictEqual(fresh.getRoomById('eski')!.no, room.no + 1, 'numarasız masa sıradaki numarayı almalı');
+assert.strictEqual(fresh.nextTableNo, room.no + 2);
 assert.ok(g.deck[0] instanceof Tile && g.players[1].tiles[0] instanceof Tile, 'taşlar Tile olarak geri gelmeli');
 assert.ok(r.players.every(p => p.connected === false && p.socketId === ''), 'geri yüklenen oyuncular kopuk başlar');
 

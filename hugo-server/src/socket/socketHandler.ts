@@ -7,16 +7,40 @@ import { Player } from '../models/Player';
 import { RoomStatus } from '../models/Room';
 import { appendArchive, saveState } from '../utils/Persistence';
 import { planOpening, planSets } from '../ai/AiPlanner';
+import { dealSnapshot, findTile, logEvent, tileLabel } from '../utils/EventLog';
 
 const BOT_NAMES = ['Robo Rıza', 'Robo Nur', 'Robo Can', 'Robo Ece'];
 const CHAT_MAX_LEN = 200;
 const CHAT_HISTORY = 50;
-const CHAT_MIN_GAP_MS = 700; // soket başına mesaj aralığı: sel engeli
+const CHAT_MIN_GAP_MS = 700;
+// Oyun kaydına yazılmayan sık / yalnızca okuma istekleri
+const QUIET_EVENTS = new Set(['rooms:list', 'room:details', 'chat:history', 'game:requestTiles', 'client:log']); // soket başına mesaj aralığı: sel engeli
 
 export const setupSocketHandlers = (io: Server) => {
     const gameManager = GameManager.getInstance();
     const turnTimers = new Map<string, NodeJS.Timeout>();
     const turnDeadlines = new Map<string, number>(); // oyuncu sırasının biteceği an (ms)
+
+    // Masaya giden her olay (yapay zekâ ve otomatik hamleler dahil) oyun kaydına yazılır; el başında eller ve deste sırası da
+    const rawTo = io.to.bind(io);
+    io.to = ((target: string) => {
+        const op = rawTo(target);
+        const room = gameManager.getRoomById(String(target));
+        if (!room) return op;
+        const emit = op.emit.bind(op);
+        op.emit = ((ev: string, payload?: any) => {
+            const game = room.game;
+            logEvent('masa', {
+                masa: room.no, oyun: game?.id ?? null, el: game?.round ?? null, olay: ev,
+                // Atılan taşın tüm alanları yerine adı ve kimliği yazılır (kayıt küçük kalsın)
+                veri: payload?.tile ? { ...payload, tile: { id: payload.tile.id, playerId: payload.tile.playerId } } : payload,
+                ...(payload?.tile && { tas: tileLabel(payload.tile) }),
+                ...((ev === 'game:started' || ev === 'game:roundStarted') && game && { dagitim: dealSnapshot(game) }),
+            });
+            return emit(ev, payload);
+        }) as typeof op.emit;
+        return op;
+    }) as typeof io.to;
 
     // Durum değiştikçe diske yaz (300 ms içindeki değişiklikler tek kayıtta toplanır)
     let saveTimer: NodeJS.Timeout | null = null;
@@ -363,21 +387,36 @@ export const setupSocketHandlers = (io: Server) => {
 
     io.on('connection', (socket: Socket) => {
         console.log(`Yeni bağlantı: ${socket.id}`);
-        // Teşhis: reddedilen her istek (sebebi ve soketin oyuncuya bağlı olup olmadığı) günlüğe yazılır
+        logEvent('baglanti', { soket: socket.id, ua: String(socket.handshake.headers['user-agent'] || '').slice(0, 160) });
+        // Her istek oyun kaydına yazılır (sonucu ve taşların adlarıyla); reddedilen istek ayrıca sunucu günlüğüne
         socket.use((packet, next) => {
+            const event = String(packet[0]);
+            if (QUIET_EVENTS.has(event)) return next();
+            const me = gameManager.getPlayerBySocketId(socket.id);
+            const room = me?.roomId ? gameManager.getRoomById(me.roomId) : undefined;
+            const args = packet.length > 1 && typeof packet[1] === 'object' && packet[1] ? { ...packet[1] } : {};
+            if (typeof args.avatar === 'string' && args.avatar.length > 80) args.avatar = '(uzun)';
+            const ids: string[] = [args.tileId, ...(args.tileIds || []), ...(args.sets || []).flat(), ...(args.finishSets || []).flat()].filter(Boolean);
+            const base = {
+                oyuncu: me?.name ?? args.name ?? null, oyuncuId: me?.id ?? args.playerId ?? null, soket: socket.id,
+                masa: room?.no ?? null, oyun: room?.game?.id ?? null, el: room?.game?.round ?? null, istek: event, veri: args,
+                ...(ids.length && { taslar: ids.map(id => tileLabel(findTile(room?.game, id))) }),
+            };
             const last = packet.length - 1;
             const ack = packet[last];
             if (last > 0 && typeof ack === 'function') {
                 // Paket yerinde değişir: olay işleyicisi kaydı tutan ack'i alır
                 packet[last] = (res: any) => {
-                    if (res && res.success === false) {
-                        const me = gameManager.getPlayerBySocketId(socket.id);
-                        const asked = packet[1]?.playerId;
-                        const owner = asked && asked !== me?.id ? ` (bu soket ${asked} oyuncusuna bağlı değil)` : '';
-                        console.warn(`Reddedildi [${me?.name || '?'}] ${packet[0]}: ${res.error}${owner}`);
+                    const ok = !(res && res.success === false);
+                    logEvent('istek', { ...base, ok, ...(!ok && { hata: res?.error }), ...(res?.tile && { cekilen: tileLabel(res.tile) }) });
+                    if (!ok) {
+                        const owner = args.playerId && args.playerId !== me?.id ? ` (bu soket ${args.playerId} oyuncusuna bağlı değil)` : '';
+                        console.warn(`Reddedildi [${me?.name || '?'}] ${event}: ${res.error}${owner}`);
                     }
                     ack(res);
                 };
+            } else {
+                logEvent('istek', base);
             }
             next();
         });
@@ -1288,6 +1327,7 @@ export const setupSocketHandlers = (io: Server) => {
             persist();
 
             const player = gameManager.getPlayerBySocketId(socket.id);
+            logEvent('baglanti-kesildi', { soket: socket.id, oyuncu: player?.name ?? null, oyuncuId: player?.id ?? null });
 
             // Oyun sürerken oyuncu silinmez: koltuk tutulur, sırası gelince otomatik oynanır
             const playingRoom = player?.roomId ? gameManager.getRoomById(player.roomId) : undefined;

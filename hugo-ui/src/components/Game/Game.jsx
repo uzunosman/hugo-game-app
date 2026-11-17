@@ -699,6 +699,7 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
             <Chat playerId={player.id} />
 
             {/* Sağ üst: el bilgisi ve tabela */}
+            {room?.no ? <div className="table-no" aria-label={`Masa numarası ${room.no}`}>#{room.no}</div> : null}
             <div className="top-right-tools">
                 <div className="round-chip" aria-label={`${gameState.round}. el${gameState.isHugoRound ? ', Hugo eli' : ''}`}>
                     El {gameState.round}/9

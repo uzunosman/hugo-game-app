@@ -28,6 +28,9 @@
 - VPS (`ssh hugola`, kullanıcı `deploy`): yalnızca `sudo systemctl restart hugo` yetkisi var; root gerektiren işleri kullanıcı yapar.
   Sunucuda değişiklik öncesi izin al. Günlük: `ssh hugola 'journalctl -u hugo -n 100 --no-pager'`
   (istemci hata / donma kayıtları `İstemci [ad]:` ile başlar).
+- Oyun kaydı: `/var/lib/hugo/events/YYYY-MM-DD.jsonl` (her istek `ev:"istek"`, masaya giden her olay `ev:"masa"`, el başında
+  eller ve deste sırası `dagitim`; masa `#101701` gibi `masa` numarasıyla). Günlük istatistik:
+  `ssh hugola 'cd /opt/hugo/hugo-server && STATE_FILE=/var/lib/hugo/state.json node dist/tools/stats.js [YYYY-MM-DD]'`
 
 ## Dikkat
 - Oynayan oyuncu kendi işleme ve sürükleyerek atma animasyonunu görmez; diğer oyuncular görür. Çift tıkla atma, yere per açma,

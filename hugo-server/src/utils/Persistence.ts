@@ -19,6 +19,7 @@ type Plain = Record<string, any>;
 export const serialize = (gm: GameManager): string => JSON.stringify({
     version: VERSION,
     savedAt: new Date().toISOString(),
+    nextTableNo: gm.nextTableNo,
     players: gm.getAllPlayers().map(p => ({ ...p })),
     rooms: gm.getAllRooms().map(r => ({
         ...r,
@@ -33,7 +34,7 @@ export const serialize = (gm: GameManager): string => JSON.stringify({
 const tile = (o: Plain | null): Tile | null => (o ? Object.assign(Object.create(Tile.prototype), o) : null);
 const tiles = (list: Plain[] = []): Tile[] => list.map(o => tile(o) as Tile);
 
-export const deserialize = (json: string): { players: Player[]; rooms: Room[] } => {
+export const deserialize = (json: string): { players: Player[]; rooms: Room[]; nextTableNo: number } => {
     const data = JSON.parse(json);
     if (data.version !== VERSION) throw new Error(`Bilinmeyen durum sürümü: ${data.version}`);
 
@@ -65,15 +66,15 @@ export const deserialize = (json: string): { players: Player[]; rooms: Room[] } 
         });
     });
 
-    return { players, rooms };
+    return { players, rooms, nextTableNo: data.nextTableNo || 0 };
 };
 
 export const loadState = (gm: GameManager): boolean => {
     const file = stateFile();
     if (!fs.existsSync(file)) return false;
     try {
-        const { players, rooms } = deserialize(fs.readFileSync(file, 'utf8'));
-        gm.restore(players, rooms);
+        const { players, rooms, nextTableNo } = deserialize(fs.readFileSync(file, 'utf8'));
+        gm.restore(players, rooms, nextTableNo);
         console.log(`Kayıtlı durum yüklendi: ${rooms.length} masa, ${players.length} oyuncu`);
         return true;
     } catch (error) {

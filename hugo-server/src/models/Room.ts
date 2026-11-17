@@ -10,6 +10,7 @@ export enum RoomStatus {
 
 export class Room {
     id: string;
+    no = 0;           // masa numarası (#101701): ekranda görünür, oyun kaydında masayı tanımlar
     name: string;
     owner: Player;
     players: Player[];
@@ -125,6 +126,7 @@ export class Room {
     toJSON(): Record<string, any> {
         return {
             id: this.id,
+            no: this.no,
             name: this.name,
             owner: this.owner.toPublicJSON(),
             players: this.players.map(player => player.toPublicJSON()),

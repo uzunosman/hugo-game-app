@@ -503,3 +503,16 @@
 .rt-fan-3 .rt-tile:nth-child(3) { transform: rotate(20deg); }
 .rt-fan-2 .rt-tile:nth-child(1) { transform: rotate(-11deg); }
 .rt-fan-2 .rt-tile:nth-child(2) { transform: rotate(11deg); }
+
+/* Masa numarası: sol üstte, ayarlar düğmesinin sağında soluk (oyun kaydında masa bu numarayla bulunur) */
+.table-no {
+    position: fixed;
+    top: calc(12px + env(safe-area-inset-top, 0px));
+    left: calc(36px + env(safe-area-inset-left, 0px));
+    z-index: 100;
+    font: 400 9px/1 system-ui, sans-serif;
+    letter-spacing: 0.02em;
+    color: rgba(255, 255, 255, 0.45);
+    pointer-events: none;
+    user-select: none;
+}

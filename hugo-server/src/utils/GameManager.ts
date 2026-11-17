@@ -90,6 +90,7 @@ export class GameManager {
         }
 
         const room = new Room(name, owner);
+        room.no = this.nextTableNo++;
         this.rooms.set(room.id, room);
         return room;
     }
@@ -107,7 +108,13 @@ export class GameManager {
     }
 
     // Kalıcı durumdan geri yükleme: oyuncular kopuk başlar, socket eşleşmesi yeniden bağlanınca kurulur
-    public restore(players: Player[], rooms: Room[]): void {
+    // Sıradaki masa numarası; durum dosyasıyla saklanır (arşivlenen masaların numarası yeniden kullanılmaz)
+    public nextTableNo = 101701;
+
+    public restore(players: Player[], rooms: Room[], nextTableNo = 0): void {
+        // Eski kayıtta numarası olmayan masalara numara verilir
+        this.nextTableNo = Math.max(this.nextTableNo, nextTableNo, ...rooms.map(r => (r.no || 0) + 1));
+        rooms.filter(r => !r.no).forEach(r => { r.no = this.nextTableNo++; });
         this.players = new Map(players.map(p => [p.id, p]));
         this.rooms = new Map(rooms.map(r => [r.id, r]));
         this.socketToPlayer = new Map();
@@ -119,6 +126,7 @@ export class GameManager {
         if (!room) return null;
         const entry = {
             id: room.id,
+            no: room.no,
             name: room.name,
             reason,
             archivedAt: new Date().toISOString(),
