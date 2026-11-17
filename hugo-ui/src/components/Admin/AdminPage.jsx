@@ -1,6 +1,7 @@
 import { Component, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import { SOCKET_URL } from '../../services/socketService';
+import Spectator from './Spectator';
 import './Admin.css';
 
 // Yönetim ekranı (hugola.io/admin): masaları canlı izler, masa kapatır, duyuru gönderir, günlük istatistiği gösterir.
@@ -146,8 +147,9 @@ function TableCard({ t, selected, onSelect }) {
     );
 }
 
-function TableWatch({ table, call, onClosed }) {
+function TableWatch({ table, call, socket, onClosed }) {
     const [events, setEvents] = useState([]);
+    const [spy, setSpy] = useState(false);
     const [confirm, setConfirm] = useState(false);
     const [msg, setMsg] = useState('');
     useEffect(() => {
@@ -170,6 +172,8 @@ function TableWatch({ table, call, onClosed }) {
                     <h2>#{table.no} · {table.ad}</h2>
                     <p>{table.el ? `${table.el}. el${table.hugo ? ' (Hugo)' : ''} · sıra: ${table.sira || '-'}` : STATUS_TR[table.durum]}</p>
                 </div>
+                <button type="button" className="yp-spy-btn" onClick={() => setSpy(true)}>Gizli izle</button>
+                {spy && <Spectator no={table.no} call={call} socket={socket} onClose={() => setSpy(false)} />}
                 {confirm
                     ? <span className="yp-confirm">Masadakiler lobiye döner. <button type="button" className="yp-danger" onClick={close}>Evet, kapat</button><button type="button" onClick={() => setConfirm(false)}>Vazgeç</button></span>
                     : <button type="button" className="yp-danger-ghost" onClick={() => setConfirm(true)}>Masayı kapat</button>}
@@ -255,7 +259,7 @@ function AdminScreen() {
     const [loginError, setLoginError] = useState('');
     const [busy, setBusy] = useState(false);
     const lost = useCallback(() => setAuthed(false), []);
-    const { connected, call } = useAdminSocket(lost);
+    const { connected, call, socket } = useAdminSocket(lost);
     const [overview, setOverview] = useState(null);
     const [day, setDay] = useState('');
     const [stats, setStats] = useState(null);
@@ -382,7 +386,7 @@ function AdminScreen() {
                         {tables.map(t => <TableCard key={t.no} t={t} selected={t.no === selected} onSelect={() => setSelected(t.no === selected ? null : t.no)} />)}
                     </div>
                 )}
-                {table && <TableWatch key={table.no} table={table} call={call} onClosed={() => setSelected(null)} />}
+                {table && <TableWatch key={table.no} table={table} call={call} socket={socket} onClosed={() => setSelected(null)} />}
                 {selected && !table && <p className="yp-empty">#{selected} masası kapandı. Akışı kayıt dosyasında bulabilirsin.</p>}
             </section>
 

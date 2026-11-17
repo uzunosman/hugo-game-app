@@ -490,6 +490,40 @@ export const setupSocketHandlers = (io: Server) => {
         admin('admin:stats', (d) => ({ gun: d?.day || dayOf(), gunler: days(), istatistik: statsOf(d?.day || dayOf()) }));
         admin('admin:tableLog', (d) => ({ olaylar: tableEvents(Number(d?.no), d?.day || dayOf()) }));
         admin('admin:problems', (d) => ({ olaylar: problems(d?.day || dayOf()) }));
+        // Gizli izleme: admin bağlantısı masanın yayın kanalına sessizce girer (oyuncu listesinde yok, kimseye bildirim gitmez);
+        // masadaki her olayda ekran tam durumu (bütün eller dahil) yeniden ister
+        const roomByNo = (no: unknown) => gameManager.getAllRooms().find(r => r.no === Number(no));
+        const spectate = (no: unknown) => {
+            const room = roomByNo(no);
+            if (!room) throw new Error('Masa yok');
+            const g = room.game;
+            const deadline = turnDeadlines.get(room.id);
+            return {
+                masa: {
+                    no: room.no, ad: room.name, durum: room.status,
+                    oyun: g ? g.toPublicJSON() : null,
+                    eller: Object.fromEntries(room.players.map(p => [p.id, p.tiles.map(t => t.toJSON())])),
+                    baglanti: Object.fromEntries(room.players.map(p => [p.id, { bot: !!p.isBot, bagli: !!p.connected }])),
+                    cezalar: g?.roundPenalties ?? [],
+                    kalanSn: deadline && g?.status === GameStatus.STARTED ? Math.max(0, Math.round((deadline - Date.now()) / 1000)) : null,
+                },
+            };
+        };
+        admin('admin:watch', (d) => {
+            const room = roomByNo(d?.no);
+            if (!room) throw new Error('Masa yok');
+            if (socket.data.watching && socket.data.watching !== room.id) socket.leave(socket.data.watching);
+            socket.join(room.id);
+            socket.data.watching = room.id;
+            logEvent('yonetim', { islem: 'izle', masa: room.no });
+            return spectate(d?.no);
+        });
+        admin('admin:unwatch', () => {
+            if (socket.data.watching) socket.leave(socket.data.watching);
+            socket.data.watching = null;
+            return {};
+        });
+        admin('admin:tableState', (d) => spectate(d?.no));
         admin('admin:closeTable', (d) => {
             const room = gameManager.getAllRooms().find(r => r.no === Number(d?.no));
             if (!room) throw new Error('Masa yok');
