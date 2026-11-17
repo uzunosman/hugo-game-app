@@ -1,0 +1,23 @@
+:80 {
+	# Staging (test.hugola.io): yalnızca parolayla girilir; arama motorlarına kapalı
+	basic_auth {
+		{$STAGING_USER} {$STAGING_HASH}
+	}
+	header X-Robots-Tag "noindex, nofollow"
+
+	encode gzip
+	# Sayfa her açılışta yeniden doğrulanır (ana ekrana eklenen uygulama eski sürümde kalmasın);
+	# /assets dosyalarının adı her derlemede değişir, uzun süre önbellekte kalabilir
+	@assets path /assets/*
+	header @assets Cache-Control "public, max-age=31536000, immutable"
+	@pages not path /assets/* /socket.io/*
+	header @pages Cache-Control "no-cache"
+	handle /socket.io/* {
+		reverse_proxy host.docker.internal:3002
+	}
+	handle {
+		root * /srv/dist
+		try_files {path} /index.html
+		file_server
+	}
+}

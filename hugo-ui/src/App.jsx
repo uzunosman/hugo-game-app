@@ -25,7 +25,7 @@ function App() {
   }
 
   // Sekmede kayıtlı oturum varsa (sayfa yenilendi) aynı oyuncu ve koltuğa dön
-  const [restoring, setRestoring] = useState(() => !!socketService.savedPlayerId())
+  const [restoring, setRestoring] = useState(() => !!socketService.savedSession())
   // Bağlantı geri gelince artar: oda/oyun ekranı sunucudaki güncel durumla yeniden kurulur
   const [syncKey, setSyncKey] = useState(0)
 
@@ -41,9 +41,9 @@ function App() {
       }
       setSyncKey(k => k + 1)
     })
-    const savedId = socketService.savedPlayerId()
-    if (!savedId) return
-    socketService.reconnect(savedId, (response) => {
+    const saved = socketService.savedSession()
+    if (!saved) return
+    socketService.reconnect(saved, (response) => {
       if (response.success) {
         setPlayer(response.player)
         if (response.room) setCurrentRoom(response.room)

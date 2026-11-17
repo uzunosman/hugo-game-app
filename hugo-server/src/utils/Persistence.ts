@@ -1,5 +1,5 @@
 // Oyun durumunu diske yazar ve sunucu açılışında geri yükler (sunucu yeniden başlasa da masalar sürer).
-// shortcut: tek JSON dosyası, tek sunucu süreci için; birden fazla süreç ya da yoğun trafik olursa Redis/Postgres'e geçilmeli
+// DATABASE_URL varsa asıl kayıt Postgres'te (app_state); dosya geçiş haftası boyunca yedek olarak yazılmaya devam eder.
 import fs from 'fs';
 import path from 'path';
 import { GameManager } from './GameManager';
@@ -7,6 +7,7 @@ import { Player } from '../models/Player';
 import { Room } from '../models/Room';
 import { Game, TableSet } from '../models/Game';
 import { Tile } from '../models/Tile';
+import { pool } from '../db/db';
 
 const VERSION = 1;
 
@@ -69,13 +70,29 @@ export const deserialize = (json: string): { players: Player[]; rooms: Room[]; n
     return { players, rooms, nextTableNo: data.nextTableNo || 0 };
 };
 
-export const loadState = (gm: GameManager): boolean => {
+const restore = (gm: GameManager, json: string, from: string) => {
+    const { players, rooms, nextTableNo } = deserialize(json);
+    gm.restore(players, rooms, nextTableNo);
+    console.log(`Kayıtlı durum yüklendi (${from}): ${rooms.length} masa, ${players.length} oyuncu`);
+};
+
+// Veritabanı varsa oradan; veritabanı boşsa (ilk geçiş) ya da yoksa dosyadan
+export const loadState = async (gm: GameManager): Promise<boolean> => {
+    if (pool) {
+        const row = (await pool.query('SELECT data FROM app_state WHERE id = 1')).rows[0];
+        if (row) {
+            restore(gm, JSON.stringify(row.data), 'veritabanı');
+            return true;
+        }
+    }
+    return loadStateFile(gm);
+};
+
+const loadStateFile = (gm: GameManager): boolean => {
     const file = stateFile();
     if (!fs.existsSync(file)) return false;
     try {
-        const { players, rooms, nextTableNo } = deserialize(fs.readFileSync(file, 'utf8'));
-        gm.restore(players, rooms, nextTableNo);
-        console.log(`Kayıtlı durum yüklendi: ${rooms.length} masa, ${players.length} oyuncu`);
+        restore(gm, fs.readFileSync(file, 'utf8'), 'dosya');
         return true;
     } catch (error) {
         // Bozuk dosya sunucuyu düşürmesin; incelemek için kenara alınır
@@ -91,13 +108,34 @@ export const archiveFile = () => path.join(path.dirname(stateFile()), 'archive.j
 export const appendArchive = (entry: Plain): void => {
     fs.mkdirSync(path.dirname(archiveFile()), { recursive: true });
     fs.appendFileSync(archiveFile(), JSON.stringify(entry) + '\n');
+    pool?.query(insertArchive, archiveParams(entry)).catch(error => console.error('Arşiv veritabanına yazılamadı:', error.message));
 };
+export const insertArchive = `INSERT INTO archived_rooms (id, table_no, name, reason, archived_at, data)
+    VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING`;
+export const archiveParams = (e: Plain) => [e.id, e.no || null, e.name, e.reason, e.archivedAt, e];
 
 // Yazma: önce geçici dosyaya, sonra yerine taşı (yarım dosya kalmaz)
-export const saveState = (gm: GameManager): void => {
+// Veritabanı yazımları sıraya girer: yavaş bir yazım yenisini ezmez, en son durum en son yazılır
+let dbWrite: Promise<void> = Promise.resolve();
+export const saveState = (gm: GameManager): Promise<void> => {
+    const json = serialize(gm);
     const file = stateFile();
     fs.mkdirSync(path.dirname(file), { recursive: true });
     const tmp = `${file}.tmp`;
-    fs.writeFileSync(tmp, serialize(gm));
+    fs.writeFileSync(tmp, json);
     fs.renameSync(tmp, file);
+    if (!pool) return Promise.resolve();
+    const humans = gm.getAllPlayers().filter(p => !p.isBot && p.connected).map(p => ({ id: p.id, name: p.name }));
+    dbWrite = dbWrite.then(async () => {
+        try {
+            await pool!.query(`INSERT INTO app_state (id, data, saved_at) VALUES (1, $1, now())
+                ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, saved_at = now()`, [json]);
+            // Bağlı gerçek oyuncular: last_seen_at güncellenir. shortcut: her kayıtta hepsi upsert edilir; yüzlerce eşzamanlı oyuncuda yalnızca değişenler yazılmalı
+            await pool!.query(`INSERT INTO players (id, name) SELECT x->>'id', x->>'name' FROM jsonb_array_elements($1::jsonb) x
+                ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, last_seen_at = now()`, [JSON.stringify(humans)]);
+        } catch (error) {
+            console.error('Durum veritabanına yazılamadı:', (error as Error).message);
+        }
+    });
+    return dbWrite;
 };

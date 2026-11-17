@@ -199,3 +199,4 @@ html:has(.yp) .app-version, html:has(.yp-login) .app-version, html:has(.yp) .set
     .yp-spec-grid { grid-template-columns: 1fr; }
     .yp-spec-owner { grid-template-columns: 80px 1fr; }
 }
+.yp-spec .yp-feed li { grid-template-columns: 1fr; } /* izlemedeki ceza listesinde saat sütunu yok */

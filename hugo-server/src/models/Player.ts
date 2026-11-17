@@ -22,6 +22,7 @@ export class Player {
     openedAtTurn: number;     // ilk açtığı sıranın numarası (elden bitme kontrolü)
     isBot: boolean;           // yapay zekâ oyuncu: sunucuda oynar, soketi yoktur
     avatar: string;           // oyuncunun seçtiği avatar tohumu (boşsa kimlikten üretilir)
+    authToken = '';           // gizli oturum anahtarı: yalnızca sahibine verilir, yeniden bağlanmada istenir (toJSON'a girmez)
 
     constructor(name: string, socketId: string) {
         this.id = uuidv4();

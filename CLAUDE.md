@@ -6,6 +6,9 @@
 - Kullanıcıyla Türkçe konuş. Kullanıcı çoğunlukla telefondan test edip yazar; yazım hataları ve oyun jargonu olur
   (per, çift, işlemek, işlek, okey, sahte okey, gösterge, kusmak/Kustu, yandan/yerden almak, elden bitmek, silici/yıldız, ıstaka).
 - Belirsiz bir kural isteğinde yorumunu açıkça yaz ve sonuçta onayla.
+- Dil kuralı: konuşma ve mesajlar Türkçe; teknik terimler (deploy, staging, branch, migration, socket…) İngilizce jargonla
+  kullanılır, çevrilmez. Yeni kodda dosya, klasör, değişken, fonksiyon, tablo ve kolon adları İngilizce. Arayüzde oyuncunun
+  gördüğü metinler ve kod yorumları Türkçe kalır. Mevcut Türkçe adlar dokunulan yerde fırsat oldukça İngilizceye çevrilir.
 
 ## Yapı
 - `hugo-server/`: Node + TypeScript + Socket.IO. Kurallar ve puanlama tamamen sunucuda (`src/models/Game.ts`), olaylar `src/socket/socketHandler.ts`,
@@ -28,9 +31,18 @@
 - VPS (`ssh hugola`, kullanıcı `deploy`): yalnızca `sudo systemctl restart hugo` yetkisi var; root gerektiren işleri kullanıcı yapar.
   Sunucuda değişiklik öncesi izin al. Günlük: `ssh hugola 'journalctl -u hugo -n 100 --no-pager'`
   (istemci hata / donma kayıtları `İstemci [ad]:` ile başlar).
-- Oyun kaydı: `/var/lib/hugo/events/YYYY-MM-DD.jsonl` (her istek `ev:"istek"`, masaya giden her olay `ev:"masa"`, el başında
-  eller ve deste sırası `dagitim`; masa `#101701` gibi `masa` numarasıyla). Günlük istatistik:
-  `ssh hugola 'cd /opt/hugo/hugo-server && STATE_FILE=/var/lib/hugo/state.json node dist/tools/stats.js [YYYY-MM-DD]'`
+- Veritabanı: Postgres 17 (VPS'te `hugo-db` container'ı, 127.0.0.1:5432), `hugo_prod` ve `hugo_staging`. Servis
+  `DATABASE_URL`'i `/etc/hugo/hugo.env`'den alır (systemd drop-in `hugo.service.d/db.conf`); kurulum `deploy/postgres-setup.sh`
+  (root). Şema `hugo-server/migrations/*.sql`, açılışta otomatik uygulanır (`src/db/db.ts`). `DATABASE_URL` yoksa (testler,
+  yerel) dosyalara yazılır. Tablolar: `app_state` (masalar/oyunlar, eski state.json), `players`, `archived_rooms`, `events`.
+  Gece yedeği `/var/backups/hugo` (14 gün).
+- Oyun kaydı: `events` tablosu (`type` = eski `ev`: her istek `istek`, masaya giden her olay `masa`, el başında eller ve
+  deste sırası `dagitim`; `table_no` = masa numarası #101701). Geçiş haftası boyunca `/var/lib/hugo/events/*.jsonl`'a da yazılır.
+  Günlük istatistik: `ssh hugola 'cd /opt/hugo/hugo-server && set -a && . /etc/hugo/hugo.env && node dist/tools/stats.js [YYYY-MM-DD]'`
+- Staging: https://test.hugola.io (parola korumalı, Caddy basic_auth). `./deploy/update.sh --staging` o anki branch'i
+  `/opt/hugo-staging`'e kurar, `hugo-staging` servisi (port 3002, `APP_ENV=staging`, `hugo_staging` DB). Kurulum
+  `deploy/staging-setup.sh` (root). Akış: görev → branch → staging → kullanıcı testi → onayda merge + prod deploy
+  (`docs/plan-design-test-workflow.md`).
 - Yönetim ekranı: https://hugola.io/admin (masaları canlı izle, kapat, duyuru, günlük istatistik, sorunlar). Veriler Socket.IO
   `admin:*` isteklerinden; anahtar `/var/lib/hugo/admin-token` (ya da `ADMIN_TOKEN`). Sunucu: `src/utils/Admin.ts`, arayüz: `components/Admin`.
 

@@ -16,3 +16,20 @@ services:
       - traefik.http.routers.hugo.entrypoints=websecure
       - traefik.http.routers.hugo.tls.certresolver=letsencrypt
       - traefik.http.services.hugo.loadbalancer.server.port=80
+
+  # Staging (test.hugola.io): ayrı kod klasörü, Node 3002, parola korumalı (deploy/staging-setup.sh)
+  hugo-web-staging:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    env_file: /etc/hugo/staging-auth.env
+    volumes:
+      - /opt/hugo-staging/hugo-ui:/srv:ro
+      - ./Caddyfile.staging:/etc/caddy/Caddyfile:ro
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.hugo-staging.rule=Host(`test.hugola.io`)
+      - traefik.http.routers.hugo-staging.entrypoints=websecure
+      - traefik.http.routers.hugo-staging.tls.certresolver=letsencrypt
+      - traefik.http.services.hugo-staging.loadbalancer.server.port=80

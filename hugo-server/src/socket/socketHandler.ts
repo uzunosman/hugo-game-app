@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { Server, Socket } from 'socket.io';
 import { GameManager } from '../utils/GameManager';
 import { config } from '../config/config';
@@ -16,6 +17,13 @@ const CHAT_HISTORY = 50;
 const CHAT_MIN_GAP_MS = 700;
 // Oyun kaydına yazılmayan sık / yalnızca okuma istekleri
 const QUIET_EVENTS = new Set(['rooms:list', 'room:details', 'chat:history', 'game:requestTiles', 'client:log']); // soket başına mesaj aralığı: sel engeli
+
+// Oyuncu kimliği herkese yayınlanır; koltuğa geri dönmek için ayrıca yalnızca sahibinde olan anahtar gerekir
+const issueToken = (p: Player) => (p.authToken = crypto.randomBytes(24).toString('base64url'));
+const tokenMatches = (p: Player, given: unknown) => {
+    const a = Buffer.from(String(given ?? '')), b = Buffer.from(p.authToken);
+    return a.length === b.length && crypto.timingSafeEqual(a, b);
+};
 
 export const setupSocketHandlers = (io: Server) => {
     const gameManager = GameManager.getInstance();
@@ -400,6 +408,7 @@ export const setupSocketHandlers = (io: Server) => {
             const room = me?.roomId ? gameManager.getRoomById(me.roomId) : undefined;
             const args = packet.length > 1 && typeof packet[1] === 'object' && packet[1] ? { ...packet[1] } : {};
             if (typeof args.avatar === 'string' && args.avatar.length > 80) args.avatar = '(uzun)';
+            if (args.token) args.token = '(gizli)'; // oturum anahtarı kayda girmez
             const ids: string[] = [args.tileId, ...(args.tileIds || []), ...(args.sets || []).flat(), ...(args.finishSets || []).flat()].filter(Boolean);
             const base = {
                 oyuncu: me?.name ?? args.name ?? null, oyuncuId: me?.id ?? args.playerId ?? null, soket: socket.id,
@@ -456,7 +465,9 @@ export const setupSocketHandlers = (io: Server) => {
         const admin = (event: string, fn: (data: any) => unknown) => socket.on(event, (data: any, callback?: (r: unknown) => void) => {
             if (typeof callback !== 'function') return;
             if (!socket.data.admin) return callback({ success: false, error: 'Yönetim anahtarı gerekli' });
-            try { callback({ success: true, ...(fn(data) as object) }); } catch (error) { callback({ success: false, error: (error as Error).message || 'Sunucu hatası' }); }
+            Promise.resolve().then(() => fn(data))
+                .then(r => callback({ success: true, ...(r as object) }))
+                .catch(error => callback({ success: false, error: (error as Error).message || 'Sunucu hatası' }));
         });
         socket.on('admin:login', (data: { token?: string }, callback?: (r: unknown) => void) => {
             if (typeof callback !== 'function') return;
@@ -476,7 +487,7 @@ export const setupSocketHandlers = (io: Server) => {
             if (d.type === 'acildi') logEvent('yonetim', { islem: 'acildi', ...d });
             else logEvent('istemci', { oyuncu: 'yönetim', type: 'yonetim-hata', ...d });
         });
-        admin('admin:overview', () => ({
+        admin('admin:overview', async () => ({
             sunucu: { calisma: Math.round(process.uptime()), bellekMb: Math.round(process.memoryUsage().rss / 1048576), baglanti: io.engine.clientsCount },
             insanCevrimici: gameManager.getAllPlayers().filter(p => !p.isBot && p.connected).length,
             masalar: gameManager.getAllRooms().map(r => ({
@@ -485,11 +496,11 @@ export const setupSocketHandlers = (io: Server) => {
                 sira: r.game?.status === GameStatus.STARTED ? r.game.players[r.game.currentPlayerIndex]?.name ?? null : null,
                 oyuncular: r.players.map(p => ({ ad: p.name, bot: !!p.isBot, bagli: !!p.connected, puan: p.getTotalScore(), ceza: p.penaltyScore, tas: p.tiles.length, acik: !!p.isOpen })),
             })),
-            bugun: statsOf(),
+            bugun: await statsOf(),
         }));
-        admin('admin:stats', (d) => ({ gun: d?.day || dayOf(), gunler: days(), istatistik: statsOf(d?.day || dayOf()) }));
-        admin('admin:tableLog', (d) => ({ olaylar: tableEvents(Number(d?.no), d?.day || dayOf()) }));
-        admin('admin:problems', (d) => ({ olaylar: problems(d?.day || dayOf()) }));
+        admin('admin:stats', async (d) => ({ gun: d?.day || dayOf(), gunler: await days(), istatistik: await statsOf(d?.day || dayOf()) }));
+        admin('admin:tableLog', async (d) => ({ olaylar: await tableEvents(Number(d?.no), d?.day || dayOf()) }));
+        admin('admin:problems', async (d) => ({ olaylar: await problems(d?.day || dayOf()) }));
         // Gizli izleme: admin bağlantısı masanın yayın kanalına sessizce girer (oyuncu listesinde yok, kimseye bildirim gitmez);
         // masadaki her olayda ekran tam durumu (bütün eller dahil) yeniden ister
         const roomByNo = (no: unknown) => gameManager.getAllRooms().find(r => r.no === Number(no));
@@ -626,7 +637,8 @@ export const setupSocketHandlers = (io: Server) => {
 
                 callback({
                     success: true,
-                    player: player.toJSON()
+                    player: player.toJSON(),
+                    token: issueToken(player)
                 });
             } catch (error) {
                 console.error('Oyuncu kaydı hatası:', error);
@@ -757,6 +769,7 @@ export const setupSocketHandlers = (io: Server) => {
                 const humanName = seat.name;
                 gameManager.updatePlayerSocket(seat.id, `bot:${Math.random().toString(36).slice(2)}`);
                 seat.isBot = true;
+                seat.authToken = ''; // kalkan oyuncu yapay zekâya geçen koltuğa geri bağlanamaz
                 seat.connected = true;
                 seat.name = BOT_NAMES.find(n => !used.has(n)) || `Yapay zekâ ${room.players.indexOf(seat) + 1}`;
                 seat.setReady(true);
@@ -772,7 +785,7 @@ export const setupSocketHandlers = (io: Server) => {
                 }
                 persist();
                 io.emit('rooms:list', { success: true, rooms: gameManager.getAllRooms().map(r => r.toJSON()) });
-                callback?.({ success: true, player: human.toJSON() });
+                callback?.({ success: true, player: human.toJSON(), token: issueToken(human) });
             } catch (error) {
                 console.error('Masadan kalkma hatası:', error);
                 callback?.({ success: false, error: 'Masadan kalkılamadı' });
@@ -1399,9 +1412,12 @@ export const setupSocketHandlers = (io: Server) => {
         });
 
         // Yeniden bağlanma: sayfa yenilenince / ağ kopunca aynı oyuncu kimliğiyle koltuğa dön
-        socket.on('player:reconnect', (data: { playerId: string }, callback) => {
+        socket.on('player:reconnect', (data: { playerId: string; token?: string }, callback) => {
             const player = data?.playerId ? gameManager.getPlayerById(data.playerId) : undefined;
-            if (!player) return callback?.({ success: false, error: 'Oyuncu bulunamadı' });
+            if (!player || player.isBot) return callback?.({ success: false, error: 'Oyuncu bulunamadı' });
+            // Anahtar çıkmadan önce kaydolan oyuncu (geçiş): kimlikle kabul edilir ve anahtar verilir
+            if (player.authToken && !tokenMatches(player, data?.token)) return callback?.({ success: false, error: 'Oturum geçersiz' });
+            if (!player.authToken) issueToken(player);
 
             gameManager.updatePlayerSocket(player.id, socket.id);
             player.connected = true;
@@ -1414,7 +1430,7 @@ export const setupSocketHandlers = (io: Server) => {
                 if (room.game?.isPlayerTurn(player.id)) scheduleTurn(room.id, room.game);
             }
 
-            callback?.({ success: true, player: player.toJSON(), room: room ? room.toJSON() : null });
+            callback?.({ success: true, player: player.toJSON(), token: player.authToken, room: room ? room.toJSON() : null });
         });
 
         // Bağlantı Kesme

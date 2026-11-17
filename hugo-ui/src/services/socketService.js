@@ -4,15 +4,29 @@ import { io } from 'socket.io-client';
 // yayında sayfanın kendi adresi (Caddy /socket.io isteklerini Node'a iletir). VITE_SOCKET_URL ikisini de ezer.
 export const SOCKET_URL = import.meta.env.VITE_SOCKET_URL
     || (import.meta.env.DEV ? `${window.location.protocol}//${window.location.hostname}:3001` : window.location.origin);
-const SESSION_KEY = 'hugo.playerId'; // sekme başına oturum: yenilemede aynı koltuğa dönülür
-
-const readSession = () => { try { return sessionStorage.getItem(SESSION_KEY); } catch { return null; } };
-const writeSession = (id) => { try { id ? sessionStorage.setItem(SESSION_KEY, id) : sessionStorage.removeItem(SESSION_KEY); } catch { /* depolama kapalı */ } };
+// Oturum (oyuncu kimliği + gizli anahtar): sekmede ve yayında kalıcı olarak da saklanır. iPhone ana ekran uygulaması
+// kapatılıp açılınca sessionStorage silinir; localStorage'dan aynı koltuğa dönülür. Geliştirmede yalnızca sekme başına
+// (bir tarayıcıda birkaç sekmeyle dört oyuncu test edilebilsin).
+const SESSION_KEY = 'hugo.session';
+const stores = () => (import.meta.env.DEV ? [sessionStorage] : [sessionStorage, localStorage]);
+const readSession = () => {
+    try {
+        for (const s of stores()) { const v = JSON.parse(s.getItem(SESSION_KEY)); if (v?.playerId && v?.token) return v; }
+        // Geçiş: eski sürümün sekme oturumu (anahtarsız); sunucu bir kez kabul edip anahtar verir
+        const old = sessionStorage.getItem('hugo.playerId');
+        if (old) return { playerId: old };
+    } catch { /* depolama kapalı ya da bozuk */ }
+    return null;
+};
+const writeSession = (session) => {
+    try { stores().forEach(s => (session ? s.setItem(SESSION_KEY, JSON.stringify(session)) : s.removeItem(SESSION_KEY))); } catch { /* depolama kapalı */ }
+};
 
 class SocketService {
     constructor() {
         this.socket = null;
         this.playerId = null;
+        this.token = null;
         this.activeRoomId = null;
     }
 
@@ -29,12 +43,13 @@ class SocketService {
                 // Yeniden bağlanma çoğunlukla sunucu güncellemesidir: yeni sürüm yayındaysa sayfa yenilenir (main.jsx)
                 if (connectedBefore) window.dispatchEvent(new Event('hugo:reconnected'));
                 if (connectedBefore && this.playerId) {
-                    this.socket.emit('player:reconnect', { playerId: this.playerId }, (response) => {
+                    this.socket.emit('player:reconnect', { playerId: this.playerId, token: this.token }, (response) => {
                         if (response?.success) {
                             this.activeRoomId = response.room?.id || null;
                         } else {
                             writeSession(null);
                             this.playerId = null;
+                            this.token = null;
                             this.activeRoomId = null;
                         }
                         this.resyncHandler?.(response || { success: false });
@@ -51,14 +66,22 @@ class SocketService {
         this.resyncHandler = callback;
     }
 
-    savedPlayerId() {
+    savedSession() {
         return readSession();
     }
 
-    reconnect(playerId, callback) {
-        this.socket.emit('player:reconnect', { playerId }, (response) => {
+    // Kayıt / yeniden bağlanma cevabındaki kimlik ve anahtar saklanır
+    remember(response) {
+        this.playerId = response.player.id;
+        this.token = response.token;
+        writeSession({ playerId: this.playerId, token: this.token });
+        try { sessionStorage.removeItem('hugo.playerId'); } catch { /* depolama kapalı */ }
+    }
+
+    reconnect(session, callback) {
+        this.socket.emit('player:reconnect', session, (response) => {
             if (response.success) {
-                this.playerId = response.player.id;
+                this.remember(response);
                 this.activeRoomId = response.room?.id || null;
             } else {
                 writeSession(null);
@@ -77,10 +100,7 @@ class SocketService {
 
     registerPlayer(name, avatar, callback) {
         this.socket.emit('player:register', { name, avatar }, (response) => {
-            if (response.success) {
-                this.playerId = response.player.id;
-                writeSession(this.playerId);
-            }
+            if (response.success) this.remember(response);
             callback(response);
         });
     }
@@ -115,9 +135,8 @@ class SocketService {
     leaveTable(roomId, callback) {
         this.socket.emit('game:leaveTable', { roomId, playerId: this.playerId }, (response) => {
             if (response?.success) {
-                this.playerId = response.player.id;
+                this.remember(response);
                 this.activeRoomId = null;
-                writeSession(this.playerId);
             }
             callback?.(response);
         });

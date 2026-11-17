@@ -1,8 +1,7 @@
 // Günlük istatistik: oyun kaydından (events/YYYY-MM-DD.jsonl) kim girdi, kim oynadı, kaç masa / oyun / el.
-// Kullanım (VPS): ssh hugola 'cd /opt/hugo/hugo-server && STATE_FILE=/var/lib/hugo/state.json node dist/tools/stats.js [YYYY-MM-DD]'
-import fs from 'fs';
-import path from 'path';
-import { dayOf, eventsDir } from '../utils/EventLog';
+// Kullanım (VPS): ssh hugola 'cd /opt/hugo/hugo-server && set -a && . /etc/hugo/hugo.env && node dist/tools/stats.js [YYYY-MM-DD]'
+// (DATABASE_URL yoksa STATE_FILE yanındaki events/ dosyalarından okur)
+import { dayOf } from '../utils/EventLog';
 
 type Ev = Record<string, any>;
 
@@ -34,11 +33,13 @@ export const dailyStats = (events: Ev[]) => {
     };
 };
 
-if (require.main === module) {
+if (require.main === module) (async () => {
     const day = process.argv[2] || dayOf();
-    const file = path.join(eventsDir(), `${day}.jsonl`);
-    if (!fs.existsSync(file)) { console.log(`${day}: kayıt yok (${file})`); process.exit(0); }
-    const events = fs.readFileSync(file, 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l));
+    const { readDay } = await import('../utils/Admin');
+    const { pool } = await import('../db/db');
+    const events = await readDay(day);
+    await pool?.end();
+    if (!events.length) { console.log(`${day}: kayıt yok`); return; }
     const s = dailyStats(events);
     console.log(`${day} günü
   Bağlantı (uygulama açılışı): ${s.baglanti}
@@ -51,4 +52,4 @@ if (require.main === module) {
   Saatlik oynayan:             ${s.saatlik.map(([h, n]) => `${String(h).padStart(2, '0')}:00 ${n}`).join(', ') || '-'}
   Oyuncular (hamle, masa):
 ${s.oyuncular.map(p => `    ${p.ad}: ${p.hamle} hamle, ${p.masa} masa`).join('\n') || '    -'}`);
-}
+})();

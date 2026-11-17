@@ -32,6 +32,7 @@ const startServer = () => new Promise<ReturnType<typeof spawn>>((resolve, reject
 class Bot {
     socket!: Socket;
     id = '';
+    token = '';
     hand: string[] = [];
     busy = false;
     afk = false; // true: hiç hamle yapmaz, sunucu süre dolunca onun yerine oynar
@@ -59,7 +60,10 @@ class Bot {
     async reconnect() {
         this.socket.close();
         this.connect();
-        const r = await emit(this.socket, 'player:reconnect', { playerId: this.id });
+        // Kimlik herkese açık: anahtarsız ya da yanlış anahtarla koltuğa dönülemez
+        assert.strictEqual((await emit(this.socket, 'player:reconnect', { playerId: this.id })).success, false, 'anahtarsız yeniden bağlanma reddedilmeli');
+        assert.strictEqual((await emit(this.socket, 'player:reconnect', { playerId: this.id, token: 'x'.repeat(32) })).success, false, 'yanlış anahtar reddedilmeli');
+        const r = await emit(this.socket, 'player:reconnect', { playerId: this.id, token: this.token });
         assert.ok(r.success && r.room?.id === this.roomId, 'yeniden bağlanınca aynı odaya dönmeli');
         await this.syncHand();
         if (r.room.game.currentPlayerId === this.id) this.act();
@@ -95,7 +99,13 @@ const stopServer = (srv: ReturnType<typeof spawn>) => new Promise<void>(res => {
     try {
         const bots = [0, 1, 2, 3].map(i => new Bot(`Bot${i}`));
         bots[3].afk = true;
-        for (const b of bots) b.id = (await emit(b.socket, 'player:register', { name: b.name })).player.id;
+        for (const b of bots) {
+            const reg = await emit(b.socket, 'player:register', { name: b.name });
+            b.id = reg.player.id;
+            b.token = reg.token;
+            assert.ok(typeof reg.token === 'string' && reg.token.length >= 32, 'kayıt oturum anahtarı vermeli');
+            assert.ok(!JSON.stringify(reg.player).includes(reg.token), 'anahtar oyuncu bilgisinde yayınlanmamalı');
+        }
 
         const room = (await emit(bots[0].socket, 'room:create', { name: 'e2e', playerId: bots[0].id })).room;
         bots.forEach(b => (b.roomId = room.id));

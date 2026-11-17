@@ -5,6 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import { config } from '../config/config';
 import { stateFile } from './Persistence';
+import { pool } from '../db/db';
 import type { Game } from '../models/Game';
 import type { Tile } from '../models/Tile';
 
@@ -15,6 +16,21 @@ export const dayOf = (d = new Date()) => d.toLocaleDateString('sv-SE', { timeZon
 const RECENT_PER_TABLE = 400;
 const recent = new Map<number, Record<string, unknown>[]>();
 export const recentTableEvents = (no: number) => recent.get(no);
+
+// Veritabanına satır satır değil, 1 saniyelik toplu INSERT ile yazılır
+let queue: { at: string; type: string; table_no: number | null; data: Record<string, unknown> }[] = [];
+let flushTimer: NodeJS.Timeout | null = null;
+export const flushEvents = async (): Promise<void> => {
+    if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
+    if (!pool || !queue.length) return;
+    const batch = queue; queue = [];
+    try {
+        await pool.query(`INSERT INTO events (at, type, table_no, data)
+            SELECT (x->>'at')::timestamptz, x->>'type', (x->>'table_no')::int, x->'data' FROM jsonb_array_elements($1::jsonb) x`, [JSON.stringify(batch)]);
+    } catch (error) {
+        console.error(`Olay kaydı veritabanına yazılamadı (${batch.length} satır):`, (error as Error).message);
+    }
+};
 
 let dirReady = false;
 export const logEvent = (ev: string, data: Record<string, unknown>): void => {
@@ -29,6 +45,11 @@ export const logEvent = (ev: string, data: Record<string, unknown>): void => {
             recent.delete(data.masa); recent.set(data.masa, list); // en son oynanan masa sona
             if (recent.size > 300) recent.delete(recent.keys().next().value!);
         }
+        if (pool) {
+            queue.push({ at: entry.t, type: ev, table_no: typeof data.masa === 'number' ? data.masa : null, data });
+            if (!flushTimer) flushTimer = setTimeout(flushEvents, 1000);
+        }
+        // shortcut: geçiş haftası boyunca dosyaya da yazılır (geri dönüş yolu); Postgres oturunca bu satırlar kalkmalı
         if (!dirReady) { fs.mkdirSync(eventsDir(), { recursive: true }); dirReady = true; }
         fs.appendFileSync(path.join(eventsDir(), `${dayOf(now)}.jsonl`), JSON.stringify(entry) + '\n');
     } catch (error) {
