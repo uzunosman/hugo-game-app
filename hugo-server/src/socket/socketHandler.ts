@@ -35,8 +35,10 @@ export const setupSocketHandlers = (io: Server) => {
                 masa: room.no, oyun: game?.id ?? null, el: game?.round ?? null, olay: ev,
                 ...(payload?.playerId && { kim: room.getPlayerById(payload.playerId)?.name ?? null }),
                 // Atılan taşın tüm alanları yerine adı ve kimliği yazılır (kayıt küçük kalsın)
-                veri: payload?.tile ? { ...payload, tile: { id: payload.tile.id, playerId: payload.tile.playerId } } : payload,
-                ...(payload?.tile && { tas: tileLabel(payload.tile) }),
+                // (cezadaki tile zaten kısa ad: "kırmızı 7", olduğu gibi kalır)
+                ...(typeof payload?.tile === 'object' && payload.tile
+                    ? { veri: { ...payload, tile: { id: payload.tile.id, playerId: payload.tile.playerId } }, tas: tileLabel(payload.tile) }
+                    : { veri: payload }),
                 ...((ev === 'game:started' || ev === 'game:roundStarted') && game && { dagitim: dealSnapshot(game) }),
             });
             return emit(ev, payload);

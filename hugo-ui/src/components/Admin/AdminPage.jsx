@@ -25,13 +25,13 @@ const duration = (s) => (s < 3600 ? `${Math.round(s / 60)} dk` : s < 86400 ? `${
 
 // "red 5" → küçük taş; sahte okey ayrı
 const Chip = ({ label }) => {
-    if (!label) return null;
-    if (label === 'sahte okey') return <span className="ad-tile is-joker" title="sahte okey">★</span>;
+    if (typeof label !== 'string' || !label) return null; // eski kayıtlarda bozuk taş adı olabilir: çizilmez
+    if (label === 'sahte okey') return <span className="yp-tile is-joker" title="sahte okey">★</span>;
     const [c, value] = label.split(' ');
     const color = TR_COLOR[c] || c; // ceza kaydında taş adı Türkçe ("kırmızı 7")
-    return <span className={`ad-tile c-${color}`} title={`${COLOR_TR[color] || color} ${value}`}>{value}</span>;
+    return <span className={`yp-tile c-${color}`} title={`${COLOR_TR[color] || color} ${value}`}>{value}</span>;
 };
-const Chips = ({ list }) => <span className="ad-chips">{(list || []).map((l, i) => <Chip key={i} label={l} />)}</span>;
+const Chips = ({ list }) => <span className="yp-chips">{(list || []).map((l, i) => <Chip key={i} label={l} />)}</span>;
 const setLabels = (sets) => (sets || []).map(st => (st.tiles || []).map(t => (t.isJoker ? 'sahte okey' : `${t.color} ${t.value}`)));
 
 const ACTIONS = {
@@ -102,12 +102,12 @@ function useAdminSocket(onAuthLost) {
 function Login({ onLogin, error, busy }) {
     const [token, setToken] = useState('');
     return (
-        <main className="ad-login">
+        <main className="yp-login">
             <form onSubmit={(e) => { e.preventDefault(); onLogin(token.trim()); }}>
                 <h1>Hugo admin</h1>
-                <label htmlFor="ad-token">Yönetim anahtarı</label>
-                <input id="ad-token" type="password" autoComplete="current-password" value={token} onChange={(e) => setToken(e.target.value)} autoFocus />
-                {error && <p className="ad-error" role="alert">{error}</p>}
+                <label htmlFor="yp-token">Yönetim anahtarı</label>
+                <input id="yp-token" type="password" autoComplete="current-password" value={token} onChange={(e) => setToken(e.target.value)} autoFocus />
+                {error && <p className="yp-error" role="alert">{error}</p>}
                 <button type="submit" disabled={!token.trim() || busy}>{busy ? 'Giriliyor…' : 'Gir'}</button>
                 <small>Anahtar sunucuda <code>/var/lib/hugo/admin-token</code> dosyasında.</small>
             </form>
@@ -122,24 +122,24 @@ function TableCard({ t, selected, onSelect }) {
     const humans = t.oyuncular.filter(p => !p.bot);
     const offline = humans.filter(p => !p.bagli).length;
     return (
-        <button type="button" className={`ad-table ${selected ? 'is-selected' : ''}`} onClick={onSelect} aria-pressed={selected}>
-            <span className="ad-table-head">
-                <span className="ad-table-no">#{t.no}</span>
-                <span className="ad-table-name">{t.ad}</span>
+        <button type="button" className={`yp-table ${selected ? 'is-selected' : ''}`} onClick={onSelect} aria-pressed={selected}>
+            <span className="yp-table-head">
+                <span className="yp-table-no">#{t.no}</span>
+                <span className="yp-table-name">{t.ad}</span>
             </span>
-            <span className="ad-felt">
-                <span className="ad-felt-center">
+            <span className="yp-felt">
+                <span className="yp-felt-center">
                     {t.el ? <><b>{t.el}. el</b>{t.hugo && <i>Hugo</i>}<small>deste {t.deste}</small></> : <b>{STATUS_TR[t.durum] || t.durum}</b>}
                 </span>
                 {seats.map((p, i) => (
-                    <span key={i} className={`ad-seat ad-seat-${pos[i]} ${p && t.sira === p.ad ? 'is-turn' : ''} ${p && !p.bot && !p.bagli ? 'is-off' : ''} ${p?.bot ? 'is-bot' : ''}`}>
-                        {p ? <><span className="ad-seat-name">{p.ad}</span><span className="ad-seat-score">{p.puan}</span></> : <span className="ad-seat-name">boş</span>}
+                    <span key={i} className={`yp-seat yp-seat-${pos[i]} ${p && t.sira === p.yp ? 'is-turn' : ''} ${p && !p.bot && !p.bagli ? 'is-off' : ''} ${p?.bot ? 'is-bot' : ''}`}>
+                        {p ? <><span className="yp-seat-name">{p.ad}</span><span className="yp-seat-score">{p.puan}</span></> : <span className="yp-seat-name">boş</span>}
                     </span>
                 ))}
             </span>
-            <span className="ad-table-foot">
+            <span className="yp-table-foot">
                 <span>{humans.length} insan · {4 - humans.length} yz</span>
-                {offline > 0 && <span className="ad-warn">{offline} kopuk</span>}
+                {offline > 0 && <span className="yp-warn">{offline} kopuk</span>}
                 <span>{ago(t.sonHareket)}</span>
             </span>
         </button>
@@ -164,45 +164,45 @@ function TableWatch({ table, call, onClosed }) {
         setConfirm(false);
     };
     return (
-        <section className="ad-watch" aria-label={`#${table.no} masasını izleme`}>
+        <section className="yp-watch" aria-label={`#${table.no} masasını izleme`}>
             <header>
                 <div>
                     <h2>#{table.no} · {table.ad}</h2>
                     <p>{table.el ? `${table.el}. el${table.hugo ? ' (Hugo)' : ''} · sıra: ${table.sira || '-'}` : STATUS_TR[table.durum]}</p>
                 </div>
                 {confirm
-                    ? <span className="ad-confirm">Masadakiler lobiye döner. <button type="button" className="ad-danger" onClick={close}>Evet, kapat</button><button type="button" onClick={() => setConfirm(false)}>Vazgeç</button></span>
-                    : <button type="button" className="ad-danger-ghost" onClick={() => setConfirm(true)}>Masayı kapat</button>}
+                    ? <span className="yp-confirm">Masadakiler lobiye döner. <button type="button" className="yp-danger" onClick={close}>Evet, kapat</button><button type="button" onClick={() => setConfirm(false)}>Vazgeç</button></span>
+                    : <button type="button" className="yp-danger-ghost" onClick={() => setConfirm(true)}>Masayı kapat</button>}
             </header>
-            {msg && <p className="ad-error">{msg}</p>}
-            <table className="ad-scores">
+            {msg && <p className="yp-error">{msg}</p>}
+            <table className="yp-scores">
                 <thead><tr><th>Oyuncu</th><th>Puan</th><th>Ceza</th><th>Taş</th><th>Durum</th></tr></thead>
                 <tbody>
                     {table.oyuncular.map(p => (
                         <tr key={p.ad} className={table.sira === p.ad ? 'is-turn' : ''}>
-                            <td>{p.ad}{p.bot && <span className="ad-tag">yz</span>}</td>
+                            <td>{p.ad}{p.bot && <span className="yp-tag">yz</span>}</td>
                             <td>{p.puan}</td><td>{p.ceza}</td><td>{p.tas}</td>
-                            <td>{p.bot ? '-' : p.bagli ? <span className="ad-ok">bağlı</span> : <span className="ad-warn">kopuk</span>}{p.acik && <span className="ad-tag">açtı</span>}</td>
+                            <td>{p.bot ? '-' : p.bagli ? <span className="yp-ok">bağlı</span> : <span className="yp-warn">kopuk</span>}{p.acik && <span className="yp-tag">açtı</span>}</td>
                         </tr>
                     ))}
                 </tbody>
             </table>
             <h3>Akış <small>bugün · 3 sn'de bir yenilenir</small></h3>
-            <ol className="ad-feed">
-                {rows.length === 0 && <li className="ad-empty">Bu masa için bugün kayıt yok.</li>}
+            <ol className="yp-feed">
+                {rows.length === 0 && <li className="yp-empty">Bu masa için bugün kayıt yok.</li>}
                 {rows.map(({ e, d }, i) => (
                     <li key={i} className={d.tur ? `t-${d.tur}` : ''}>
                         <time>{clock(e.t)}</time>
-                        <span className="ad-feed-text">
+                        <span className="yp-feed-text">
                             {d.kim && <b>{d.kim}</b>} {d.ne} {d.taslar && <Chips list={d.taslar} />}
                             {d.setler?.map((s, j) => <Chips key={j} list={s} />)}
                             {d.dagitim && (
                                 <details>
                                     <summary>Dağıtım: gösterge <Chip label={d.dagitim.gosterge} /> okey <Chip label={d.dagitim.okey} /></summary>
-                                    {Object.entries(d.dagitim.eller).map(([ad, el]) => <div key={ad} className="ad-hand"><b>{ad}</b> <Chips list={el} /></div>)}
+                                    {Object.entries(d.dagitim.eller).map(([ad, el]) => <div key={ad} className="yp-hand"><b>{ad}</b> <Chips list={el} /></div>)}
                                 </details>
                             )}
-                            {d.sonuc && <span className="ad-result">{d.sonuc.map(p => `${p.name} ${p.score}`).join(' · ')}</span>}
+                            {d.sonuc && <span className="yp-result">{d.sonuc.map(p => `${p.name} ${p.score}`).join(' · ')}</span>}
                         </span>
                     </li>
                 ))}
@@ -215,9 +215,9 @@ function Hourly({ data }) {
     const max = Math.max(1, ...data.map(([, n]) => n));
     const by = new Map(data);
     return (
-        <div className="ad-hourly" role="img" aria-label={`Saatlik oynayan: ${data.map(([h, n]) => `${h}:00 ${n}`).join(', ') || 'yok'}`}>
+        <div className="yp-hourly" role="img" aria-label={`Saatlik oynayan: ${data.map(([h, n]) => `${h}:00 ${n}`).join(', ') || 'yok'}`}>
             {Array.from({ length: 24 }, (_, h) => (
-                <span key={h} className="ad-hour" title={`${String(h).padStart(2, '0')}:00 · ${by.get(h) || 0} oyuncu`}>
+                <span key={h} className="yp-hour" title={`${String(h).padStart(2, '0')}:00 · ${by.get(h) || 0} oyuncu`}>
                     <span style={{ height: `${((by.get(h) || 0) / max) * 100}%` }} />
                     {h % 6 === 0 && <small>{String(h).padStart(2, '0')}</small>}
                 </span>
@@ -234,8 +234,8 @@ class AdminErrorBoundary extends Component {
     render() {
         if (!this.state.error) return this.props.children;
         return (
-            <main className="ad-login">
-                <div className="ad-crash" role="alert">
+            <main className="yp-login">
+                <div className="yp-crash" role="alert">
                     <h1>Yönetim ekranı açılamadı</h1>
                     <p>Hata sunucu günlüğüne yazıldı. Sayfayı yenileyip tekrar dene.</p>
                     <pre>{String(this.state.error.message || this.state.error)}</pre>
@@ -272,7 +272,7 @@ function AdminScreen() {
         if (!overview || reported.current) return;
         reported.current = true;
         requestAnimationFrame(() => {
-            const ad = document.querySelector('.ad');
+            const ad = document.querySelector('.yp');
             const r = ad?.getBoundingClientRect();
             window.__adminReport?.({
                 type: 'acildi', hasDestek: CSS.supports?.('selector(:has(a))') ?? null,
@@ -344,11 +344,11 @@ function AdminScreen() {
     ] : [];
 
     return (
-        <div className="ad">
-            <header className="ad-top">
+        <div className="yp">
+            <header className="yp-top">
                 <h1>Hugo admin</h1>
-                <div className="ad-server">
-                    <span className={`ad-dot ${connected ? 'on' : ''}`} aria-hidden="true" />
+                <div className="yp-server">
+                    <span className={`yp-dot ${connected ? 'on' : ''}`} aria-hidden="true" />
                     {overview ? <>
                         <span><b>{overview.insanCevrimici}</b> oyuncu çevrimiçi</span>
                         <span><b>{tables.length}</b> açık masa</span>
@@ -356,55 +356,55 @@ function AdminScreen() {
                         <span>{overview.sunucu.bellekMb} MB</span>
                         <span>açık {duration(overview.sunucu.calisma)}</span>
                     </> : <span>yükleniyor…</span>}
-                    <button type="button" className="ad-link" onClick={() => { store.set(''); setAuthed(false); }}>Çık</button>
+                    <button type="button" className="yp-link" onClick={() => { store.set(''); setAuthed(false); }}>Çık</button>
                 </div>
             </header>
 
-            <section className="ad-section" aria-labelledby="ad-day">
-                <div className="ad-section-head">
-                    <h2 id="ad-day">{today ? 'Bugün' : stats?.gun}</h2>
+            <section className="yp-section" aria-labelledby="yp-day">
+                <div className="yp-section-head">
+                    <h2 id="yp-day">{today ? 'Bugün' : stats?.gun}</h2>
                     <select value={day || stats?.gun || ''} onChange={(e) => setDay(e.target.value)} aria-label="Gün seç">
                         {(stats?.gunler?.length ? stats.gunler : [stats?.gun].filter(Boolean)).map(g => <option key={g} value={g}>{g}</option>)}
                     </select>
                 </div>
-                <div className="ad-numbers">
+                <div className="yp-numbers">
                     {numbers.map(([label, value, hint]) => (
-                        <div key={label} className="ad-number"><b>{value}</b><span>{label}</span><small>{hint}</small></div>
+                        <div key={label} className="yp-number"><b>{value}</b><span>{label}</span><small>{hint}</small></div>
                     ))}
                 </div>
                 {s && <><h3>Saatlik oynayan</h3><Hourly data={s.saatlik} /></>}
             </section>
 
-            <section className="ad-section" aria-labelledby="ad-tables">
-                <div className="ad-section-head"><h2 id="ad-tables">Masalar</h2><small>5 sn'de bir yenilenir · izlemek için masaya dokun</small></div>
-                {tables.length === 0 ? <p className="ad-empty">Şu an açık masa yok.</p> : (
-                    <div className="ad-tables">
+            <section className="yp-section" aria-labelledby="yp-tables">
+                <div className="yp-section-head"><h2 id="yp-tables">Masalar</h2><small>5 sn'de bir yenilenir · izlemek için masaya dokun</small></div>
+                {tables.length === 0 ? <p className="yp-empty">Şu an açık masa yok.</p> : (
+                    <div className="yp-tables">
                         {tables.map(t => <TableCard key={t.no} t={t} selected={t.no === selected} onSelect={() => setSelected(t.no === selected ? null : t.no)} />)}
                     </div>
                 )}
                 {table && <TableWatch key={table.no} table={table} call={call} onClosed={() => setSelected(null)} />}
-                {selected && !table && <p className="ad-empty">#{selected} masası kapandı. Akışı kayıt dosyasında bulabilirsin.</p>}
+                {selected && !table && <p className="yp-empty">#{selected} masası kapandı. Akışı kayıt dosyasında bulabilirsin.</p>}
             </section>
 
-            <div className="ad-columns">
-                <section className="ad-section" aria-labelledby="ad-players">
-                    <div className="ad-section-head"><h2 id="ad-players">Oyuncular</h2><small>{today ? 'bugün' : stats?.gun}</small></div>
-                    {!s?.oyuncular.length ? <p className="ad-empty">Henüz oynayan yok.</p> : (
-                        <table className="ad-list">
+            <div className="yp-columns">
+                <section className="yp-section" aria-labelledby="yp-players">
+                    <div className="yp-section-head"><h2 id="yp-players">Oyuncular</h2><small>{today ? 'bugün' : stats?.gun}</small></div>
+                    {!s?.oyuncular.length ? <p className="yp-empty">Henüz oynayan yok.</p> : (
+                        <table className="yp-list">
                             <thead><tr><th>Ad</th><th>Hamle</th><th>Masa</th></tr></thead>
                             <tbody>{s.oyuncular.map(p => <tr key={p.ad}><td>{p.ad}</td><td>{p.hamle}</td><td>{p.masa}</td></tr>)}</tbody>
                         </table>
                     )}
                 </section>
-                <section className="ad-section" aria-labelledby="ad-problems">
-                    <div className="ad-section-head"><h2 id="ad-problems">Sorunlar</h2><small>bugün · reddedilen istekler, hata ve donmalar</small></div>
-                    {problems.length === 0 ? <p className="ad-empty">Sorun kaydı yok.</p> : (
-                        <ol className="ad-feed">
+                <section className="yp-section" aria-labelledby="yp-problems">
+                    <div className="yp-section-head"><h2 id="yp-problems">Sorunlar</h2><small>bugün · reddedilen istekler, hata ve donmalar</small></div>
+                    {problems.length === 0 ? <p className="yp-empty">Sorun kaydı yok.</p> : (
+                        <ol className="yp-feed">
                             {problems.map((e, i) => (
                                 <li key={i} className={e.ev === 'istemci' ? 't-uyari' : 't-hata'}>
                                     <time>{clock(e.t)}</time>
-                                    <span className="ad-feed-text">
-                                        <b>{e.oyuncu || '?'}</b> {e.masa && <span className="ad-tag">#{e.masa}</span>}{' '}
+                                    <span className="yp-feed-text">
+                                        <b>{e.oyuncu || '?'}</b> {e.masa && <span className="yp-tag">#{e.masa}</span>}{' '}
                                         {e.ev === 'istemci' ? `${e.type}${e.ms ? ` ${e.ms} ms` : ''}${e.msg ? `: ${e.msg}` : ''}` : `${e.istek}: ${e.hata}`}
                                     </span>
                                 </li>
@@ -414,9 +414,9 @@ function AdminScreen() {
                 </section>
             </div>
 
-            <section className="ad-section" aria-labelledby="ad-announce">
-                <div className="ad-section-head"><h2 id="ad-announce">Duyuru</h2><small>açık olan herkesin ekranında birkaç saniye görünür</small></div>
-                <form className="ad-announce" onSubmit={sendAnnounce}>
+            <section className="yp-section" aria-labelledby="yp-announce">
+                <div className="yp-section-head"><h2 id="yp-announce">Duyuru</h2><small>açık olan herkesin ekranında birkaç saniye görünür</small></div>
+                <form className="yp-announce" onSubmit={sendAnnounce}>
                     <input value={announce} maxLength={200} onChange={(e) => setAnnounce(e.target.value)} placeholder="Örn. Sunucu 2 dakika içinde güncellenecek" aria-label="Duyuru metni" />
                     <button type="submit" disabled={!announce.trim()}>Gönder</button>
                     {notice && <span role="status">{notice}</span>}
