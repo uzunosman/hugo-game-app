@@ -157,6 +157,14 @@ function TableWatch({ table, call, socket, onClosed }) {
                     ))}
                 </tbody>
             </table>
+            <p className="yp-seat-help">
+                <span>Sesli sohbet: <b className={table.ses ? 'yp-ok' : ''}>{table.ses ? 'açık' : 'kapalı'}</b></span>
+                {[['on', 'Aç'], ['off', 'Kapat'], ['auto', 'Otomatik']].map(([mode, label]) => (
+                    <button key={mode} type="button" className={`yp-btn is-quiet ${(table.sesAdmin || 'auto') === mode ? 'is-sel' : ''}`}
+                        aria-pressed={(table.sesAdmin || 'auto') === mode} onClick={() => run('admin:voice', { mode })}>{label}</button>
+                ))}
+                <small>Aç: kişi sayısına bakılmaz. Otomatik: masa {table.sesAyar ? 'sesli sohbetle açıldı' : 'sesli sohbetsiz açıldı'}; en az 2 gerçek oyuncu gerekir.</small>
+            </p>
             {free && <p className="yp-seat-help"><button type="button" className="yp-btn is-quiet" onClick={() => run('admin:addBot', {})}>Yapay zekâ ekle</button>
                 <small>boş koltuğa oturur. Kaldırılan oyuncunun koltuğu 15 sn yeni oyuncu bekler, kimse oturmazsa yapay zekâ geçer.</small></p>}
             <h3>Sohbet <small>masadakilerin gördüğü sohbet · yazdığın "Yönetici" olarak görünür</small></h3>
@@ -240,6 +248,10 @@ export default function AdminPage() {
     return <AdminErrorBoundary><AdminScreen /></AdminErrorBoundary>;
 }
 
+// Sayfalar (menü): /admin panel, /admin/tasks görevler, /admin/history geçmiş; geri / ileri tuşları da çalışır
+const PATHS = { panel: '/admin', tasks: '/admin/tasks', history: '/admin/history' };
+const pageOf = () => Object.keys(PATHS).find(k => PATHS[k] === location.pathname.replace(/\/+$/, '')) || 'panel';
+
 function AdminScreen() {
     const [authed, setAuthed] = useState(false);
     const [loginError, setLoginError] = useState('');
@@ -254,9 +266,6 @@ function AdminScreen() {
     const [announce, setAnnounce] = useState('');
     const [notice, setNotice] = useState('');
 
-    // Sayfalar (menü): /admin panel, /admin/tasks görevler, /admin/history geçmiş; geri / ileri tuşları da çalışır
-    const PATHS = { panel: '/admin', tasks: '/admin/tasks', history: '/admin/history' };
-    const pageOf = () => Object.keys(PATHS).find(k => PATHS[k] === location.pathname.replace(/\/+$/, '')) || 'panel';
     const [page, setPage] = useState(pageOf);
     useEffect(() => {
         const onPop = () => setPage(pageOf());

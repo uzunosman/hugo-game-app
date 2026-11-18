@@ -65,7 +65,7 @@ export const deserialize = (json: string): { players: Player[]; rooms: Room[]; n
             tableSets: (g.tableSets || []).map((s: TableSet) => ({ ...s, tiles: tiles(s.tiles) })),
         }) : null;
         if (game) delete (game as Plain).playerIds;
-        return Object.assign(Object.create(Room.prototype), { lastActivityAt: Date.now(), finishedAt: null, labScenario: null, labTimer: false, settings: { ...DEFAULT_SETTINGS } }, rest, {
+        return Object.assign(Object.create(Room.prototype), { lastActivityAt: Date.now(), finishedAt: null, labScenario: null, labTimer: false, settings: { ...DEFAULT_SETTINGS }, voiceOverride: null }, rest, {
             owner: pick(ownerId),
             players: playerIds.map(pick),
             game,

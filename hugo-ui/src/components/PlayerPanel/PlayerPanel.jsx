@@ -6,22 +6,30 @@ const TURN_SECONDS = 60;
 
 // Açan oyuncunun açılış değeri: dizme düğmesine benzer küçük taş rozeti (pp-opened): üstte seri / çift yelpazesi, altında sayı.
 // Kuzey ve güneyde avatarın solunda, doğu ve batıda avatarın üstünde
-const PlayerPanel = ({ playerId, name, isBot = false, position, isCurrentPlayer, timeLeft, isOpen, openedTotal, openedWithPairs = false, isTopOpener = false, penaltyScore, connected = true, bubble = null }) => {
+const PlayerPanel = ({ playerId, name, isBot = false, position, isCurrentPlayer, timeLeft, isOpen, openedTotal, openedWithPairs = false, isTopOpener = false, penaltyScore, connected = true, bubble = null, onClick, menu = null, muted = false, speaking = false }) => {
     const seconds = isCurrentPlayer && typeof timeLeft === 'number' ? timeLeft : null;
     const progress = seconds === null ? 0 : Math.max(0, Math.min(1, seconds / TURN_SECONDS));
     const isWarning = seconds !== null && seconds <= 10;
 
     return (
         <div
-            className={`player-panel ${position} ${isCurrentPlayer ? 'is-turn' : ''} ${isWarning ? 'is-warning' : ''} ${connected ? '' : 'offline'} ${bubble ? 'has-bubble' : ''}`}
+            className={`player-panel ${position} ${speaking ? 'is-speaking' : ''} ${isCurrentPlayer ? 'is-turn' : ''} ${isWarning ? 'is-warning' : ''} ${connected ? '' : 'offline'} ${bubble ? 'has-bubble' : ''}`}
             data-player-id={playerId}
             style={{ '--ring': progress }}
-            aria-label={`${name}${isBot ? ', yapay zekâ' : ''}${isCurrentPlayer ? ', sırada' : ''}${connected ? '' : ', bağlantı koptu'}`}
+            aria-label={`${name}${isBot ? ', yapay zekâ' : ''}${isCurrentPlayer ? ', sırada' : ''}${connected ? '' : ', bağlantı koptu'}${muted ? ', sessizde' : ''}`}
+            // Sesli sohbette diğer oyuncunun kartına dokununca susturma penceresi açılır (Game)
+            onClick={onClick}
+            role={onClick ? 'button' : undefined}
+            tabIndex={onClick ? 0 : undefined}
+            onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(e); } } : undefined}
+            aria-haspopup={onClick ? 'menu' : undefined}
+            aria-expanded={onClick ? !!menu : undefined}
         >
             {/* Sıradaysa avatarın çevresindeki halka kalan süreyi gösterir */}
             <div className="pp-avatar" aria-hidden="true">
                 <img src={avatarFor(playerId || name, isBot)} alt="" draggable="false" />
                 {isBot && <span className="pp-bot">YZ</span>}
+                {muted && <span className="pp-muted" aria-hidden="true">✕</span>}
             </div>
             <div className="pp-body">
                 <div className="pp-name" title={name}>{name}</div>
@@ -38,6 +46,7 @@ const PlayerPanel = ({ playerId, name, isBot = false, position, isCurrentPlayer,
                     <b>{openedTotal}</b>
                 </div>
             )}
+            {menu}
             {/* Sohbet balonu: yazanın kartının yanında birkaç saniye görünür (Game yönetir) */}
             {bubble && <div key={bubble.id} className="pp-bubble" role="status">{bubble.text}</div>}
         </div>

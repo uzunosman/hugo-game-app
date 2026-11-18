@@ -22,6 +22,7 @@ export class Room {
     lastActivityAt: number;   // son insan hamlesi (ms); uzun süre boşta kalan masa arşivlenir
     finishedAt: number | null; // oyun bitip masa beklemeye döndüğü an; yeniden başlamazsa arşivlenir
     settings: GameSettings = { ...DEFAULT_SETTINGS }; // oyun modu (masa açılırken seçilecek)
+    voiceOverride: 'on' | 'off' | null = null; // admin: sesli sohbeti zorla aç / kapat (null: masanın ayarı ve kişi kuralı)
     labScenario: string | null = null; // test senaryosu masası (lab): senaryo kimliği
     labTimer = false;                  // lab masasında sıra süresi işler mi
 
@@ -127,6 +128,13 @@ export class Room {
             this.players.every(player => player.isReady);
     }
 
+    // Sesli sohbet açık mı: admin açtıysa kişi kuralı aranmaz; yoksa masa ayarı + en az 2 gerçek oyuncu (yapay zekâ / boş koltuk sayılmaz)
+    voiceActive(): boolean {
+        if (this.voiceOverride === 'off') return false;
+        if (this.voiceOverride === 'on') return true;
+        return !!this.settings?.voice && this.players.filter(p => !p.isBot && !p.vacantUntil).length >= 2;
+    }
+
     // Masadaki tek gerçek oyuncu koptu mu (diğerleri yapay zekâ): masa onu saatlerce bekler (socketHandler soloAway)
     soloAwayHuman(): Player | null {
         const humans = this.players.filter(p => !p.isBot && !p.vacantUntil);
@@ -145,7 +153,9 @@ export class Room {
             createdAt: this.createdAt,
             game: this.game ? this.game.toPublicJSON() : null,
             lab: this.labScenario,
-            settings: this.settings
+            settings: this.settings,
+            voice: this.voiceActive(),
+            voiceOverride: this.voiceOverride
         };
     }
 } 

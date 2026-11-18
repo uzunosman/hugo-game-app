@@ -3,6 +3,8 @@ import socketService from '../services/socketService';
 import Game from '../components/Game/Game';
 import { avatarFor, rememberAvatars } from '../utils/avatar';
 import RoundSummary from './RoundSummary/RoundSummary';
+import useVoice from '../hooks/useVoice';
+import './Voice/Voice.css';
 // Dokunmatik telefonda oyun yatay oynanır: Hazırım / Oyunu başlat dokunuşu tam ekran + yatay kilidi de ister
 import { enterLandscape, isTouchPhone } from '../utils/orientation';
 
@@ -12,6 +14,8 @@ function Room({ player, room, onLeaveRoom }) {
     const [loading, setLoading] = useState(false);
     // Son oyunun tabelası: yeni oyun başlasa da oyuncu kapatana kadar açık kalır
     const [finalResults, setFinalResults] = useState(null);
+    // Sesli sohbet: bekleme ekranında başlar, oyunda kesilmeden sürer
+    const voice = useVoice(currentRoom, player.id, setError);
 
     useEffect(() => {
         // Oyuncu katılma olayını dinle
@@ -160,7 +164,7 @@ function Room({ player, room, onLeaveRoom }) {
         // Aynı masada yeni oyun başlayınca (oyun id'si değişir) oyun ekranı baştan kurulur
         return (
             <>
-                <Game key={currentRoom.game.id} player={player} room={currentRoom} onGameFinished={setFinalResults} onLeaveTable={handleLeaveTable} />
+                <Game key={currentRoom.game.id} player={player} room={currentRoom} onGameFinished={setFinalResults} onLeaveTable={handleLeaveTable} voice={voice} />
                 {finalSummary}
             </>
         );
@@ -185,7 +189,7 @@ function Room({ player, room, onLeaveRoom }) {
 
                 <div className="seat-grid">
                     {seats.map((p, i) => p ? (
-                        <div key={p.id} className={`seat ${p.id === player.id ? 'me' : ''}`}>
+                        <div key={p.id} className={`seat ${p.id === player.id ? 'me' : ''} ${voice.on && voice.isSpeaking(p.id) ? 'is-speaking' : ''}`}>
                             <img className="seat-avatar" src={avatarFor(p.id, p.isBot)} alt="" />
                             <span className="seat-text">
                                 <span className="seat-name">{p.name}{p.id === player.id ? ' (sen)' : ''}</span>
@@ -197,6 +201,10 @@ function Room({ player, room, onLeaveRoom }) {
                             </span>
                             {isOwner && !p.isBot && p.id !== player.id && (
                                 <button type="button" className="seat-add seat-owner" onClick={() => handleTransferOwner(p.id)}>Sahipliği ver</button>
+                            )}
+                            {voice.on && !p.isBot && p.id !== player.id && (
+                                <button type="button" className={`seat-mute ${voice.isMuted(p.id) ? 'is-muted' : ''}`} aria-pressed={voice.isMuted(p.id)}
+                                    onClick={() => voice.mute(p.id, !voice.isMuted(p.id))}>{voice.isMuted(p.id) ? 'Sesini aç' : 'Sessize al'}</button>
                             )}
                             {p.isBot && isOwner && (
                                 <button type="button" className="seat-remove" onClick={() => handleRemoveBot(p.id)} aria-label={`${p.name} masadan çıkar`}>×</button>
@@ -212,6 +220,18 @@ function Room({ player, room, onLeaveRoom }) {
                     ))}
                 </div>
 
+                {voice.on && (
+                    <div className="room-voice" role="group" aria-label="Sesli sohbet">
+                        <span>Sesli sohbet</span>
+                        <button type="button" className={`btn ${voice.mic ? 'btn-ready' : 'btn-ghost'}`} aria-pressed={voice.mic} disabled={voice.busy} onClick={voice.toggleMic}>
+                            {voice.mic ? 'Mikrofon açık' : 'Mikrofonu aç'}
+                        </button>
+                        <button type="button" className={`btn ${voice.speaker ? 'btn-ready' : 'btn-ghost'}`} aria-pressed={voice.speaker} disabled={voice.busy} onClick={voice.toggleSpeaker}>
+                            {voice.speaker ? 'Hoparlör açık' : 'Hoparlörü aç'}
+                        </button>
+                        {(voice.mic || voice.speaker) && <small>{voice.connected} oyuncuya bağlı</small>}
+                    </div>
+                )}
                 {error && <p className="form-error" role="alert">{error}</p>}
 
                 <div className="panel-actions">

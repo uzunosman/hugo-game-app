@@ -63,6 +63,13 @@
   duyuru, günlük istatistik, sorunlar. Geçmiş: oyuncu → oyunları → el tablosu → elin dağıtımı ve hamleleri (`utils/History.ts`). Veriler Socket.IO
   `admin:*` isteklerinden; anahtar `/var/lib/hugo/admin-token` (ya da `ADMIN_TOKEN`). Sunucu: `src/utils/Admin.ts`, arayüz: `components/Admin`.
 
+## Sesli sohbet
+- WebRTC, oyuncular arası doğrudan (mesh); sunucu yalnızca `voice:join` / `voice:signal` / `voice:peer-*` aktarır
+  (`socketHandler.ts`), istemci `utils/voice.js` + `hooks/useVoice.js` (Room'da kurulur: bekleme ekranında başlar, oyunda sürer), sekmeler `components/Voice`; konuşan avatarı yeşil parlar. Masa açarken seçilir (`settings.voice`), en az
+  2 gerçek oyuncuyla açılır (`Room.voiceActive`); admin aç / kapat / otomatik (`voiceOverride`). Durum değişince `room:voice`.
+- Bağlantı sunucusu yalnızca STUN (Google). TURN yok: bazı mobil / kurumsal ağlarda bağlantı kurulamayabilir;
+  kurulursa `TURN_URL`, `TURN_USER`, `TURN_PASS` (systemd ortamı). Test: `scripts/e2e-voice.ts` (sinyal), ses gerçek cihazda.
+
 ## Ekran (sahne)
 - Oyun ekranı her cihazda aynı: referans kullanıcının iPhone 14'ü, ana ekran uygulaması yatay = 750×390 CSS px. Ekran bu
   ölçüde çizilir (`html.stage`, `utils/stage.js`) ve görünen alana orantılı sığdırılır; oranı farklı ekranda kenarda masa

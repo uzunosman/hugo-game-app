@@ -3,9 +3,11 @@
 export interface GameSettings {
     // Yardımlı: işlenebilir (işlek) taş atılamaz, elde işaretlenir. Kapalıysa atılır ve işlek cezası yazılır.
     assisted: boolean;
+    // Sesli sohbet: masa açılırken seçilir; en az 2 gerçek oyuncu varken çalışır (admin açıp kapatabilir: Room.voiceOverride)
+    voice: boolean;
 }
 
-export const DEFAULT_SETTINGS: GameSettings = { assisted: true };
+export const DEFAULT_SETTINGS: GameSettings = { assisted: true, voice: false };
 
 // Eksik / eski kayıttaki ayarlar varsayılanla tamamlanır
 export const settingsOf = (s?: Partial<GameSettings> | null): GameSettings => ({ ...DEFAULT_SETTINGS, ...(s || {}) });

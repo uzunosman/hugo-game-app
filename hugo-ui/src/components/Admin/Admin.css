@@ -308,3 +308,4 @@ html:has(.yp) .app-version, html:has(.yp-login) .app-version, html:has(.yp) .set
 .yp-hist-game h3 { margin: 0; color: var(--text); }
 .yp-hist-deal { display: grid; gap: 4px; }
 .yp-scores th.is-sel, .yp-scores td.is-sel { color: var(--turn); }
+.yp-btn.is-quiet.is-sel { background: var(--turn); color: #1d1606; }

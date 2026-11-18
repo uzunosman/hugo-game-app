@@ -16,6 +16,11 @@ export const config = {
     persist: process.env.PERSIST !== 'false',
     // Ortam: production (hugola.io), staging (test.hugola.io; yalnızca admin bağlanır), development
     appEnv: process.env.APP_ENV || (process.env.NODE_ENV === 'production' ? 'production' : 'development'),
+    // Sesli sohbet bağlantı sunucuları (WebRTC). STUN herkese açık; TURN (aktarım) kurulursa TURN_URL / TURN_USER / TURN_PASS
+    iceServers: [
+        { urls: process.env.STUN_URL || 'stun:stun.l.google.com:19302' },
+        ...(process.env.TURN_URL ? [{ urls: process.env.TURN_URL, username: process.env.TURN_USER || '', credential: process.env.TURN_PASS || '' }] : []),
+    ],
     // Görevlerdeki "Test et" bağlantısı: senaryo staging'de açılır
     stagingUrl: process.env.STAGING_URL || 'https://test.hugola.io',
     // Lab (test senaryoları, koltuk değiştirme): prod'da hiç açılmaz

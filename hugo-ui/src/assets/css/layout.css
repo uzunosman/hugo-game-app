@@ -71,7 +71,8 @@
 /* Yan oyuncular ekranın değil masanın dikey ortasında */
 .player-panel.top { top: 3px; }
 .player-panel.left,
-.player-panel.right { top: calc((var(--top-band) + var(--stage-h, 100dvh) - var(--rack-h) - var(--self-band)) / 2); }
+.player-panel.right { top: calc(var(--top-band) + (var(--stage-h, 100dvh) - var(--top-band) - var(--rack-h) - var(--self-band)) * 0.4); }
+/* Yan oyuncular masa yüksekliğinin %40'ında: altlarında sol kenarda sesli sohbet sekmelerine yer kalır */
 .player-panel.left { left: 4px; }
 .player-panel.right { right: 4px; }
 

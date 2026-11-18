@@ -57,7 +57,7 @@ function Lobby({ player, onRegister, onJoinRoom, notice }) {
             }
         };
         if (action.kind === 'join') socketService.joinRoom(action.room.id, done);
-        else socketService.createRoom(action.name, done);
+        else socketService.createRoom(action.name, done, { voice: action.voice });
     };
 
     // Kayıtlı değilse önce ad ve avatar sorulur, sonra işlem yapılır
@@ -77,11 +77,12 @@ function Lobby({ player, onRegister, onJoinRoom, notice }) {
         });
     };
 
+    const [voice, setVoice] = useState(false); // yeni masada sesli sohbet (en az 2 gerçek oyuncuyla çalışır)
     const handleCreateRoom = (e) => {
         e.preventDefault();
         const name = newRoomName.trim();
         if (!name) { setError('Masaya bir ad ver'); return; }
-        request({ kind: 'create', name });
+        request({ kind: 'create', name, voice });
     };
 
     return (
@@ -126,6 +127,10 @@ function Lobby({ player, onRegister, onJoinRoom, notice }) {
                     onChange={(e) => setNewRoomName(e.target.value)}
                     disabled={loading}
                 />
+                <label className="lobby-voice">
+                    <input type="checkbox" checked={voice} onChange={(e) => setVoice(e.target.checked)} disabled={loading} />
+                    Sesli sohbet
+                </label>
                 <button className="btn btn-primary" type="submit" disabled={loading}>Masa aç</button>
             </form>
 

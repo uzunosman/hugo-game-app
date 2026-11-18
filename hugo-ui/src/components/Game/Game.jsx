@@ -18,6 +18,7 @@ import '../../assets/css/mobile.css';
 import RotateHint from '../RotateHint/RotateHint';
 import SeatSwitcher from '../Lab/SeatSwitcher';
 import { enterStage } from '../../utils/stage';
+import VoiceControls from '../Voice/VoiceControls';
 
 /**
  * Ana Oyun bileşeni
@@ -26,7 +27,7 @@ import { enterStage } from '../../utils/stage';
  * @param {Object} props.room - Oda bilgisi
  * @returns {JSX.Element} - Oyun bileşeni
  */
-function Game({ player, room, onGameFinished, onLeaveTable }) {
+function Game({ player, room, onGameFinished, onLeaveTable, voice }) {
     // Oyun durumu ve taşlarla ilgili state'leri al
     const {
         tiles,
@@ -59,6 +60,10 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
     const [summaryReady, setSummaryReady] = useState(false);
     // Oyun ekranı sabit sahnede (750×390) çizilir, her cihazda aynı görünür (utils/stage.js)
     useEffect(() => enterStage(), []);
+
+    // Sesli sohbet (Room'da kurulur: bekleme ekranında başlayan sohbet oyunda kesilmeden sürer; hooks/useVoice.js)
+    const [voiceMenu, setVoiceMenu] = useState(null); // susturma penceresi açık oyuncu
+    useEffect(() => { if (!voice?.on) setVoiceMenu(null); }, [voice?.on]);
 
     useEffect(() => {
         setSummaryReady(false);
@@ -538,6 +543,7 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
     // Boş bir yere tıklanınca ıstakadaki seçim (ve büyüyen per) kalkar
     const KEEPS_SELECTION = '.tile, .tile-cell, .open-set-group, .pair-slot, .tile-drop-zone, .deck-tile-wrapper, button, input, textarea, a, [role="dialog"]';
     const onBlankClick = (e) => {
+        if (voiceMenu && !e.target.closest('.voice-menu')) setVoiceMenu(null);
         if (selectedTile !== null && !e.target.closest(KEEPS_SELECTION)) setSelectedTile(null);
     };
 
@@ -571,6 +577,17 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
                         openedTotal={openState?.openedTotal}
                         openedWithPairs={!!openState?.openedWithPairs}
                         isTopOpener={!!openState?.isOpen && topOpened > 0 && openState.openedTotal === topOpened}
+                        muted={!!voice?.isMuted(p.id)}
+                        speaking={!!voice?.on && voice.isSpeaking(p.id)}
+                        onClick={voice?.on && index !== 0 && !p.isBot ? (e) => { e.stopPropagation(); setVoiceMenu(m => (m === p.id ? null : p.id)); } : undefined}
+                        menu={voiceMenu === p.id && voice?.on ? (
+                            <div className="voice-menu" role="menu" onClick={(e) => e.stopPropagation()}>
+                                <b>{p.name}</b>
+                                <button type="button" role="menuitem" autoFocus onClick={() => { voice.mute(p.id, !voice.isMuted(p.id)); setVoiceMenu(null); }}>
+                                    {voice.isMuted(p.id) ? 'Sesini aç' : 'Sessize al'}
+                                </button>
+                            </div>
+                        ) : null}
                         penaltyScore={openState?.penaltyScore || 0}
                         connected={openState?.connected !== false}
                         bubble={chatBubbles[p.id]}
@@ -692,6 +709,10 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
 
             <RotateHint />
             <PenaltyLog entries={penaltyLog} round={gameState.round} myId={player.id} />
+            {voice?.on && (
+                <VoiceControls mic={voice.mic} speaker={voice.speaker} connected={voice.connected}
+                    busy={voice.busy} onMic={voice.toggleMic} onSpeaker={voice.toggleSpeaker} />
+            )}
             <Chat playerId={player.id} />
 
             {/* Sağ üst: el bilgisi ve tabela */}

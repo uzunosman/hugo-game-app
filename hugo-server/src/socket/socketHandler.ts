@@ -21,7 +21,7 @@ const CHAT_MAX_LEN = 200;
 const CHAT_HISTORY = 50;
 const CHAT_MIN_GAP_MS = 700;
 // Oyun kaydına yazılmayan sık / yalnızca okuma istekleri
-const QUIET_EVENTS = new Set(['rooms:list', 'room:details', 'chat:history', 'game:requestTiles', 'client:log']); // soket başına mesaj aralığı: sel engeli
+const QUIET_EVENTS = new Set(['rooms:list', 'room:details', 'chat:history', 'game:requestTiles', 'client:log', 'voice:signal']); // soket başına mesaj aralığı: sel engeli
 
 // Oyuncu kimliği herkese yayınlanır; koltuğa geri dönmek için ayrıca yalnızca sahibinde olan anahtar gerekir
 const issueToken = (p: Player) => (p.authToken = crypto.randomBytes(24).toString('base64url'));
@@ -392,6 +392,30 @@ export const setupSocketHandlers = (io: Server) => {
 
     const broadcastRooms = () => io.emit('rooms:list', { success: true, rooms: gameManager.getAllRooms().map(r => r.toJSON()) });
 
+    // ── Sesli sohbet (WebRTC; sunucu yalnızca bağlantı kurma mesajlarını aktarır, ses oyuncular arasında doğrudan gider) ──
+    // voiceMembers: masada sese katılmış (mikrofonu ya da hoparlörü açık) oyuncular. Masanın sesli sohbeti kapanınca dağılır.
+    const voiceMembers = new Map<string, Set<string>>();
+    const voiceState = new Map<string, boolean>();
+    const syncVoice = (room: Room) => {
+        const on = room.voiceActive();
+        if (voiceState.get(room.id) === on) return;
+        voiceState.set(room.id, on);
+        if (!on) voiceMembers.delete(room.id);
+        io.to(room.id).emit('room:voice', { roomId: room.id, voice: on });
+    };
+    const leaveVoice = (roomId: string, playerId: string) => {
+        const set = voiceMembers.get(roomId);
+        if (!set?.delete(playerId)) return;
+        io.to(roomId).emit('voice:peer-left', { playerId });
+    };
+    // Oda listesi her değiştiğinde (oturma, kalkma, kaldırma, yapay zekâ…) sesli sohbet durumu yeniden hesaplanır
+    const rawEmit = io.emit.bind(io);
+    io.emit = ((ev: string, ...args: unknown[]) => {
+        const r = rawEmit(ev, ...args);
+        if (ev === 'rooms:list') gameManager.getAllRooms().forEach(syncVoice);
+        return r;
+    }) as typeof io.emit;
+
     // Masayı kapat (arşivle): ana ekrandan kalkar, masadakiler lobiye döner
     // Masaya yapay zekâ ekle (oyun başlamadan, boş koltuğa)
     const addBotTo = (room: Room) => {
@@ -465,6 +489,8 @@ export const setupSocketHandlers = (io: Server) => {
         clearTimeout(turnTimers.get(roomId));
         turnTimers.delete(roomId);
         chatLogs.delete(roomId);
+        voiceMembers.delete(roomId);
+        voiceState.delete(roomId);
         const entry = gameManager.archiveRoom(roomId, reason);
         if (!entry) return;
         try { if (config.persist) appendArchive(entry); } catch (error) { console.error('Arşiv yazılamadı:', error); }
@@ -607,7 +633,7 @@ export const setupSocketHandlers = (io: Server) => {
             sunucu: { calisma: Math.round(process.uptime()), bellekMb: Math.round(process.memoryUsage().rss / 1048576), baglanti: io.engine.clientsCount },
             insanCevrimici: gameManager.getAllPlayers().filter(p => !p.isBot && p.connected).length,
             masalar: gameManager.getAllRooms().map(r => ({
-                no: r.no, ad: r.name, durum: r.status, olusturma: r.createdAt, sonHareket: r.lastActivityAt,
+                no: r.no, ad: r.name, durum: r.status, ses: r.voiceActive(), sesAyar: !!r.settings?.voice, sesAdmin: r.voiceOverride, olusturma: r.createdAt, sonHareket: r.lastActivityAt,
                 el: r.game?.round ?? null, hugo: r.game ? r.game.isHugoRound() : false, deste: r.game?.deck.length ?? null,
                 sira: r.game?.status === GameStatus.STARTED ? r.game.players[r.game.currentPlayerIndex]?.name ?? null : null,
                 oyuncular: r.players.map(p => ({ id: p.id, bos: !!p.vacantUntil, ad: p.name, bot: !!p.isBot, bagli: !!p.connected, puan: p.getTotalScore(), ceza: p.penaltyScore, tas: p.tiles.length, acik: !!p.isOpen })),
@@ -684,6 +710,18 @@ export const setupSocketHandlers = (io: Server) => {
             io.to(room.id).emit('chat:message', message);
             logEvent('yonetim', { islem: 'sohbet', masa: room.no, text });
             return { message };
+        });
+        // Sesli sohbet: aç (kişi kuralı aranmaz) / kapat / otomatik (masa ayarı + en az 2 gerçek oyuncu)
+        admin('admin:voice', (d) => {
+            const room = roomByNo(d?.no);
+            if (!room) throw new Error('Masa yok');
+            const mode = String(d?.mode);
+            if (!['on', 'off', 'auto'].includes(mode)) throw new Error('Geçersiz seçim');
+            room.voiceOverride = mode === 'auto' ? null : mode as 'on' | 'off';
+            logEvent('yonetim', { islem: 'sesli-sohbet', masa: room.no, mode });
+            broadcastRooms(); // durum yeniden hesaplanır, masaya bildirilir
+            persist();
+            return { voice: room.voiceActive() };
         });
         admin('admin:kickPlayer', (d) => {
             const room = roomByNo(d?.no);
@@ -800,6 +838,34 @@ export const setupSocketHandlers = (io: Server) => {
             return {};
         });
 
+        // Sesli sohbete katıl: masadaki diğer katılanlar listesi ve bağlantı sunucuları döner; katılan diğerlerine bildirilir
+        socket.on('voice:join', (data: { playerId: string }, callback) => {
+            if (!owns(data?.playerId)) return callback?.(notYours);
+            const player = gameManager.getPlayerById(data.playerId)!;
+            const room = player.roomId ? gameManager.getRoomById(player.roomId) : undefined;
+            if (!room?.voiceActive()) return callback?.({ success: false, error: 'Bu masada sesli sohbet kapalı' });
+            const set = voiceMembers.get(room.id) || new Set<string>();
+            const peers = [...set].filter(id => id !== player.id);
+            set.add(player.id);
+            voiceMembers.set(room.id, set);
+            socket.to(room.id).emit('voice:peer-joined', { playerId: player.id });
+            callback?.({ success: true, peers, iceServers: config.iceServers });
+        });
+        socket.on('voice:leave', (data: { playerId: string }) => {
+            if (!owns(data?.playerId)) return;
+            const roomId = gameManager.getPlayerById(data.playerId)?.roomId;
+            if (roomId) leaveVoice(roomId, data.playerId);
+        });
+        // Bağlantı kurma mesajı (teklif / cevap / aday) yalnızca aynı masada sese katılmış iki oyuncu arasında aktarılır
+        socket.on('voice:signal', (data: { playerId: string; to: string; data: unknown }) => {
+            if (!owns(data?.playerId)) return;
+            const me = gameManager.getPlayerById(data.playerId)!;
+            const to = gameManager.getPlayerById(String(data?.to));
+            const set = me.roomId ? voiceMembers.get(me.roomId) : undefined;
+            if (!to || to.roomId !== me.roomId || !set?.has(me.id) || !set.has(to.id)) return;
+            io.sockets.sockets.get(to.socketId)?.emit('voice:signal', { from: me.id, data: data.data });
+        });
+
         socket.on('chat:send', (data: { playerId: string; text: string }, callback) => {
             try {
                 if (!owns(data?.playerId)) return callback?.(notYours);
@@ -892,7 +958,7 @@ export const setupSocketHandlers = (io: Server) => {
         });
 
         // Oda Olayları
-        socket.on('room:create', (data: { name: string, playerId: string }, callback) => {
+        socket.on('room:create', (data: { name: string, playerId: string, voice?: boolean }, callback) => {
             try {
                 const { name, playerId } = data;
 
@@ -918,6 +984,7 @@ export const setupSocketHandlers = (io: Server) => {
                         error: 'Oda oluşturulamadı'
                     });
                 }
+                room.settings.voice = !!data.voice; // sesli sohbet masa açılırken seçilir
 
                 // Odaya katıl
                 socket.join(room.id);
@@ -1708,6 +1775,7 @@ export const setupSocketHandlers = (io: Server) => {
             persist();
 
             const player = gameManager.getPlayerBySocketId(socket.id);
+            if (player?.roomId) leaveVoice(player.roomId, player.id);
             logEvent('baglanti-kesildi', { soket: socket.id, oyuncu: player?.name ?? null, oyuncuId: player?.id ?? null });
 
             // Oyun sürerken oyuncu silinmez: koltuk tutulur, sırası gelince otomatik oynanır
