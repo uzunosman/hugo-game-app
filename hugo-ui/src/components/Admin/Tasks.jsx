@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 
-// Görevler (Faz 4): isteklerini madde madde yazarsın; Claude geliştirip "Teste hazır" yapar ve senaryo bağlar.
-// "Test et" senaryoyu staging'de açar; sonucu buradan yazarsın: Onayla / Revize iste (not + ekran görüntüsü) / İptal.
+// Görevler (/admin/tasks): kanban panosu. İsteklerini madde madde yazarsın; Claude geliştirip "Teste hazır" yapar ve senaryo
+// bağlar. "Test et" senaryoyu staging'de açar; sonucu karttan yazarsın: Onayla / Revize iste (not + ekran görüntüsü) / İptal.
+// Durumu kart taşıyarak değil düğmelerle değiştirirsin (geliştirme durumlarını Claude değiştirir).
 
 const STATUS = {
     new: { label: 'Yeni', tone: 'muted' },
@@ -41,15 +42,27 @@ function Attachment({ a, call }) {
         : <span className="yp-task-shot is-loading">yükleniyor…</span>;
 }
 
-function TaskDetail({ id, call, stagingUrl, onChanged }) {
+function TaskDetail({ id, call, stagingUrl, onChanged, onClose }) {
     const [data, setData] = useState(null);
+    const [editing, setEditing] = useState(null); // { title, body } düzenlenirken
     const [text, setText] = useState('');
     const [images, setImages] = useState([]);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState('');
 
     const load = useCallback(() => call('admin:task', { id }).then(r => (r?.success ? setData(r) : setError(r?.error || 'Görev okunamadı'))), [call, id]);
-    useEffect(() => { setData(null); setText(''); setImages([]); setError(''); load(); }, [load]);
+    useEffect(() => { setData(null); setText(''); setImages([]); setError(''); setEditing(null); load(); }, [load]);
+
+    const save = async (e) => {
+        e.preventDefault();
+        setBusy(true);
+        const r = await call('admin:taskUpdate', { id, title: editing.title, body: editing.body });
+        setBusy(false);
+        if (!r?.success) return setError(r?.error || 'Kaydedilemedi');
+        setEditing(null);
+        load();
+        onChanged();
+    };
 
     const pick = async (e) => {
         const files = [...e.target.files].slice(0, 4 - images.length);
@@ -76,8 +89,19 @@ function TaskDetail({ id, call, stagingUrl, onChanged }) {
             <header>
                 <h3>#{task.id} · {task.title}</h3>
                 <StatusChip status={task.status} />
+                {!editing && <button type="button" className="yp-btn is-quiet" onClick={() => setEditing({ title: task.title, body: task.body })}>Düzenle</button>}
+                {onClose && <button type="button" className="yp-task-close" onClick={onClose} aria-label="Kapat">×</button>}
             </header>
-            {task.body && <p className="yp-task-body">{task.body}</p>}
+            {editing ? (
+                <form className="yp-task-edit" onSubmit={save}>
+                    <input value={editing.title} maxLength={200} onChange={(e) => setEditing({ ...editing, title: e.target.value })} aria-label="Görev başlığı" />
+                    <textarea value={editing.body} rows={6} maxLength={20000} onChange={(e) => setEditing({ ...editing, body: e.target.value })} aria-label="Görev açıklaması" placeholder={'Madde madde yaz:\n- …'} />
+                    <div className="yp-task-actions">
+                        <button type="submit" className="yp-btn" disabled={busy || !editing.title.trim()}>Kaydet</button>
+                        <button type="button" className="yp-btn is-quiet" onClick={() => setEditing(null)}>Vazgeç</button>
+                    </div>
+                </form>
+            ) : task.body ? <p className="yp-task-body">{task.body}</p> : <p className="yp-empty">Açıklama yok. Düzenle ile madde madde ekle.</p>}
             {(task.scenario_ids?.length > 0 || task.branch) && (
                 <div className="yp-task-test">
                     {task.scenario_ids.map(s => (
@@ -126,31 +150,46 @@ function TaskDetail({ id, call, stagingUrl, onChanged }) {
     );
 }
 
+// Pano sütunları (soldan sağa iş akışı); iptal edilenler isteğe bağlı
+const COLUMNS = ['new', 'in_progress', 'ready', 'revision', 'approved', 'done'];
+const DONE_SHOWN = 12; // canlıdakilerden son N
+
 export default function Tasks({ call }) {
     const [tasks, setTasks] = useState(null);
     const [stagingUrl, setStagingUrl] = useState('');
-    const [all, setAll] = useState(false);
+    const [showCancelled, setShowCancelled] = useState(false);
     const [selected, setSelected] = useState(null);
+    const [adding, setAdding] = useState(false);
     const [title, setTitle] = useState('');
     const [body, setBody] = useState('');
     const [error, setError] = useState('');
 
-    const load = useCallback(() => call('admin:tasks', { all }).then(r => {
+    const load = useCallback(() => call('admin:tasks', { all: true }).then(r => {
         if (!r?.success) return setError(r?.error || 'Görevler okunamadı');
         setTasks(r.tasks);
         setStagingUrl(r.stagingUrl);
-    }), [call, all]);
-    useEffect(() => { load(); }, [load]);
+    }), [call]);
+    useEffect(() => { load(); const t = setInterval(load, 15000); return () => clearInterval(t); }, [load]); // Claude'un güncellemeleri
+    useEffect(() => {
+        if (!selected) return;
+        const onKey = (e) => { if (e.key === 'Escape') setSelected(null); };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [selected]);
 
     const create = async (e) => {
         e.preventDefault();
         const r = await call('admin:taskCreate', { title, body });
         if (!r?.success) return setError(r?.error || 'Görev açılamadı');
-        setTitle('');
-        setBody('');
-        setError('');
+        setTitle(''); setBody(''); setError(''); setAdding(false);
         setSelected(r.task.id);
         load();
+    };
+
+    const columns = [...COLUMNS, ...(showCancelled ? ['cancelled'] : [])];
+    const byStatus = (st) => {
+        const list = (tasks || []).filter(t => t.status === st);
+        return st === 'done' ? list.slice(0, DONE_SHOWN) : list;
     };
 
     return (
@@ -158,35 +197,49 @@ export default function Tasks({ call }) {
             <div className="yp-section-head">
                 <h2 id="yp-tasks">Görevler</h2>
                 <small>istek → Claude geliştirir → staging'de test et → onayla / revize iste</small>
-                <label className="yp-task-all"><input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} /> kapananlar da</label>
+                <label className="yp-task-all"><input type="checkbox" checked={showCancelled} onChange={(e) => setShowCancelled(e.target.checked)} /> iptal edilenler</label>
             </div>
-            <div className="yp-tasks">
-                <div className="yp-task-list">
-                    <form className="yp-task-new" onSubmit={create}>
-                        <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} placeholder="Yeni görev, örn. Sohbet kutusu küçülsün" aria-label="Görev başlığı" />
-                        {title.trim() && (
-                            <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={4} maxLength={20000}
-                                placeholder={'Madde madde yaz:\n- yazı boyu 11 px\n- kutu sağ altta'} aria-label="Görev açıklaması" />
-                        )}
-                        {title.trim() && <button type="submit" className="yp-btn">Görev aç</button>}
-                    </form>
-                    {error && <p className="yp-error" role="alert">{error}</p>}
-                    {tasks && !tasks.length && <p className="yp-empty">Açık görev yok. Bir başlık yazıp ilk görevi aç.</p>}
-                    <ul>
-                        {(tasks || []).map(t => (
-                            <li key={t.id}>
-                                <button type="button" aria-pressed={selected === t.id} className={selected === t.id ? 'is-sel' : ''} onClick={() => setSelected(t.id)}>
-                                    <span className="yp-task-title">#{t.id} {t.title}</span>
-                                    <span className="yp-task-row"><StatusChip status={t.status} /> <small>{when(t.updated_at)} · {t.notes} not</small></span>
-                                </button>
-                            </li>
-                        ))}
-                    </ul>
+            {error && <p className="yp-error" role="alert">{error}</p>}
+            <div className="yp-board">
+                {columns.map(st => {
+                    const list = byStatus(st);
+                    return (
+                        <section key={st} className={`yp-col st-${st}`} aria-label={`${STATUS[st].label} (${list.length})`}>
+                            <header><StatusChip status={st} /><span>{(tasks || []).filter(t => t.status === st).length}</span></header>
+                            {st === 'new' && (adding ? (
+                                <form className="yp-task-new" onSubmit={create}>
+                                    <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} placeholder="Başlık, örn. Sohbet kutusu küçülsün" aria-label="Görev başlığı" autoFocus />
+                                    <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={4} maxLength={20000}
+                                        placeholder={'Madde madde yaz:\n- yazı boyu 11 px\n- kutu sağ altta'} aria-label="Görev açıklaması" />
+                                    <div className="yp-task-actions">
+                                        <button type="submit" className="yp-btn" disabled={!title.trim()}>Görev aç</button>
+                                        <button type="button" className="yp-btn is-quiet" onClick={() => setAdding(false)}>Vazgeç</button>
+                                    </div>
+                                </form>
+                            ) : <button type="button" className="yp-col-add" onClick={() => setAdding(true)}>+ Yeni görev</button>)}
+                            <ul>
+                                {list.map(t => (
+                                    <li key={t.id}>
+                                        <button type="button" className={`yp-card ${selected === t.id ? 'is-sel' : ''}`} aria-pressed={selected === t.id} onClick={() => setSelected(t.id)}>
+                                            <span className="yp-task-title">#{t.id} {t.title}</span>
+                                            <span className="yp-card-meta">
+                                                {t.scenario_ids?.length > 0 && <span className="yp-card-tag">test: {t.scenario_ids.length}</span>}
+                                                <small>{when(t.updated_at)} · {t.notes} not</small>
+                                            </span>
+                                        </button>
+                                    </li>
+                                ))}
+                                {tasks && !list.length && st !== 'new' && <li className="yp-col-empty">—</li>}
+                            </ul>
+                        </section>
+                    );
+                })}
+            </div>
+            {selected && (
+                <div className="yp-drawer" role="dialog" aria-modal="true" aria-label={`Görev #${selected}`} onClick={(e) => { if (e.target === e.currentTarget) setSelected(null); }}>
+                    <TaskDetail id={selected} call={call} stagingUrl={stagingUrl} onChanged={load} onClose={() => setSelected(null)} />
                 </div>
-                {selected
-                    ? <TaskDetail id={selected} call={call} stagingUrl={stagingUrl} onChanged={load} />
-                    : <section className="yp-task-detail"><p className="yp-empty">Ayrıntı için soldan bir görev seç.</p></section>}
-            </div>
+            )}
         </section>
     );
 }

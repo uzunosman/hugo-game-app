@@ -271,7 +271,22 @@ function AdminScreen() {
     const [announce, setAnnounce] = useState('');
     const [notice, setNotice] = useState('');
 
-    useEffect(() => { document.title = 'Hugo admin'; }, []);
+    // Sayfalar (menü): /admin panel, /admin/tasks görevler; geri / ileri tuşları da çalışır
+    const pageOf = () => (location.pathname.replace(/\/+$/, '') === '/admin/tasks' ? 'tasks' : 'panel');
+    const [page, setPage] = useState(pageOf);
+    useEffect(() => {
+        const onPop = () => setPage(pageOf());
+        window.addEventListener('popstate', onPop);
+        return () => window.removeEventListener('popstate', onPop);
+    }, []);
+    const go = (e, to) => {
+        e.preventDefault();
+        if (to === page) return;
+        history.pushState(null, '', to === 'tasks' ? '/admin/tasks' : '/admin');
+        setPage(to);
+        scrollTo(0, 0);
+    };
+    useEffect(() => { document.title = page === 'tasks' ? 'Görevler · Hugo admin' : 'Hugo admin'; }, [page]);
 
     // Teşhis: giriş sonrası ilk veri gelince sayfanın gerçekten çizilip çizilmediği sunucuya yazılır (koyu ekran sorunu)
     const reported = useRef(false);
@@ -353,9 +368,13 @@ function AdminScreen() {
     ] : [];
 
     return (
-        <div className="yp">
+        <div className={`yp ${page === 'tasks' ? 'is-wide' : ''}`}>
             <header className="yp-top">
                 <h1>Hugo admin</h1>
+                <nav className="yp-nav" aria-label="Admin menüsü">
+                    <a href="/admin" aria-current={page === 'panel' ? 'page' : undefined} onClick={(e) => go(e, 'panel')}>Panel</a>
+                    <a href="/admin/tasks" aria-current={page === 'tasks' ? 'page' : undefined} onClick={(e) => go(e, 'tasks')}>Görevler</a>
+                </nav>
                 <div className="yp-server">
                     <span className={`yp-dot ${connected ? 'on' : ''}`} aria-hidden="true" />
                     {overview ? <>
@@ -369,7 +388,7 @@ function AdminScreen() {
                 </div>
             </header>
 
-            <Tasks call={call} />
+            {page === 'tasks' ? <Tasks call={call} /> : (<>
 
             <section className="yp-section" aria-labelledby="yp-day">
                 <div className="yp-section-head">
@@ -433,6 +452,7 @@ function AdminScreen() {
                     {notice && <span role="status">{notice}</span>}
                 </form>
             </section>
+            </>)}
         </div>
     );
 }

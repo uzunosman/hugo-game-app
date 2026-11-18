@@ -251,3 +251,44 @@ html:has(.yp) .app-version, html:has(.yp-login) .app-version, html:has(.yp) .set
 .yp-btn.is-ok { background: var(--ok); color: #062014; }
 .yp-btn.is-danger { background: var(--danger); color: #fff; }
 .yp-btn:focus-visible, .yp-task-list li button:focus-visible { outline: 2px solid var(--turn); outline-offset: 2px; }
+
+/* ── Menü ve geniş sayfa (görev panosu) ── */
+.yp.is-wide { max-width: 1680px; }
+.yp-nav { display: flex; gap: 4px; margin-right: auto; }
+.yp-nav a { padding: 6px 12px; border-radius: 8px; color: var(--muted); text-decoration: none; font-weight: 600; }
+.yp-nav a:hover { background: var(--surface); color: var(--text); }
+.yp-nav a[aria-current="page"] { background: var(--surface-2); color: var(--text); }
+.yp-nav a:focus-visible { outline: 2px solid var(--turn); outline-offset: 2px; }
+
+/* ── Kanban panosu: durum sütunları yan yana, dar ekranda yatay kaydırılır ── */
+.yp-board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(230px, 1fr); gap: 10px; overflow-x: auto; padding-bottom: 8px; align-items: start; }
+.yp-col { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px; display: grid; gap: 8px; min-height: 120px; }
+.yp-col > header { display: flex; justify-content: space-between; align-items: center; color: var(--muted); font-size: 12px; }
+.yp-col ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.yp-col.st-ready { border-color: rgba(242, 184, 75, 0.45); }
+.yp-col.st-revision { border-color: rgba(229, 83, 75, 0.4); }
+.yp-card {
+    width: 100%; text-align: left; display: grid; gap: 6px; padding: 9px 10px; cursor: pointer; font: inherit;
+    background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 9px;
+}
+.yp-card:hover { border-color: rgba(238, 243, 239, 0.25); }
+.yp-card.is-sel { border-color: var(--turn); }
+.yp-card:focus-visible, .yp-col-add:focus-visible { outline: 2px solid var(--turn); outline-offset: 2px; }
+.yp-card-meta { display: flex; gap: 6px; align-items: center; color: var(--muted); }
+.yp-card-tag { padding: 1px 6px; border-radius: 999px; background: rgba(242, 184, 75, 0.16); color: var(--turn); font-size: 11px; font-weight: 600; }
+.yp-col-add { padding: 8px; border: 1px dashed var(--line); border-radius: 9px; background: none; color: var(--muted); cursor: pointer; font: inherit; }
+.yp-col-add:hover { color: var(--text); border-color: rgba(238, 243, 239, 0.3); }
+.yp-col-empty { color: var(--muted); text-align: center; padding: 6px; }
+
+/* ── Ayrıntı: sağdan açılan panel ── */
+.yp-drawer { position: fixed; inset: 0; z-index: 20; background: rgba(4, 14, 17, 0.55); display: flex; justify-content: flex-end; }
+.yp-drawer .yp-task-detail { width: min(620px, 100%); height: 100%; overflow-y: auto; border-radius: 0; align-content: start; box-sizing: border-box; }
+.yp-task-detail header { flex-wrap: wrap; }
+.yp-task-detail header h3 { flex: 1 1 200px; }
+.yp-task-close { background: none; border: 0; color: var(--muted); font-size: 24px; line-height: 1; cursor: pointer; padding: 0 4px; }
+.yp-task-close:hover { color: var(--text); }
+.yp-task-edit { display: grid; gap: 8px; }
+.yp-task-edit input, .yp-task-edit textarea {
+    width: 100%; box-sizing: border-box; padding: 9px 11px; font: inherit; color: var(--text);
+    background: var(--bg); border: 1px solid var(--line); border-radius: 8px; resize: vertical;
+}

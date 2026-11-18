@@ -6,7 +6,7 @@ import Announce from './components/Announce/Announce.jsx'
 
 // Yönetim ekranı ayrı dosyada yüklenir: oyuncuların indirdiği kod büyümez
 const AdminPage = lazy(() => import('./components/Admin/AdminPage.jsx'))
-const isAdmin = location.pathname.replace(/\/+$/, '') === '/admin'
+const isAdmin = /^\/admin(\/|$)/.test(location.pathname) // /admin (panel), /admin/tasks (görevler)
 
 // Sağ altta küçük sürüm etiketi: test edilen sürüm buradan doğrulanır (deploy/update.sh verir)
 const VERSION = import.meta.env.VITE_APP_VERSION || 'dev'
