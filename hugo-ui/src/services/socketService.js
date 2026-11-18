@@ -146,8 +146,8 @@ class SocketService {
         });
     }
 
-    createRoom(name, callback, options = {}) {
-        this.socket.emit('room:create', { name, playerId: this.playerId, voice: !!options.voice }, (response) => {
+    createRoom(name, callback) {
+        this.socket.emit('room:create', { name, playerId: this.playerId }, (response) => {
             if (response.success) {
                 this.activeRoomId = response.room.id;
             }
@@ -402,6 +402,10 @@ class SocketService {
 
     addBot(roomId, callback) {
         this.socket.emit('room:addBot', { roomId, playerId: this.playerId }, callback);
+    }
+
+    setVoice(roomId, voice, callback) {
+        this.socket.emit('room:setVoice', { roomId, playerId: this.playerId, voice }, callback);
     }
 
     transferOwner(roomId, targetId, callback) {

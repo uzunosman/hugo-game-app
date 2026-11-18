@@ -75,6 +75,11 @@ const startServer = () => new Promise<ReturnType<typeof spawn>>((resolve, reject
         assert.strictEqual((await forced).voice, true, 'admin açarsa kişi kuralı aranmaz');
         assert.ok((await emit(c, 'voice:join', { playerId: cId })).success);
 
+        // Bekleme ekranında masa sahibi ayarı açar / kapatır; başkası değiştiremez
+        assert.strictEqual((await emit(b, 'room:setVoice', { roomId: room.id, playerId: bId, voice: false })).success, false, 'sahip olmayan değiştiremez');
+        const set = await emit(c, 'room:setVoice', { roomId: solo.id, playerId: cId, voice: true });
+        assert.ok(set.success && set.room.settings.voice === true, 'masa sahibi açar');
+
         [admin, a, b, c].forEach(s => s.close());
         console.log('e2e-voice: sesli sohbet masa ayarı + en az 2 gerçek oyuncu, admin aç / kapat, sese katılma, mesaj aktarımı (yalnızca sesteki oyuncular) ✓');
     } finally {

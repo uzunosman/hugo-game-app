@@ -65,7 +65,7 @@
 
 ## Sesli sohbet
 - WebRTC, oyuncular arası doğrudan (mesh); sunucu yalnızca `voice:join` / `voice:signal` / `voice:peer-*` aktarır
-  (`socketHandler.ts`), istemci `utils/voice.js` + `hooks/useVoice.js` (Room'da kurulur: bekleme ekranında başlar, oyunda sürer), sekmeler `components/Voice`; konuşan avatarı yeşil parlar. Masa açarken seçilir (`settings.voice`), en az
+  (`socketHandler.ts`), istemci `utils/voice.js` + `hooks/useVoice.js` (Room'da kurulur: bekleme ekranında başlar, oyunda sürer), sekmeler `components/Voice`; konuşan avatarı yeşil parlar. Masa sahibi bekleme ekranında seçer (`room:setVoice`, `settings.voice`), en az
   2 gerçek oyuncuyla açılır (`Room.voiceActive`); admin aç / kapat / otomatik (`voiceOverride`). Durum değişince `room:voice`.
 - Bağlantı sunucusu yalnızca STUN (Google). TURN yok: bazı mobil / kurumsal ağlarda bağlantı kurulamayabilir;
   kurulursa `TURN_URL`, `TURN_USER`, `TURN_PASS` (systemd ortamı). Test: `scripts/e2e-voice.ts` (sinyal), ses gerçek cihazda.

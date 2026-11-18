@@ -1136,6 +1136,17 @@ export const setupSocketHandlers = (io: Server) => {
             }
         });
 
+        // Sesli sohbet ayarı: masa sahibi bekleme ekranında açar / kapatır (oyun sırasında da)
+        socket.on('room:setVoice', (data: { roomId: string; playerId: string; voice: boolean }, callback) => {
+            const room = gameManager.getRoomById(data?.roomId);
+            if (!room || !owns(data?.playerId) || room.owner.id !== data.playerId) return callback?.({ success: false, error: 'Yalnızca masa sahibi değiştirebilir' });
+            room.settings.voice = !!data.voice;
+            io.to(room.id).emit('player:joined', { success: true, room: room.toJSON() });
+            broadcastRooms();
+            persist();
+            callback?.({ success: true, room: room.toJSON() });
+        });
+
         socket.on('room:leave', (data: { roomId: string, playerId: string }, callback) => {
             try {
                 const { roomId, playerId } = data;

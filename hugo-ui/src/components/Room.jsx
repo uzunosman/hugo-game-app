@@ -220,6 +220,16 @@ function Room({ player, room, onLeaveRoom }) {
                     ))}
                 </div>
 
+                {/* Sesli sohbet ayarı: masa sahibi seçer; açılması için masada en az 2 gerçek oyuncu gerekir */}
+                <label className="room-voice-opt">
+                    <input type="checkbox" checked={!!currentRoom.settings?.voice} disabled={!isOwner}
+                        onChange={(e) => socketService.setVoice(currentRoom.id, e.target.checked, (r) => {
+                            if (r?.success) setCurrentRoom(r.room); else setError(r?.error || 'Sesli sohbet ayarlanamadı');
+                        })} />
+                    Sesli sohbet
+                    {currentRoom.settings?.voice && !voice.on && <small>en az 2 gerçek oyuncu gerekir</small>}
+                    {!isOwner && <small>masa sahibi seçer</small>}
+                </label>
                 {voice.on && (
                     <div className="room-voice" role="group" aria-label="Sesli sohbet">
                         <span>Sesli sohbet</span>
