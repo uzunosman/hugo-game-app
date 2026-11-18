@@ -33,7 +33,8 @@ const startServer = () => new Promise<ReturnType<typeof spawn>>((resolve, reject
         const bId = (await emit(b, 'player:register', { name: 'Barış' })).player.id;
 
         // Sesli sohbetli masa: tek gerçek oyuncu + yapay zekâ → kapalı
-        const room = (await emit(a, 'room:create', { name: 'sesli', playerId: aId, voice: true })).room;
+        const room = (await emit(a, 'room:create', { name: 'sesli', playerId: aId })).room;
+        await emit(a, 'room:setVoice', { roomId: room.id, playerId: aId, voice: true }); // bekleme ekranında sahip açar
         await emit(a, 'room:addBot', { roomId: room.id, playerId: aId });
         assert.strictEqual(room.voice, false, 'tek oyuncuyla sesli sohbet kapalı');
         assert.strictEqual((await emit(a, 'voice:join', { playerId: aId })).success, false, 'kapalıyken sese katılınamaz');

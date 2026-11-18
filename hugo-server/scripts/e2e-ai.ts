@@ -69,10 +69,9 @@ const startServer = () => new Promise<ReturnType<typeof spawn>>((resolve, reject
         assert.strictEqual(reset.room.status, 'waiting');
         assert.ok(reset.room.players.every((p: Ack) => p.totalScore === 0 && p.roundScores.length === 0), 'yeni oyunda puanlar sıfır');
         assert.ok(reset.room.players.every((p: Ack) => p.isReady === !!p.isBot), 'yalnızca yapay zekâ hazır');
-        assert.strictEqual((await emit(me, 'game:start', { roomId: room.id, playerId: myId })).success, false, 'herkes hazır olmadan başlamaz');
-        await emit(me, 'player:ready', { roomId: room.id, playerId: myId, ready: true });
-        assert.ok((await emit(me, 'game:start', { roomId: room.id, playerId: myId })).success, 'hazır olunca yeni oyun başlar');
-        console.log(`e2e-ai: 9 el yapay zekâyla tamamlandı (${botOpened} açılış); el gizli, başkası adına hamle yapılamıyor, sohbet çalışıyor, oyun sonunda masa yeniden hazır olmayı bekliyor ✓`);
+        // Masa sahibi kendiliğinden hazır: masada başka insan yoksa yeni oyunu hemen başlatır
+        assert.ok((await emit(me, 'game:start', { roomId: room.id, playerId: myId })).success, 'sahip yeni oyunu başlatır');
+        console.log(`e2e-ai: 9 el yapay zekâyla tamamlandı (${botOpened} açılış); el gizli, başkası adına hamle yapılamıyor, sohbet çalışıyor, oyun sonunda masa beklemeye dönüyor, sahip yeniden başlatıyor ✓`);
         me.close();
     } finally {
         clearTimeout(fail);

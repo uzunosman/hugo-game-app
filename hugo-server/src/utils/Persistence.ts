@@ -23,6 +23,7 @@ export const serialize = (gm: GameManager): string => JSON.stringify({
     savedAt: new Date().toISOString(),
     nextTableNo: gm.nextTableNo,
     players: gm.getAllPlayers().map(p => ({ ...p })),
+    profiles: gm.profiles.toJSON(),
     rooms: gm.getAllRooms().map(r => ({
         ...r,
         owner: undefined,
@@ -36,7 +37,7 @@ export const serialize = (gm: GameManager): string => JSON.stringify({
 const tile = (o: Plain | null): Tile | null => (o ? Object.assign(Object.create(Tile.prototype), o) : null);
 const tiles = (list: Plain[] = []): Tile[] => list.map(o => tile(o) as Tile);
 
-export const deserialize = (json: string): { players: Player[]; rooms: Room[]; nextTableNo: number } => {
+export const deserialize = (json: string): { players: Player[]; rooms: Room[]; nextTableNo: number; profiles: any[] } => {
     const data = JSON.parse(json);
     if (data.version !== VERSION) throw new Error(`Bilinmeyen durum sürümü: ${data.version}`);
 
@@ -72,12 +73,13 @@ export const deserialize = (json: string): { players: Player[]; rooms: Room[]; n
         });
     });
 
-    return { players, rooms, nextTableNo: data.nextTableNo || 0 };
+    return { players, rooms, nextTableNo: data.nextTableNo || 0, profiles: data.profiles || [] };
 };
 
 const restore = (gm: GameManager, json: string, from: string) => {
-    const { players, rooms, nextTableNo } = deserialize(json);
+    const { players, rooms, nextTableNo, profiles } = deserialize(json);
     gm.restore(players, rooms, nextTableNo);
+    gm.profiles.restore(profiles);
     console.log(`Kayıtlı durum yüklendi (${from}): ${rooms.length} masa, ${players.length} oyuncu`);
 };
 

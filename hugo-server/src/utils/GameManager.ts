@@ -2,12 +2,14 @@ import { Player } from '../models/Player';
 import { Room, RoomStatus } from '../models/Room';
 import { Game, GameStatus, SetKind } from '../models/Game';
 import { Tile } from '../models/Tile';
+import { Profiles } from './Profiles';
 
 export class GameManager {
     private static instance: GameManager;
     private rooms: Map<string, Room>;
     private players: Map<string, Player>;
     private socketToPlayer: Map<string, string>;
+    public profiles = new Profiles();
 
     private constructor() {
         this.rooms = new Map<string, Room>();

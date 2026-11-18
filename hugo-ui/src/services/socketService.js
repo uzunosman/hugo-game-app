@@ -22,6 +22,26 @@ const writeSession = (session) => {
     try { stores().forEach(s => (session ? s.setItem(SESSION_KEY, JSON.stringify(session)) : s.removeItem(SESSION_KEY))); } catch { /* depolama kapalı */ }
 };
 
+// Profil (kalıcı kimlik: arkadaşlar buna bağlı): masadan kalkınca oyuncu kimliği değişir, profil değişmez.
+// Gizli anahtar yalnızca bu cihazda; "Hesabımı başka cihaza taşı" bağlantısı (?hesap=id.anahtar) ile taşınır.
+const ACCOUNT_KEY = 'hugo.account';
+export const readAccount = () => {
+    try { for (const s of stores()) { const v = JSON.parse(s.getItem(ACCOUNT_KEY)); if (v?.id && v?.key) return v; } } catch { /* depolama kapalı */ }
+    return null;
+};
+export const writeAccount = (account) => {
+    try { stores().forEach(s => s.setItem(ACCOUNT_KEY, JSON.stringify(account))); } catch { /* depolama kapalı */ }
+};
+export const accountLink = () => {
+    const a = readAccount();
+    return a ? `${location.origin}/?hesap=${encodeURIComponent(`${a.id}.${a.key}`)}` : '';
+};
+// Bağlantıdaki ?hesap=id.anahtar → { id, key }
+export const parseAccount = (text) => {
+    const [id, key] = String(text || '').split('.');
+    return id && key ? { id, key } : null;
+};
+
 // Admin anahtarı (admin ekranıyla aynı): staging'e bağlanmak ve test senaryoları için bağlantıda gönderilir
 export const ADMIN_TOKEN_KEY = 'hugo.adminToken';
 const adminToken = () => { try { return localStorage.getItem(ADMIN_TOKEN_KEY) || ''; } catch { return ''; } };
@@ -59,6 +79,7 @@ class SocketService {
                 if (connectedBefore && this.playerId) {
                     this.socket.emit('player:reconnect', { playerId: this.playerId, token: this.token }, (response) => {
                         if (response?.success) {
+                            this.remember(response);
                             this.activeRoomId = response.room?.id || null;
                         } else {
                             writeSession(null);
@@ -113,6 +134,9 @@ class SocketService {
 
     // Kayıt / yeniden bağlanma cevabındaki kimlik ve anahtar saklanır
     remember(response) {
+        // Yeni profilin anahtarı yalnızca bir kez gelir: saklanır
+        if (response.profile?.key) writeAccount({ id: response.profile.id, key: response.profile.key });
+        this.profileId = response.profile?.id || this.profileId || null;
         this.playerId = response.player.id;
         this.token = response.token;
         writeSession({ playerId: this.playerId, token: this.token });
@@ -140,9 +164,35 @@ class SocketService {
     }
 
     registerPlayer(name, avatar, callback) {
-        this.socket.emit('player:register', { name, avatar }, (response) => {
+        this.socket.emit('player:register', { name, avatar, profile: readAccount() || undefined }, (response) => {
             if (response.success) this.remember(response);
             callback(response);
+        });
+    }
+
+    // Hızlı oyna: 3 yapay zekâyla masa açılır, oyun hemen başlar
+    quickPlay(callback) {
+        this.socket.emit('room:quickPlay', { playerId: this.playerId }, (response) => {
+            if (response?.success) this.activeRoomId = response.room.id;
+            callback?.(response);
+        });
+    }
+
+    renameRoom(roomId, name, callback) {
+        this.socket.emit('room:rename', { roomId, playerId: this.playerId, name }, callback);
+    }
+
+    // Arkadaşlar / çevrimiçi / davet
+    socialState(callback) { this.socket.emit('social:state', { playerId: this.playerId }, callback); }
+    friendRequest(to, callback) { this.socket.emit('friends:request', { playerId: this.playerId, to }, callback); }
+    friendRespond(from, accept, callback) { this.socket.emit('friends:respond', { playerId: this.playerId, from, accept }, callback); }
+    friendRemove(other, callback) { this.socket.emit('friends:remove', { playerId: this.playerId, other }, callback); }
+    invite(to, callback) { this.socket.emit('invite:send', { playerId: this.playerId, to }, callback); }
+    // Başka cihazdan gelen profil bağlantısı: bu oyuncu o profile geçer
+    linkAccount(account, callback) {
+        this.socket.emit('profile:link', { playerId: this.playerId, profile: account }, (response) => {
+            if (response?.success) { writeAccount(account); this.profileId = account.id; }
+            callback?.(response);
         });
     }
 

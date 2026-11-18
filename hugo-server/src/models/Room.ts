@@ -124,8 +124,9 @@ export class Room {
     }
 
     areAllPlayersReady(): boolean {
+        // Masa sahibi kendiliğinden hazır (başlatan odur)
         return this.players.length === this.maxPlayers &&
-            this.players.every(player => player.isReady);
+            this.players.every(player => player.isReady || player.id === this.owner.id);
     }
 
     // Sesli sohbet açık mı: admin açtıysa kişi kuralı aranmaz; yoksa masa ayarı + en az 2 gerçek oyuncu (yapay zekâ / boş koltuk sayılmaz)

@@ -8,6 +8,7 @@ import { Tile } from '../models/Tile';
 import { Player } from '../models/Player';
 import { Room, RoomStatus } from '../models/Room';
 import { settingsOf } from '../models/GameSettings';
+import { pickCity } from '../utils/cityNames';
 import { appendArchive, saveState } from '../utils/Persistence';
 import { planOpening, planSets } from '../ai/AiPlanner';
 import { dayOf, dealSnapshot, findTile, logEvent, tileLabel } from '../utils/EventLog';
@@ -392,6 +393,37 @@ export const setupSocketHandlers = (io: Server) => {
 
     const broadcastRooms = () => io.emit('rooms:list', { success: true, rooms: gameManager.getAllRooms().map(r => r.toJSON()) });
 
+    // Profil: kayıtta verilen (başka cihazdan taşınmış olabilir) anahtar doğruysa ona bağlanır, yoksa yeni profil açılır.
+    // Yeni profilin anahtarı yalnızca bu cevapta döner (istemci saklar).
+    const attachProfile = (player: Player, given?: { id?: string; key?: string }) => {
+        let profile = gameManager.profiles.verify(given?.id, given?.key);
+        let key: string | undefined;
+        if (!profile) ({ profile, key } = gameManager.profiles.create(player.name, player.avatar || ''));
+        player.profileId = profile.id;
+        Object.assign(profile, { name: player.name, avatar: player.avatar || profile.avatar, lastSeenAt: Date.now() });
+        return key ? { id: profile.id, key } : { id: profile.id };
+    };
+    // Çevrimiçi profiller (bağlı gerçek oyuncular); masadaysa masası
+    const onlineProfiles = () => {
+        const out = new Map<string, { name: string; avatar: string; where: 'lobby' | 'table' | 'playing'; roomName: string | null; roomId: string | null }>();
+        gameManager.getAllPlayers().forEach(p => {
+            if (p.isBot || !p.profileId || !io.sockets.sockets.has(p.socketId)) return;
+            const room = p.roomId ? gameManager.getRoomById(p.roomId) : undefined;
+            if (out.get(p.profileId)?.roomId) return;
+            out.set(p.profileId, {
+                name: p.name, avatar: p.avatar || '', roomName: room?.name || null, roomId: room?.id || null,
+                where: !room ? 'lobby' : room.status === RoomStatus.PLAYING ? 'playing' : 'table',
+            });
+        });
+        return out;
+    };
+    const profileSockets = (profileId: string) => gameManager.getAllPlayers()
+        .filter(p => !p.isBot && p.profileId === profileId && io.sockets.sockets.has(p.socketId)).map(p => p.socketId);
+    const notifyProfiles = (ids: (string | undefined)[]) =>
+        ids.forEach(id => id && profileSockets(id).forEach(s => io.to(s).emit('friends:changed')));
+    const INVITE_MS = 20_000;
+    const inviteSentAt = new Map<string, number>();
+
     // ── Sesli sohbet (WebRTC; sunucu yalnızca bağlantı kurma mesajlarını aktarır, ses oyuncular arasında doğrudan gider) ──
     // voiceMembers: masada sese katılmış (mikrofonu ya da hoparlörü açık) oyuncular. Masanın sesli sohbeti kapanınca dağılır.
     const voiceMembers = new Map<string, Set<string>>();
@@ -427,6 +459,15 @@ export const setupSocketHandlers = (io: Server) => {
         gameManager.addPlayerToRoom(bot.id, room.id);
         io.to(room.id).emit('player:joined', { success: true, player: bot.toPublicJSON(), room: room.toJSON() });
         return bot;
+    };
+
+    // Oyunu başlatır: masadakilere bildirilir, herkese kendi taşları gider, ilk sıranın süresi başlar
+    const beginGame = (room: Room) => {
+        if (!gameManager.startGame(room.id)) return false;
+        io.to(room.id).emit('game:started', { success: true, room: room.toJSON() });
+        room.players.forEach(p => io.to(p.socketId).emit('game:tiles', { success: true, tiles: p.tiles.map(t => t.toJSON()) }));
+        if (room.game) scheduleTurn(room.id, room.game);
+        return true;
     };
 
     // Boşaltılan koltuğa yapay zekâ oturur (süre doldu ya da admin ekledi); masada gerçek oyuncu kalmadıysa masa kapanır
@@ -466,6 +507,8 @@ export const setupSocketHandlers = (io: Server) => {
             if (sock) {
                 sock.leave(room.id);
                 const human = gameManager.createPlayer(humanName, sock.id);
+                human.profileId = seat.profileId;
+                seat.profileId = '';
                 sock.emit('room:kicked', { roomId: room.id, reason, player: human.toJSON(), token: issueToken(human) });
             }
             setTimeout(() => fillVacant(room.id, seat.id), wait);
@@ -929,7 +972,7 @@ export const setupSocketHandlers = (io: Server) => {
         });
 
         // Oyuncu Olayları
-        socket.on('player:register', (data: { name: string; avatar?: string }, callback) => {
+        socket.on('player:register', (data: { name: string; avatar?: string; profile?: { id?: string; key?: string } }, callback) => {
             try {
                 const name = typeof data?.name === 'string' ? data.name.trim().slice(0, 20) : '';
 
@@ -946,7 +989,8 @@ export const setupSocketHandlers = (io: Server) => {
                 callback({
                     success: true,
                     player: player.toJSON(),
-                    token: issueToken(player)
+                    token: issueToken(player),
+                    profile: attachProfile(player, data?.profile),
                 });
             } catch (error) {
                 console.error('Oyuncu kaydı hatası:', error);
@@ -960,14 +1004,9 @@ export const setupSocketHandlers = (io: Server) => {
         // Oda Olayları
         socket.on('room:create', (data: { name: string, playerId: string, voice?: boolean }, callback) => {
             try {
-                const { name, playerId } = data;
-
-                if (!name || name.trim() === '') {
-                    return callback({
-                        success: false,
-                        error: 'Geçerli bir oda adı gerekli'
-                    });
-                }
+                const { playerId } = data;
+                // Ad sorulmaz: açık masalarda olmayan bir şehir adı (sahip bekleme ekranında değiştirebilir)
+                const name = (typeof data?.name === 'string' && data.name.trim().slice(0, 30)) || pickCity(gameManager.getAllRooms().map(r => r.name));
 
                 const player = gameManager.getPlayerById(playerId);
                 if (!player) {
@@ -984,7 +1023,6 @@ export const setupSocketHandlers = (io: Server) => {
                         error: 'Oda oluşturulamadı'
                     });
                 }
-                room.settings.voice = !!data.voice; // sesli sohbet masa açılırken seçilir
 
                 // Odaya katıl
                 socket.join(room.id);
@@ -1006,6 +1044,128 @@ export const setupSocketHandlers = (io: Server) => {
                     error: 'Oda oluşturulurken bir hata oluştu'
                 });
             }
+        });
+
+        // ── Profil, arkadaşlar, davet ──
+        // Profil isteyen işlemler: oyuncu bu bağlantının ve profili olmalı
+        const meOf = (playerId: string | undefined) => {
+            if (!owns(playerId)) return null;
+            const player = gameManager.getPlayerById(playerId!);
+            const profile = gameManager.profiles.get(player?.profileId);
+            return player && profile ? { player, profile } : null;
+        };
+        const noProfile = { success: false, error: 'Profil bulunamadı' };
+
+        // Başka cihazdan taşınan profil: anahtar doğruysa bu oyuncu o profile geçer
+        socket.on('profile:link', (data: { playerId: string; profile: { id?: string; key?: string } }, callback) => {
+            if (!owns(data?.playerId)) return callback?.(notYours);
+            const player = gameManager.getPlayerById(data.playerId);
+            const profile = gameManager.profiles.verify(data?.profile?.id, data?.profile?.key);
+            if (!player || !profile) return callback?.({ success: false, error: 'Bağlantı geçersiz ya da süresi dolmuş' });
+            player.profileId = profile.id;
+            profile.lastSeenAt = Date.now();
+            persist();
+            callback?.({ success: true, profile: { id: profile.id } });
+        });
+
+        // Lobi / bekleme ekranı: arkadaşlar, istekler, çevrimiçi oyuncular
+        socket.on('social:state', (data: { playerId: string }, callback) => {
+            const me = meOf(data?.playerId);
+            if (!me) return callback?.(noProfile);
+            const online = onlineProfiles();
+            const card = (id: string) => {
+                const p = gameManager.profiles.get(id);
+                const o = online.get(id);
+                return p ? { id, name: o?.name || p.name, avatar: o?.avatar || p.avatar, online: !!o, where: o?.where || null, roomName: o?.roomName || null } : null;
+            };
+            const friends = me.profile.friends.map(card).filter(Boolean);
+            const requests = me.profile.requests.map(card).filter(Boolean);
+            const others = [...online.keys()].filter(id => id !== me.profile.id).slice(0, 40)
+                .map(id => ({ ...card(id)!, friend: me.profile.friends.includes(id), requested: gameManager.profiles.get(id)!.requests.includes(me.profile.id) }));
+            callback?.({ success: true, me: { id: me.profile.id }, friends, requests, online: others, onlineCount: online.size });
+        });
+
+        socket.on('friends:request', (data: { playerId: string; to: string }, callback) => {
+            const me = meOf(data?.playerId);
+            if (!me) return callback?.(noProfile);
+            const r = gameManager.profiles.request(me.profile.id, data?.to);
+            if (r === 'error') return callback?.({ success: false, error: 'Arkadaşlık isteği gönderilemedi' });
+            notifyProfiles([data.to, me.profile.id]);
+            persist();
+            callback?.({ success: true, status: r });
+        });
+
+        socket.on('friends:respond', (data: { playerId: string; from: string; accept: boolean }, callback) => {
+            const me = meOf(data?.playerId);
+            if (!me) return callback?.(noProfile);
+            if (!gameManager.profiles.respond(me.profile.id, data?.from, !!data?.accept)) return callback?.({ success: false, error: 'İstek bulunamadı' });
+            notifyProfiles([data.from, me.profile.id]);
+            persist();
+            callback?.({ success: true });
+        });
+
+        socket.on('friends:remove', (data: { playerId: string; other: string }, callback) => {
+            const me = meOf(data?.playerId);
+            if (!me) return callback?.(noProfile);
+            gameManager.profiles.remove(me.profile.id, data?.other);
+            notifyProfiles([data?.other, me.profile.id]);
+            persist();
+            callback?.({ success: true });
+        });
+
+        // Çağır: masadaki oyuncu, lobideki (çevrimiçi) birini boş koltuğa davet eder; karşıda davet kartı açılır
+        socket.on('invite:send', (data: { playerId: string; to: string }, callback) => {
+            const me = meOf(data?.playerId);
+            if (!me) return callback?.(noProfile);
+            const room = me.player.roomId ? gameManager.getRoomById(me.player.roomId) : undefined;
+            if (!room || room.status !== RoomStatus.WAITING || room.players.length >= room.maxPlayers) return callback?.({ success: false, error: 'Davet için masada boş koltuk olmalı' });
+            const target = onlineProfiles().get(data?.to);
+            if (!target || data.to === me.profile.id) return callback?.({ success: false, error: 'Oyuncu şu an çevrimiçi değil' });
+            if (target.roomId) return callback?.({ success: false, error: `${target.name} şu an başka bir masada` });
+            const key = `${me.profile.id}>${data.to}`;
+            if ((inviteSentAt.get(key) || 0) > Date.now() - INVITE_MS) return callback?.({ success: false, error: 'Bu oyuncuyu az önce çağırdın' });
+            inviteSentAt.set(key, Date.now());
+            profileSockets(data.to).forEach(id => io.to(id).emit('invite:received', {
+                from: { id: me.profile.id, name: me.player.name, avatar: me.player.avatar || '' },
+                room: room.toJSON(),
+                expiresIn: INVITE_MS,
+            }));
+            logEvent('davet', { masa: room.no, kimden: me.player.name, kime: target.name });
+            callback?.({ success: true });
+        });
+
+        // Hızlı oyna: şehir adlı masa açılır, 3 yapay zekâ oturur, oyun hemen başlar
+        socket.on('room:quickPlay', (data: { playerId: string }, callback) => {
+            try {
+                if (!owns(data?.playerId)) return callback?.(notYours);
+                const player = gameManager.getPlayerById(data.playerId);
+                if (!player) return callback?.({ success: false, error: 'Oyuncu bulunamadı' });
+                if (player.roomId) return callback?.({ success: false, error: 'Önce bulunduğun masadan kalk' });
+                const room = gameManager.createRoom(pickCity(gameManager.getAllRooms().map(r => r.name)), player.id);
+                if (!room) return callback?.({ success: false, error: 'Masa açılamadı' });
+                socket.join(room.id);
+                while (room.players.length < room.maxPlayers) addBotTo(room);
+                if (!beginGame(room)) return callback?.({ success: false, error: 'Oyun başlatılamadı' });
+                broadcastRooms();
+                persist();
+                callback?.({ success: true, room: room.toJSON() });
+            } catch (error) {
+                console.error('Hızlı oyna hatası:', error);
+                callback?.({ success: false, error: 'Oyun başlatılamadı' });
+            }
+        });
+
+        // Masa adı: sahip bekleme ekranında değiştirir
+        socket.on('room:rename', (data: { roomId: string; playerId: string; name: string }, callback) => {
+            const room = gameManager.getRoomById(data?.roomId);
+            if (!room || !owns(data?.playerId) || room.owner.id !== data.playerId) return callback?.({ success: false, error: 'Yalnızca masa sahibi değiştirebilir' });
+            const name = typeof data.name === 'string' ? data.name.trim().slice(0, 30) : '';
+            if (!name) return callback?.({ success: false, error: 'Masaya bir ad ver' });
+            room.name = name;
+            io.to(room.id).emit('player:joined', { success: true, room: room.toJSON() });
+            broadcastRooms();
+            persist();
+            callback?.({ success: true, room: room.toJSON() });
         });
 
         socket.on('room:join', (data: { roomId: string, playerId: string }, callback) => {
@@ -1033,7 +1193,7 @@ export const setupSocketHandlers = (io: Server) => {
                 if (vacant) {
                     if (!owns(playerId)) return callback(notYours);
                     if (player.roomId) return callback({ success: false, error: 'Önce bulunduğun masadan kalk' });
-                    Object.assign(vacant, { name: player.name, avatar: player.avatar, vacantUntil: null, isBot: false, connected: true });
+                    Object.assign(vacant, { name: player.name, avatar: player.avatar, profileId: player.profileId, vacantUntil: null, isBot: false, connected: true });
                     gameManager.removePlayer(player.id); // lobideki kimlik koltuğun kimliğine geçer
                     gameManager.updatePlayerSocket(vacant.id, socket.id);
                     socket.join(room.id);
@@ -1101,6 +1261,8 @@ export const setupSocketHandlers = (io: Server) => {
                 seat.setReady(true);
                 socket.leave(room.id);
                 const human = gameManager.createPlayer(humanName, socket.id);
+                human.profileId = seat.profileId; // profil (arkadaşlar) lobideki yeni kimliğe geçer
+                seat.profileId = '';
 
                 if (!room.firstHuman()) {
                     closeRoom(room.id, 'Masada yalnızca yapay zekâ kaldı');
@@ -1322,7 +1484,7 @@ export const setupSocketHandlers = (io: Server) => {
                 const { roomId, playerId } = data;
 
                 // Oyuncunun oda sahibi olup olmadığını kontrol et
-                if (!gameManager.isRoomOwner(playerId, roomId)) {
+                if (!owns(playerId) || !gameManager.isRoomOwner(playerId, roomId)) {
                     return callback({
                         success: false,
                         error: 'Sadece oda sahibi oyunu başlatabilir'
@@ -1341,30 +1503,12 @@ export const setupSocketHandlers = (io: Server) => {
                     return callback({ success: false, error: 'Herkes hazır olmadan oyun başlamaz' });
                 }
 
-                // Oyunu başlat
-                const gameStarted = gameManager.startGame(roomId);
-
-                if (!gameStarted) {
+                if (!beginGame(room)) {
                     return callback({
                         success: false,
                         error: 'Oyun başlatılamadı'
                     });
                 }
-
-                // Oyun başladı, tüm oyunculara bildir
-                io.to(roomId).emit('game:started', {
-                    success: true,
-                    room: room.toJSON()
-                });
-
-                // Her oyuncuya kendi taşlarını gönder
-                room.players.forEach(player => {
-                    io.to(player.socketId).emit('game:tiles', {
-                        success: true,
-                        tiles: player.tiles.map(tile => tile.toJSON())
-                    });
-                });
-                if (room.game) scheduleTurn(roomId, room.game);
 
                 callback({
                     success: true
@@ -1777,7 +1921,9 @@ export const setupSocketHandlers = (io: Server) => {
                 if (room.game?.isPlayerTurn(player.id)) scheduleTurn(room.id, room.game);
             }
 
-            callback?.({ success: true, player: player.toJSON(), token: player.authToken, room: room ? room.toJSON() : null });
+            // Profilden önce kaydolan oyuncuya profil açılır (anahtarı bu cevapla bir kez gider)
+            const profile = gameManager.profiles.get(player.profileId) ? { id: player.profileId } : attachProfile(player);
+            callback?.({ success: true, player: player.toJSON(), token: player.authToken, room: room ? room.toJSON() : null, profile });
         });
 
         // Bağlantı Kesme

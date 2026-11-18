@@ -1,0 +1,128 @@
+/* Lobi ve bekleme ekranının ortak parçaları: renkler oyunun kendisinden (masa turkuazı, ıstaka sarısı, fildişi taş) */
+:root {
+    --l-ground: #0b4f5b;
+    --l-felt: #0e8496;
+    --l-felt-deep: #0a6878;
+    --l-panel: rgba(0, 0, 0, 0.18);
+    --l-ivory: #fffaf0;
+    --l-ivory-edge: #d9cdb3;
+    --l-amber: #ffbd59;
+    --l-amber-ink: #3b2500;
+    --l-ink: #1d2a30;
+    --l-ink-2: #4b5a60;
+    --l-mute: #c9e6ea;
+    --l-go: #2f9e44;
+    --l-on: #4ade80;
+    --l-red: #e5383b;
+    --l-display: 'Bricolage Grotesque', 'Outfit', system-ui, sans-serif;
+    --l-text: 'Figtree', system-ui, sans-serif;
+}
+
+/* Düğmeler */
+.sbtn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    min-height: 44px; padding: 0 16px; border: 0; border-radius: 10px;
+    font: 700 14px/1.1 var(--l-text); cursor: pointer; white-space: nowrap;
+}
+.sbtn:disabled { opacity: 0.55; cursor: default; }
+.sbtn:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+.sbtn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.sbtn-amber { background: var(--l-amber); color: var(--l-amber-ink); }
+.sbtn-go { background: var(--l-go); color: #fff; }
+.sbtn-line { background: transparent; color: #fff; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35); }
+.sbtn-line-dark { background: transparent; color: var(--l-ink); box-shadow: inset 0 0 0 1px var(--l-ivory-edge); }
+.sbtn-quiet { background: rgba(255, 255, 255, 0.12); color: #fff; }
+.sbtn-sm { min-height: 30px; padding: 0 10px; border-radius: 15px; font-size: 12px; }
+.sbtn:not(:disabled):hover { filter: brightness(1.06); }
+
+/* Küçük masa */
+.mtable { position: relative; height: 136px; font-family: var(--l-text); color: #fff; }
+.mtable.is-small { height: 116px; width: 190px; flex-shrink: 0; }
+.mtable-felt {
+    position: absolute; inset: 22px 28px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 0 6px;
+    border-radius: 16px; background: var(--l-felt);
+    box-shadow: inset 0 0 0 4px rgba(0, 0, 0, 0.14), 0 6px 14px rgba(0, 0, 0, 0.22);
+}
+.mtable.is-small .mtable-felt { inset: 20px 26px; }
+.mtable.is-playing .mtable-felt { background: var(--l-felt-deep); }
+.mtable-name { max-width: 100%; font: 600 13px/1.15 var(--l-display); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mtable-status { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; color: #e3f6f8; white-space: nowrap; }
+.mtable-status svg { width: 11px; height: 11px; fill: none; stroke: #ffd28f; stroke-width: 2.4; stroke-linecap: round; }
+.mtable-seat {
+    position: absolute; width: 34px; height: 34px; box-sizing: border-box; padding: 0;
+    border: 3px solid var(--l-ground); border-radius: 50%; background: var(--l-ground);
+}
+.mtable.is-small .mtable-seat { width: 32px; height: 32px; border-color: var(--l-ivory); }
+.mtable-bottom { left: 50%; bottom: 4px; margin-left: -17px; }
+.mtable-top { left: 50%; top: 4px; margin-left: -17px; }
+.mtable-right { right: 6px; top: 50%; margin-top: -17px; }
+.mtable-left { left: 6px; top: 50%; margin-top: -17px; }
+img.mtable-seat.is-away { opacity: 0.5; }
+.mtable-seat.is-empty { border: 2px dashed var(--l-amber); color: var(--l-amber); font: 800 17px/1 var(--l-text); }
+.mtable.is-small .mtable-seat.is-empty { background: var(--l-ivory); border-color: var(--l-amber); }
+button.mtable-seat.is-empty { cursor: pointer; }
+button.mtable-seat.is-empty:hover { background: #0f6170; }
+button.mtable-seat:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+.mtable-seat.is-mine { background: var(--l-amber); border-color: var(--l-ivory); box-shadow: 0 0 0 2px var(--l-amber), 0 0 12px 2px rgba(255, 189, 89, 0.7); }
+
+/* Davet kartı */
+.invite-card {
+    position: fixed; z-index: 900; left: 50%; top: max(14px, env(safe-area-inset-top, 0px)); transform: translateX(-50%);
+    width: min(420px, calc(100vw - 32px)); box-sizing: border-box;
+    display: flex; flex-direction: column; gap: 12px; padding: 16px; border-radius: 16px;
+    background: var(--l-ivory); color: var(--l-ink); font-family: var(--l-text);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+}
+@media (prefers-reduced-motion: no-preference) {
+    .invite-card { animation: invite-in 0.25s ease-out; }
+    @keyframes invite-in { from { transform: translate(-50%, -24px); opacity: 0; } }
+}
+.invite-head { display: flex; align-items: center; gap: 12px; }
+.invite-head img { width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0; }
+.invite-head div { display: flex; flex-direction: column; gap: 2px; }
+.invite-head strong { font: 800 17px/1.15 var(--l-display); }
+.invite-head span { font-size: 13px; color: var(--l-ink-2); }
+.invite-body { display: flex; align-items: center; gap: 14px; }
+.invite-body p { display: flex; flex-direction: column; gap: 4px; margin: 0; font-size: 13px; color: var(--l-ink-2); }
+.invite-body b { color: var(--l-ink); }
+.invite-actions { display: flex; gap: 8px; }
+.invite-actions .sbtn-go { flex-grow: 1; font-size: 15px; }
+.invite-timer { height: 4px; border-radius: 2px; background: #ece3cf; overflow: hidden; }
+.invite-timer span { display: block; height: 100%; background: var(--l-amber); transition: width 0.25s linear; }
+@media (max-width: 380px) { .invite-body { flex-direction: column; } }
+
+/* Hesabım penceresi */
+.sdialog-back { position: fixed; inset: 0; z-index: 950; display: grid; place-items: center; padding: 16px; background: rgba(0, 20, 26, 0.55); }
+.sdialog {
+    width: min(420px, 100%); box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; padding: 18px;
+    border-radius: 16px; background: var(--l-ivory); color: var(--l-ink); font-family: var(--l-text);
+}
+.sdialog-head { display: flex; align-items: center; gap: 10px; }
+.sdialog-head img { width: 40px; height: 40px; border-radius: 50%; }
+.sdialog-head h2 { flex-grow: 1; margin: 0; font: 800 20px var(--l-display); }
+.sdialog h3 { margin: 6px 0 0; font: 600 15px var(--l-display); }
+.sdialog p { margin: 0; font-size: 13px; line-height: 1.45; color: var(--l-ink-2); }
+.sdialog-x { width: 44px; height: 44px; border: 0; border-radius: 50%; background: transparent; font-size: 24px; color: var(--l-ink-2); cursor: pointer; }
+.sdialog-x:focus-visible { outline: 2px solid var(--l-ink); }
+.sdialog-link { width: 100%; box-sizing: border-box; min-height: 40px; padding: 0 10px; border: 1px solid var(--l-ivory-edge); border-radius: 8px; font: 12px ui-monospace, monospace; color: var(--l-ink); background: #fff; }
+.sdialog-actions { display: flex; gap: 8px; }
+.sdialog-note { color: var(--l-go) !important; font-weight: 700; }
+
+/* Arkadaşlar / çevrimiçi */
+.social { display: flex; flex-direction: column; gap: 12px; padding: 12px; border-radius: 14px; background: var(--l-panel); color: #fff; font-family: var(--l-text); min-width: 0; }
+.social h2 { margin: 0 0 6px; font: 600 15px var(--l-display); display: flex; align-items: baseline; gap: 6px; }
+.social h2 small { font: 500 11px var(--l-text); color: var(--l-mute); }
+.social ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.social-row { display: flex; align-items: center; gap: 8px; min-height: 36px; }
+.social-av { position: relative; width: 30px; height: 30px; flex-shrink: 0; }
+.social-av img { width: 30px; height: 30px; border-radius: 50%; }
+.social-av i { position: absolute; right: -1px; bottom: -1px; width: 9px; height: 9px; border-radius: 50%; border: 2px solid var(--l-ground); }
+.social-av i.is-free { background: var(--l-on); }
+.social-av i.is-busy { background: var(--l-amber); }
+.social-av i.is-off { background: #6b8a90; }
+.social-who { display: flex; flex-direction: column; min-width: 0; flex-grow: 1; }
+.social-who b { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.social-who small { font-size: 11px; color: var(--l-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.social-two { display: inline-flex; gap: 4px; }
+.social-empty { margin: 0; font-size: 12px; line-height: 1.4; color: var(--l-mute); }

@@ -63,6 +63,17 @@
   duyuru, günlük istatistik, sorunlar. Geçmiş: oyuncu → oyunları → el tablosu → elin dağıtımı ve hamleleri (`utils/History.ts`). Veriler Socket.IO
   `admin:*` isteklerinden; anahtar `/var/lib/hugo/admin-token` (ya da `ADMIN_TOKEN`). Sunucu: `src/utils/Admin.ts`, arayüz: `components/Admin`.
 
+## Lobi, profil, arkadaşlar
+- Lobi (`components/Lobby/Lobby.jsx`, `Lobby2.css`): Hızlı oyna (`room:quickPlay`: şehir adlı masa + 3 yapay zekâ, oyun hemen
+  başlar), Masa aç (ad sorulmaz, `utils/cityNames.ts` tekrarsız şehir; sahip bekleme ekranında `room:rename`), açık masalar
+  (`components/Social/MiniTable`), arkadaşlar / çevrimiçi (`SocialPanel`, `hooks/useSocial`). Dikeyde alt alta, genişte 3 sütun.
+- Bekleme ekranı (`components/Room.jsx`, `Waiting.css`): masa etrafında koltuklar, boş koltukta Davet et / Yapay zekâ, sağda sesli
+  sohbet + ayarlar. Masa sahibi kendiliğinden hazır (`Room.areAllPlayersReady`), Hazırım düğmesi yok.
+- Davet: bağlantı `?masa=<masa no>` (açan oturur); uygulama içi `invite:send` → lobideki oyuncuda davet kartı (20 sn).
+- Profil (`utils/Profiles.ts`): oyuncu (koltuk) kimliği masadan kalkınca değişir, profil değişmez; arkadaşlıklar profiller
+  arasında (`friends:*`, `social:state`). Profiller app_state anlık görüntüsünde. İstemci anahtarı `hugo.account`
+  (localStorage); "Hesabımı başka cihaza taşı" bağlantısı `?hesap=id.anahtar` (`profile:link`). Test: `e2e-quick`, `e2e-social`.
+
 ## Sesli sohbet
 - WebRTC, oyuncular arası doğrudan (mesh); sunucu yalnızca `voice:join` / `voice:signal` / `voice:peer-*` aktarır
   (`socketHandler.ts`), istemci `utils/voice.js` + `hooks/useVoice.js` (Room'da kurulur: bekleme ekranında başlar, oyunda sürer), sekmeler `components/Voice`; konuşan avatarı yeşil parlar. Masa sahibi bekleme ekranında seçer (`room:setVoice`, `settings.voice`), en az

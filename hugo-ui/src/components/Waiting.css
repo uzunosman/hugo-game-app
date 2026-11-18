@@ -1,0 +1,84 @@
+/* Bekleme ekranı: masa (oyuncular etrafında, boş koltukta Davet et / Yapay zekâ) + sağda sesli sohbet, ayarlar, başlat.
+   Yatay telefonda yan yana, dikeyde alt alta. Renkler Social.css'teki --l-* değişkenleri. */
+.wait {
+    width: 100%; min-height: 100dvh; box-sizing: border-box; align-self: stretch;
+    padding: max(10px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+    display: flex; flex-direction: column; gap: 10px;
+    background: var(--l-ground); color: #fff; font-family: var(--l-text);
+}
+.wait > * { width: 100%; max-width: 1100px; margin-inline: auto; }
+.wait-head { display: flex; align-items: center; gap: 8px; min-height: 40px; flex-wrap: wrap; }
+.wait-head h1 { margin: 0; font: 800 20px/1.1 var(--l-display); }
+.wait-sub { font-size: 12px; color: var(--l-mute); }
+.wait-icon {
+    width: 40px; height: 40px; flex-shrink: 0; display: grid; place-items: center; padding: 0;
+    border: 0; border-radius: 10px; background: rgba(255, 255, 255, 0.1); color: #fff; font-size: 22px; cursor: pointer;
+}
+.wait-icon.is-quiet { background: transparent; color: var(--l-mute); }
+.wait-icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.wait-icon:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+.wait-rename input { font: 800 18px var(--l-display); min-height: 38px; width: 14em; max-width: 50vw; padding: 0 8px; border: 0; border-radius: 8px; color: var(--l-ink); }
+.wait-share { min-height: 40px; }
+
+.wait-body { flex-grow: 1; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.wait-felt {
+    position: relative; min-height: 360px; border-radius: 22px; background: var(--l-felt);
+    box-shadow: inset 0 0 0 6px #0a6f7f, inset 0 0 40px rgba(0, 0, 0, 0.18);
+}
+.wait-center { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.wait-tiles { display: flex; gap: 4px; }
+.wait-tiles i { width: 22px; height: 30px; border-radius: 4px; background: var(--l-ivory); display: grid; place-items: center; font: 800 normal 14px var(--l-display); color: var(--l-red); }
+.wait-tiles i:nth-child(2) { color: #d99a1e; }
+.wait-tiles i:nth-child(3) { color: #0a8fa3; }
+.wait-tiles i:nth-child(4) { color: var(--l-ink); }
+.wait-center small { font-size: 11px; color: #d7f0f3; }
+
+.wait-seat { position: absolute; display: flex; flex-direction: column; align-items: center; gap: 4px; max-width: 46%; text-align: center; }
+.wait-bottom { left: 50%; bottom: 10px; transform: translateX(-50%); }
+.wait-top { left: 50%; top: 10px; transform: translateX(-50%); }
+.wait-left { left: 12px; top: 50%; transform: translateY(-50%); max-width: 30%; }
+.wait-right { right: 12px; top: 50%; transform: translateY(-50%); max-width: 30%; }
+.wait-av { position: relative; width: 46px; height: 46px; border-radius: 50%; }
+.wait-av img { width: 46px; height: 46px; border-radius: 50%; display: block; }
+.wait-av.is-speaking img { box-shadow: 0 0 0 3px var(--l-on), 0 0 14px 3px rgba(74, 222, 128, 0.6); }
+.wait-muted { position: absolute; left: -3px; bottom: -3px; width: 16px; height: 16px; border-radius: 50%; background: #c1121f; font: normal 9px/16px var(--l-text); }
+.wait-name { display: flex; flex-direction: column; font-size: 12px; font-weight: 700; line-height: 1.25; }
+.wait-name small { font-weight: 500; color: #d7f0f3; }
+.wait-name small.is-ready { color: var(--l-on); }
+.wait-seat-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
+.wait-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.wait-invite {
+    min-height: 40px; padding: 0 14px; border: 1.5px dashed rgba(255, 255, 255, 0.75); border-radius: 20px;
+    background: rgba(255, 255, 255, 0.08); color: #fff; font: 700 13px var(--l-text); cursor: pointer;
+}
+.wait-invite:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+
+.wait-side { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.wait-box { display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 12px; background: var(--l-panel); }
+.wait-box p { margin: 0; font-size: 12px; color: var(--l-mute); }
+.wait-box-head { display: flex; align-items: center; gap: 6px; }
+.wait-box-head h2 { flex-grow: 1; margin: 0; font: 600 14px var(--l-display); }
+.wait-box-head small.is-on { font-size: 11px; color: var(--l-on); }
+.wait-voice { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.wait-voice .sbtn svg { width: 18px; height: 18px; }
+.wait-voice-labels { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); text-align: center; font-size: 10px; color: var(--l-mute); }
+.wait-opt { display: flex; align-items: center; gap: 8px; min-height: 28px; font-size: 13px; font-weight: 700; cursor: pointer; }
+.wait-opt input { width: 18px; height: 18px; accent-color: var(--l-amber); }
+.wait-error { margin: 0; padding: 8px 10px; border-radius: 8px; background: #fff1ef; color: #b42318; font-size: 13px; }
+.wait-note { margin: 0; font-size: 12px; color: var(--l-on); word-break: break-all; }
+.wait-hint { font-size: 11px; color: var(--l-mute); text-align: center; }
+.wait-main { min-height: 46px; font-size: 15px; }
+
+.wait-invite-sheet {
+    width: min(420px, 100%); max-height: calc(100dvh - 32px); overflow-y: auto; box-sizing: border-box;
+    display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 16px; background: var(--l-ground); color: #fff;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.4);
+}
+
+/* Yatay: masa solda, ayarlar sağda; masa ekran yüksekliğini doldurur */
+@media (min-width: 640px) {
+    .wait-body { grid-template-columns: minmax(0, 1fr) 210px; }
+    .wait-felt { min-height: max(280px, calc(100dvh - 90px)); }
+    .wait-share span { display: inline; }
+}
+@media (max-width: 639px) { .wait-share span { display: none; } }
