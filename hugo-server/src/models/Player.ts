@@ -24,7 +24,8 @@ export class Player {
     avatar: string;           // oyuncunun seçtiği avatar tohumu (boşsa kimlikten üretilir)
     authToken = '';           // gizli oturum anahtarı: yalnızca sahibine verilir, yeniden bağlanmada istenir (toJSON'a girmez)
     legacyAuth = false;
-    disconnectedAt: number | null = null; // oyun sürerken bağlantının koptuğu an (tek oyunculu masada bekleme süresi)       // anahtar eski istemciye verildi (saklayamamış olabilir): anahtarla bir kez dönene kadar anahtarsız da kabul
+    disconnectedAt: number | null = null; // oyun sürerken bağlantının koptuğu an (tek oyunculu masada bekleme süresi)
+    vacantUntil: number | null = null;    // admin kaldırdı: koltuk bu ana kadar yeni oyuncu bekler, sonra yapay zekâ oturur       // anahtar eski istemciye verildi (saklayamamış olabilir): anahtarla bir kez dönene kadar anahtarsız da kabul
 
     constructor(name: string, socketId: string) {
         this.id = uuidv4();
@@ -151,6 +152,7 @@ export class Player {
             connected: this.connected,
             openedWithPairs: this.openedWithPairs,
             isBot: !!this.isBot,
+            vacant: !!this.vacantUntil,
             avatar: this.avatar || '',
         };
     }

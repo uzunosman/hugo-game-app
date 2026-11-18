@@ -129,7 +129,7 @@ export class Room {
 
     // Masadaki tek gerçek oyuncu koptu mu (diğerleri yapay zekâ): masa onu saatlerce bekler (socketHandler soloAway)
     soloAwayHuman(): Player | null {
-        const humans = this.players.filter(p => !p.isBot);
+        const humans = this.players.filter(p => !p.isBot && !p.vacantUntil);
         return humans.length === 1 && !humans[0].connected ? humans[0] : null;
     }
 

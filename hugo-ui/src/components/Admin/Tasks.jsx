@@ -140,8 +140,9 @@ function TaskDetail({ id, call, stagingUrl, onChanged, onClose }) {
                         </label>
                     )}
                     <button type="button" className="yp-btn is-quiet" disabled={busy || (!text.trim() && !images.length)} onClick={() => act('note')}>Not ekle</button>
-                    {open && <button type="button" className="yp-btn is-danger" disabled={busy || (!text.trim() && !images.length)} onClick={() => act('revise')}>Revize iste</button>}
-                    {open && <button type="button" className="yp-btn is-ok" disabled={busy} onClick={() => act('approve')}>Onayla</button>}
+                    {/* Onay ve revize yalnızca test edilebilir görevde: yanlışlıkla onaylanmasın */}
+                    {task.status === 'ready' && <button type="button" className="yp-btn is-danger" disabled={busy || (!text.trim() && !images.length)} onClick={() => act('revise')}>Revize iste</button>}
+                    {task.status === 'ready' && <button type="button" className="yp-btn is-ok" disabled={busy} onClick={() => act('approve')}>Onayla</button>}
                     {open && <button type="button" className="yp-btn is-quiet" disabled={busy} onClick={() => act('cancel')}>İptal</button>}
                     {!open && <button type="button" className="yp-btn is-quiet" disabled={busy} onClick={() => act('reopen')}>Yeniden aç</button>}
                 </div>

@@ -42,6 +42,7 @@ const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCA
         const id = created.task.id;
         assert.strictEqual(created.task.status, 'new');
         assert.strictEqual((await emit(admin, 'admin:taskCreate', { title: '  ' })).success, false, 'başlıksız görev açılmaz');
+        assert.strictEqual((await emit(admin, 'admin:taskAction', { id, action: 'approve' })).success, false, 'teste hazır olmayan görev onaylanmaz');
 
         // Claude aracı
         assert.match(tasksCli('list'), new RegExp(`#${id} .*Yeni.*Sohbet kutusu`), 'araç açık görevi listeler');
@@ -71,7 +72,8 @@ const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCA
         const files = tasksCli('attachments', String(id), dir).trim().split('\n');
         assert.strictEqual(fs.readFileSync(files[0]).length, Buffer.from(PNG.split(',')[1], 'base64').length);
 
-        // Onay → araç "canlıda" yazar → açık listede görünmez
+        // Revizeden sonra Claude yeniden teste hazırlar → onay → araç "canlıda" yazar → açık listede görünmez
+        tasksCli('ready', String(id), 'düzelttim');
         r = await emit(admin, 'admin:taskAction', { id, action: 'approve', body: 'tamam' });
         assert.strictEqual(r.task.status, 'approved');
         tasksCli('done', String(id), 'v1.200');

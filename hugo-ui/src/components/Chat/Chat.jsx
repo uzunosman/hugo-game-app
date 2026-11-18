@@ -23,6 +23,8 @@ const Chat = ({ playerId }) => {
         const onMessage = (m) => {
             setMessages(prev => [...prev, m].slice(-50));
             if (!openRef.current && m.playerId !== playerId) setUnread(n => n + 1);
+            // Yönetici mesajı sohbet kapalıyken de görünsün: ekranın üstünde kısa duyuru
+            if (m.admin && !openRef.current) window.dispatchEvent(new CustomEvent('hugo:announce', { detail: { text: `Yönetici: ${m.text}` } }));
         };
         socketService.onChatMessage(onMessage);
         return () => socketService.offChatMessage(onMessage);
@@ -53,8 +55,8 @@ const Chat = ({ playerId }) => {
                     <ul className="chat-list" ref={listRef} aria-live="polite">
                         {messages.length === 0 && <li className="chat-empty">Masaya ilk mesajı sen yaz.</li>}
                         {messages.map(m => (
-                            <li key={m.id} className={m.playerId === playerId ? 'mine' : undefined}>
-                                <img src={avatarFor(m.playerId)} alt="" className="chat-avatar" />
+                            <li key={m.id} className={m.admin ? 'is-admin' : m.playerId === playerId ? 'mine' : undefined}>
+                                {m.admin ? <span className="chat-avatar chat-admin-badge" aria-hidden="true">Y</span> : <img src={avatarFor(m.playerId)} alt="" className="chat-avatar" />}
                                 <span className="chat-bubble"><b>{m.name}</b> {m.text}</span>
                             </li>
                         ))}

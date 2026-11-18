@@ -292,3 +292,7 @@ html:has(.yp) .app-version, html:has(.yp-login) .app-version, html:has(.yp) .set
     width: 100%; box-sizing: border-box; padding: 9px 11px; font: inherit; color: var(--text);
     background: var(--bg); border: 1px solid var(--line); border-radius: 8px; resize: vertical;
 }
+.yp-seat-help { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 8px 0 0; color: var(--muted); }
+.yp .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.yp-chat { max-height: 220px; overflow-y: auto; }
+.yp-chat li.t-yonetici b { color: var(--turn); }

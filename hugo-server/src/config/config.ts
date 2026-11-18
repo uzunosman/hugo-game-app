@@ -39,6 +39,8 @@ export const config = {
         idleRoomMs: Number(process.env.IDLE_ROOM_MS) || 30 * 60 * 1000,
         // Tek gerçek oyuncu (3 yapay zekâya karşı) koptuysa: sırası geldiğinde bu kadar beklenir, dönmezse otomatik oynanır;
         // kopmasından bu kadar sonra hâlâ yoksa masa kapanır
+        // Admin masadan oyuncu kaldırınca koltuk bu süre yeni oyuncuyu bekler, sonra yapay zekâ oturur
+        vacantSeatMs: Number(process.env.VACANT_SEAT_MS) || 10_000,
         soloAwayTurnMs: Number(process.env.SOLO_AWAY_TURN_MS) || 2 * 60 * 60 * 1000,
         soloAwayMaxMs: Number(process.env.SOLO_AWAY_MAX_MS) || 6 * 60 * 60 * 1000,
         finishedRoomMs: Number(process.env.FINISHED_ROOM_MS) || 10 * 60 * 1000,

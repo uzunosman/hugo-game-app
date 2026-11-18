@@ -105,9 +105,7 @@
     background-color: #FFC107;
 }
 
-.tile:hover {
-    box-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
-}
+/* Üstüne gelince parlama yok: dokunmatik ekranda dokunduktan sonra taşta beyaz gölge gibi kalıyordu (görev #6) */
 
 .tile.red {
     color: #FF0000;

@@ -131,8 +131,7 @@
     position: fixed; left: 0; top: 0; z-index: 9999;
     display: flex; gap: 1px;
     pointer-events: none;
-    will-change: transform;
-    filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.4));
+    will-change: transform; /* gölgesiz (görev #6) */
 }
 /* Kopya taşlar hedef aramayı (elementFromPoint) kapatmasın: köşe taşlarının pointer-events kuralı da ezilir */
 .drag-ghost, .drag-ghost * { pointer-events: none !important; }

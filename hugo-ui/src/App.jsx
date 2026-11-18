@@ -13,8 +13,10 @@ function App() {
   // Lobiye dönüş notu (örn. masa kapatıldı)
   const [notice, setNotice] = useState('')
 
-  const handleJoinRoom = (roomData) => {
+  // Oyun sürerken boş koltuğa oturunca sunucu koltuğun kimliğini verir (newPlayer)
+  const handleJoinRoom = (roomData, newPlayer) => {
     setNotice('')
+    if (newPlayer) setPlayer(newPlayer)
     setCurrentRoom(roomData)
   }
 

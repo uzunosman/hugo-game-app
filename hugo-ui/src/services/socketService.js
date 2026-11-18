@@ -159,6 +159,8 @@ class SocketService {
         this.socket.emit('room:join', { roomId, playerId: this.playerId }, (response) => {
             if (response.success) {
                 this.activeRoomId = roomId;
+                // Oyun sürerken boşaltılmış koltuğa oturuldu: koltuğun kimliği ve anahtarı alınır
+                if (response.player && response.token) this.remember(response);
             }
             if (callback) callback(response);
         });
@@ -409,6 +411,19 @@ class SocketService {
             if (data?.roomId === this.activeRoomId) this.activeRoomId = null;
             callback(data);
         });
+    }
+
+    // Yönetici masadan çıkardı: oyundaysa sunucu yeni lobi kimliği verir (eski koltuğa dönülmez)
+    onKicked(callback) {
+        this.socket.on('room:kicked', (data) => {
+            this.activeRoomId = null;
+            if (data?.player && data?.token) this.remember(data);
+            callback(data);
+        });
+    }
+
+    offKicked() {
+        this.socket.off('room:kicked');
     }
 
     offRoomClosed() {

@@ -59,8 +59,9 @@ export const flyTilesIn = (tileIds, playerId, myId, own = false) => {
             const sy = (playerId === myId ? from.top : from.top + from.height / 2) - (to.top + to.height / 2);
             const lift = -Math.min(40, Math.hypot(sx, sy) * 0.15); // yolun ortasında hafif yükselir
             ghost.animate([
-                { transform: `translate(${sx}px, ${sy}px) scale(1.25) rotate(-6deg)`, opacity: 0.85 },
-                { transform: `translate(${sx * 0.45}px, ${sy * 0.45 + lift}px) scale(1.15) rotate(-2deg)`, opacity: 1, offset: 0.55 },
+                // Kartın üstünde görünmez başlar, yolda belirir: taşlar kartta üst üste binip beyaz öbek oluşturmaz
+                { transform: `translate(${sx}px, ${sy}px) scale(0.9) rotate(-6deg)`, opacity: 0 },
+                { transform: `translate(${sx * 0.45}px, ${sy * 0.45 + lift}px) scale(1.05) rotate(-2deg)`, opacity: 1, offset: 0.4 },
                 { transform: 'translate(0, 0) scale(1) rotate(0)', opacity: 1 },
             ], { duration: DURATION, delay: i * stagger, easing: 'cubic-bezier(.25,.8,.3,1)', fill: 'backwards' })
                 .finished.catch(() => {}).finally(() => { land(); ghost.remove(); });

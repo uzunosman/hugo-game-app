@@ -155,14 +155,28 @@ function TableWatch({ table, call, socket, onClosed }) {
     const [spy, setSpy] = useState(false);
     const [confirm, setConfirm] = useState(false);
     const [msg, setMsg] = useState('');
+    const [chat, setChat] = useState([]);
+    const [say, setSay] = useState('');
     useEffect(() => {
         let alive = true;
-        const load = async () => { const r = await call('admin:tableLog', { no: table.no }); if (alive && r?.success) setEvents(r.olaylar); };
+        const load = async () => {
+            const [r, c] = await Promise.all([call('admin:tableLog', { no: table.no }), call('admin:tableChat', { no: table.no })]);
+            if (!alive) return;
+            if (r?.success) setEvents(r.olaylar);
+            if (c?.success) setChat(c.messages);
+        };
         load();
         const id = setInterval(load, 3000);
         return () => { alive = false; clearInterval(id); };
     }, [table.no, call]);
     const rows = useMemo(() => events.map(e => ({ e, d: describe(e) })).filter(r => r.d), [events]);
+    const [kick, setKick] = useState(null); // onay bekleyen oyuncu id
+    const run = async (event, data) => {
+        const r = await call(event, { no: table.no, ...data });
+        setMsg(r?.success ? '' : r?.error || 'Olmadı');
+        setKick(null);
+    };
+    const free = table.oyuncular.length < 4 || table.oyuncular.some(p => p.bos);
     const close = async () => {
         const r = await call('admin:closeTable', { no: table.no });
         if (r?.success) onClosed(); else setMsg(r?.error || 'Kapatılamadı');
@@ -183,17 +197,40 @@ function TableWatch({ table, call, socket, onClosed }) {
             </header>
             {msg && <p className="yp-error">{msg}</p>}
             <table className="yp-scores">
-                <thead><tr><th>Oyuncu</th><th>Puan</th><th>Ceza</th><th>Taş</th><th>Durum</th></tr></thead>
+                <thead><tr><th>Oyuncu</th><th>Puan</th><th>Ceza</th><th>Taş</th><th>Durum</th><th><span className="visually-hidden">İşlem</span></th></tr></thead>
                 <tbody>
                     {table.oyuncular.map(p => (
-                        <tr key={p.ad} className={table.sira === p.ad ? 'is-turn' : ''}>
+                        <tr key={p.id || p.ad} className={table.sira === p.ad ? 'is-turn' : ''}>
                             <td>{p.ad}{p.bot && <span className="yp-tag">yz</span>}</td>
                             <td>{p.puan}</td><td>{p.ceza}</td><td>{p.tas}</td>
-                            <td>{p.bot ? '-' : p.bagli ? <span className="yp-ok">bağlı</span> : <span className="yp-warn">kopuk</span>}{p.acik && <span className="yp-tag">açtı</span>}</td>
+                            <td>{p.bos ? <span className="yp-warn">boş koltuk</span> : p.bot ? '-' : p.bagli ? <span className="yp-ok">bağlı</span> : <span className="yp-warn">kopuk</span>}{p.acik && <span className="yp-tag">açtı</span>}</td>
+                            <td>{!p.bos && (kick === p.id
+                                ? <span className="yp-confirm"><button type="button" className="yp-danger" onClick={() => run('admin:kickPlayer', { playerId: p.id })}>Evet, kaldır</button><button type="button" onClick={() => setKick(null)}>Vazgeç</button></span>
+                                : <button type="button" className="yp-danger-ghost" onClick={() => setKick(p.id)}>Kaldır</button>)}</td>
                         </tr>
                     ))}
                 </tbody>
             </table>
+            {free && <p className="yp-seat-help"><button type="button" className="yp-btn is-quiet" onClick={() => run('admin:addBot', {})}>Yapay zekâ ekle</button>
+                <small>boş koltuğa oturur. Kaldırılan oyuncunun koltuğu 10 sn yeni oyuncu bekler, kimse oturmazsa yapay zekâ geçer.</small></p>}
+            <h3>Sohbet <small>masadakilerin gördüğü sohbet · yazdığın "Yönetici" olarak görünür</small></h3>
+            <ol className="yp-feed yp-chat">
+                {chat.length === 0 && <li className="yp-empty">Henüz mesaj yok.</li>}
+                {chat.map(m => (
+                    <li key={m.id} className={m.admin ? 't-yonetici' : ''}>
+                        <time>{clock(m.ts)}</time>
+                        <span className="yp-feed-text"><b>{m.name}</b> {m.text}</span>
+                    </li>
+                ))}
+            </ol>
+            <form className="yp-announce" onSubmit={async (e) => {
+                e.preventDefault();
+                const r = await call('admin:chatSend', { no: table.no, text: say });
+                if (r?.success) { setSay(''); setChat(prev => [...prev, r.message]); setMsg(''); } else setMsg(r?.error || 'Gönderilemedi');
+            }}>
+                <input value={say} maxLength={200} onChange={(e) => setSay(e.target.value)} placeholder="Masaya yaz (Yönetici olarak)" aria-label="Masa sohbetine yaz" />
+                <button type="submit" disabled={!say.trim()}>Gönder</button>
+            </form>
             <h3>Akış <small>bugün · 3 sn'de bir yenilenir</small></h3>
             <ol className="yp-feed">
                 {rows.length === 0 && <li className="yp-empty">Bu masa için bugün kayıt yok.</li>}

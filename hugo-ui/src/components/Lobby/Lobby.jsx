@@ -50,7 +50,7 @@ function Lobby({ player, onRegister, onJoinRoom, notice }) {
             setLoading(false);
             if (response.success) {
                 setPending(null);
-                onJoinRoom(response.room);
+                onJoinRoom(response.room, response.player);
             } else {
                 setError(response.error || 'İşlem yapılamadı');
                 setPending(null);
@@ -150,6 +150,16 @@ function Lobby({ player, onRegister, onJoinRoom, notice }) {
                                 </div>
                                 {SIDES.map((side, i) => {
                                     const p = room.players[i];
+                                    // Oyun sürerken boşaltılmış koltuk (yönetici kaldırdı): kısa süre yeni oyuncu bekler
+                                    if (p?.vacant) {
+                                        return (
+                                            <div key={side} className={`chair chair-${side} is-empty`}>
+                                                <button type="button" className="chair-sit" disabled={loading}
+                                                    onClick={() => request({ kind: 'join', room })} aria-label={`${room.name} masasındaki boş koltuğa otur`}>+</button>
+                                                <span className="chair-name">Otur</span>
+                                            </div>
+                                        );
+                                    }
                                     if (p) {
                                         return (
                                             <div key={side} className={`chair chair-${side} ${p.connected === false ? 'is-away' : ''}`}>

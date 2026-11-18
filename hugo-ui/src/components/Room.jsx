@@ -49,10 +49,13 @@ function Room({ player, room, onLeaveRoom }) {
 
         // Masa kapatıldı (arşivlendi): lobiye dön, nedenini göster
         socketService.onRoomClosed((data) => onLeaveRoom(null, `“${room.name}” masası kapatıldı: ${data?.reason || ''}`.trim()));
+        // Yönetici masadan çıkardı: lobiye dön (oyundaysa yeni kimlikle)
+        socketService.onKicked((data) => onLeaveRoom(data?.player || null, `“${room.name}” masasından çıkarıldın${data?.reason ? `: ${data.reason}` : ''}`));
 
         return () => {
             // Component unmount olduğunda event listener'ları temizle
             socketService.offRoomClosed();
+            socketService.offKicked();
             socketService.socket.off('player:joined');
             socketService.socket.off('player:left');
             socketService.socket.off('player:ready');

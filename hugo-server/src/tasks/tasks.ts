@@ -95,6 +95,12 @@ export const userAction = async (id: number, action: string, body: unknown, imag
     const a = USER_ACTIONS[action];
     if (!a) throw new Error('Bilinmeyen işlem');
     if (action === 'revise' && !text(body, 20_000) && !images?.length) throw new Error('Revize için ne değişmeli, yaz');
+    // Onay ve revize yalnızca test edilebilir (Teste hazır) görevde: yanlışlıkla onaylanmasın
+    if (action === 'approve' || action === 'revise') {
+        const row = (await db().query('SELECT status FROM tasks WHERE id = $1', [id])).rows[0];
+        if (!row) throw new Error('Görev yok');
+        if (row.status !== 'ready') throw new Error('Yalnızca "Teste hazır" görev onaylanır ya da revizeye gönderilir');
+    }
     return addNote(id, 'user', a.kind, body, a.status, images || []);
 };
 
