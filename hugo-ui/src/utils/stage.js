@@ -15,16 +15,28 @@ const update = () => {
     html().style.setProperty('--stage-s', String(scale));
 };
 const afterTyping = () => setTimeout(update, 350); // klavye kapanma animasyonu bitsin
+// iOS ekran dönünce resize'ı yeni ölçüler hazır olmadan gönderebiliyor (dikey ölçüyle küçük kalıyordu): birkaç kez yeniden ölç
+let settleTimers = [];
+const settle = () => {
+    update();
+    settleTimers.forEach(clearTimeout);
+    settleTimers = [100, 300, 700].map(ms => setTimeout(update, ms));
+};
 
 // Oyun ekranı açılınca çağrılır; dönen işlev sahneyi kapatır
 export const enterStage = () => {
     html().classList.add('stage');
     update();
-    window.addEventListener('resize', update);
+    window.addEventListener('resize', settle);
+    window.addEventListener('orientationchange', settle);
+    window.visualViewport?.addEventListener('resize', settle);
     document.addEventListener('focusout', afterTyping);
     return () => {
         html().classList.remove('stage');
-        window.removeEventListener('resize', update);
+        settleTimers.forEach(clearTimeout);
+        window.removeEventListener('resize', settle);
+        window.removeEventListener('orientationchange', settle);
+        window.visualViewport?.removeEventListener('resize', settle);
         document.removeEventListener('focusout', afterTyping);
     };
 };
