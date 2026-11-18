@@ -29,6 +29,9 @@ const server = http.createServer(app);
 
 // Socket.IO sunucusu oluştur
 const io = new Server(server, {
+    // Görevlere ekran görüntüsü (yalnızca admin; tasks.ts'te resim başına 1,5 MB sınırı)
+    // shortcut: sınır bütün bağlantılar için geçerli; oyuncu bağlantısına ayrı sınır gerekirse admin yüklemesi HTTP'ye taşınmalı
+    maxHttpBufferSize: 3e6,
     cors: {
         origin: config.origin,
         methods: ['GET', 'POST'],

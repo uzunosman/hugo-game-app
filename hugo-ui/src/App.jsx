@@ -32,6 +32,20 @@ function App() {
   // Staging: sunucu admin anahtarı istedi (kaç kez reddedildi; bağlanınca 0)
   const [adminRequired, setAdminRequired] = useState(0)
 
+  // Görevlerdeki "Test et" (staging): ?scenario=… ile açılınca senaryo kendiliğinden başlar (bağlantı kurulunca bir kez)
+  useEffect(() => {
+    const id = new URLSearchParams(location.search).get('scenario')
+    if (!id) return
+    const s = socketService.connect()
+    const start = () => socketService.labScenarios((r) => {
+      if (!r?.success || !r.scenarios.some(x => x.id === id)) return
+      history.replaceState(null, '', location.pathname)
+      socketService.labStart(id)
+    })
+    if (s.connected) start(); else s.once('connect', start)
+    return () => s.off('connect', start)
+  }, [])
+
   useEffect(() => {
     const ask = () => setAdminRequired(n => n + 1)
     const ok = () => setAdminRequired(0)

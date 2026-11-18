@@ -200,3 +200,54 @@ html:has(.yp) .app-version, html:has(.yp-login) .app-version, html:has(.yp) .set
     .yp-spec-owner { grid-template-columns: 80px 1fr; }
 }
 .yp-spec .yp-feed li { grid-template-columns: 1fr; } /* izlemedeki ceza listesinde saat sütunu yok */
+
+/* ── Görevler: solda liste ve yeni görev, sağda ayrıntı (notlar, ekran görüntüleri, test sonucu) ── */
+.yp-section-head .yp-task-all { margin-left: auto; color: var(--muted); font-size: 12px; display: inline-flex; gap: 6px; align-items: center; }
+.yp-tasks { display: grid; grid-template-columns: minmax(240px, 340px) 1fr; gap: 14px; align-items: start; }
+@media (max-width: 760px) { .yp-tasks { grid-template-columns: 1fr; } }
+.yp-task-list ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.yp-task-list li button {
+    width: 100%; text-align: left; display: grid; gap: 4px; padding: 9px 11px; cursor: pointer;
+    background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: 10px; font: inherit;
+}
+.yp-task-list li button:hover { background: var(--surface-2); }
+.yp-task-list li button.is-sel { border-color: var(--turn); }
+.yp-task-title { font-weight: 600; }
+.yp-task-row { display: flex; gap: 8px; align-items: center; color: var(--muted); }
+.yp-task-new { display: grid; gap: 8px; }
+.yp-task-new input, .yp-task-new textarea, .yp-task-reply textarea {
+    width: 100%; box-sizing: border-box; padding: 9px 11px; font: inherit; color: var(--text);
+    background: var(--bg); border: 1px solid var(--line); border-radius: 8px; resize: vertical;
+}
+.yp-task-status { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--surface-2); color: var(--muted); }
+.yp-task-status.tone-turn { background: var(--turn); color: #1d1606; }
+.yp-task-status.tone-ok { background: rgba(76, 195, 138, 0.18); color: var(--ok); }
+.yp-task-status.tone-danger { background: rgba(229, 83, 75, 0.18); color: #ff9b94; }
+.yp-task-status.tone-info { background: rgba(120, 170, 255, 0.16); color: #a8c6ff; }
+.yp-task-detail { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 12px; }
+.yp-task-detail header { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
+.yp-task-detail h3 { margin: 0; color: var(--text); font-size: 15px; }
+.yp-task-body { white-space: pre-wrap; margin: 0; }
+.yp-task-test { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; color: var(--muted); }
+.yp-task-notes { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.yp-task-notes li { display: grid; gap: 4px; padding: 8px 10px; border-radius: 8px; background: var(--bg); border-left: 3px solid var(--line); }
+.yp-task-notes li.by-user { border-left-color: var(--turn); }
+.yp-task-notes li.kind-revision { border-left-color: var(--danger); }
+.yp-task-notes li.kind-approval { border-left-color: var(--ok); }
+.yp-task-meta { color: var(--muted); font-size: 12px; }
+.yp-task-text { white-space: pre-wrap; }
+.yp-task-shot { display: inline-block; position: relative; width: 120px; padding: 0; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: none; color: var(--muted); font-size: 12px; }
+.yp-task-shot img { display: block; width: 100%; height: auto; }
+.yp-task-shot span { position: absolute; top: 2px; right: 6px; color: #fff; text-shadow: 0 1px 2px #000; font-size: 16px; }
+.yp-task-pending { display: flex; flex-wrap: wrap; gap: 6px; }
+.yp-task-reply { display: grid; gap: 8px; }
+.yp-task-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.yp-btn {
+    display: inline-flex; align-items: center; padding: 8px 14px; border: 0; border-radius: 8px; cursor: pointer;
+    background: var(--turn); color: #1d1606; font: 600 13px/1.2 system-ui, sans-serif; text-decoration: none;
+}
+.yp-btn:disabled { opacity: 0.45; cursor: default; }
+.yp-btn.is-quiet { background: var(--surface-2); color: var(--text); }
+.yp-btn.is-ok { background: var(--ok); color: #062014; }
+.yp-btn.is-danger { background: var(--danger); color: #fff; }
+.yp-btn:focus-visible, .yp-task-list li button:focus-visible { outline: 2px solid var(--turn); outline-offset: 2px; }

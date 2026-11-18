@@ -51,6 +51,13 @@
 - Masa ayarları (oyun modu): `hugo-server/src/models/GameSettings.ts` (`room.settings`, istemciye `room.settings`). Şimdilik
   hepsi varsayılan; ileride masa açılırken seçilecek. `assisted` (yardımlı, açık): işlek taşın sağ üst köşesi mor, kıvrık (ambalaj açılışı gibi) ve
   atılamaz (sunucu `Game.islekBlocked`, istemci `isIslekTile`); elde başka atılabilecek taş yoksa eski kural (ceza).
+- Görevler (Faz 4): kullanıcı isteklerini https://hugola.io/admin → Görevler'e yazar (prod DB: `tasks`, `task_notes`,
+  `task_attachments`). Oturum başında açık görevlere bak; araç:
+  `ssh hugola 'cd /opt/hugo/hugo-server && set -a && . /etc/hugo/hugo.env && node dist/tools/tasks.js list'`
+  (`show <id>`, `start <id> [not]`, `ready <id> --scenario a,b [--branch x] [not]`, `done <id> [not]`, `note <id> <not>`,
+  `attachments <id> <klasör>` → sonra scp ile al, Read ile bak). Akış: görev → `start` → geliştir + senaryo yaz →
+  staging deploy → `ready --scenario` → kullanıcı "Test et" (staging `?scenario=`) → Onay / Revize → onayda
+  "canlıya al" beklenir → deploy → `done`. Test: `TEST_DATABASE_URL=… npx ts-node scripts/e2e-tasks.ts`.
 - Yönetim ekranı: https://hugola.io/admin (masaları canlı izle, kapat, duyuru, günlük istatistik, sorunlar). Veriler Socket.IO
   `admin:*` isteklerinden; anahtar `/var/lib/hugo/admin-token` (ya da `ADMIN_TOKEN`). Sunucu: `src/utils/Admin.ts`, arayüz: `components/Admin`.
 

@@ -13,6 +13,7 @@ import { planOpening, planSets } from '../ai/AiPlanner';
 import { dayOf, dealSnapshot, findTile, logEvent, tileLabel } from '../utils/EventLog';
 import { checkToken, days, problems, statsOf, tableEvents } from '../utils/Admin';
 import { applyScenario, findScenario, listScenarios } from '../lab/scenario';
+import { createTask, getAttachment, getTask, listTasks, updateTask, userAction } from '../tasks/tasks';
 
 const BOT_NAMES = ['Robo Rıza', 'Robo Nur', 'Robo Can', 'Robo Ece'];
 const CHAT_MAX_LEN = 200;
@@ -585,6 +586,26 @@ export const setupSocketHandlers = (io: Server) => {
             logEvent('yonetim', { islem: 'duyuru', text });
             io.emit('server:announce', { text });
             return {};
+        });
+
+        // Görevler (Faz 4): istek listesi, test sonucu (onay / revize / iptal), ekran görüntüleri. Veriler prod veritabanında.
+        admin('admin:tasks', async (d) => ({ tasks: await listTasks(!!d?.all), stagingUrl: config.stagingUrl, scenarios: listScenarios().map(({ id, title }) => ({ id, title })) }));
+        admin('admin:task', async (d) => getTask(Number(d?.id)));
+        admin('admin:taskCreate', async (d) => {
+            const task = await createTask(d?.title, d?.body);
+            logEvent('yonetim', { islem: 'gorev', gorev: task.id });
+            return { task };
+        });
+        admin('admin:taskUpdate', async (d) => ({ task: await updateTask(Number(d?.id), { title: d?.title, body: d?.body }) }));
+        admin('admin:taskAction', async (d) => {
+            const images = Array.isArray(d?.images) ? d.images : [];
+            const noteId = await userAction(Number(d?.id), String(d?.action), d?.body, images);
+            logEvent('yonetim', { islem: 'gorev-' + String(d?.action), gorev: Number(d?.id) });
+            return { noteId, ...(await getTask(Number(d?.id))) };
+        });
+        admin('admin:taskAttachment', async (d) => {
+            const a = await getAttachment(Number(d?.id));
+            return { dataUrl: `data:${a.mime};base64,${a.data.toString('base64')}` };
         });
 
         // Lab (test senaryoları): yalnızca staging / yerel ortamda ve admin için. Seat switcher ile admin masadaki

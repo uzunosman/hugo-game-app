@@ -2,6 +2,7 @@ import { Component, useCallback, useEffect, useMemo, useRef, useState } from 're
 import { io } from 'socket.io-client';
 import { SOCKET_URL } from '../../services/socketService';
 import Spectator from './Spectator';
+import Tasks from './Tasks';
 import './Admin.css';
 
 // Yönetim ekranı (hugola.io/admin): masaları canlı izler, masa kapatır, duyuru gönderir, günlük istatistiği gösterir.
@@ -367,6 +368,8 @@ function AdminScreen() {
                     <button type="button" className="yp-link" onClick={() => { store.set(''); setAuthed(false); }}>Çık</button>
                 </div>
             </header>
+
+            <Tasks call={call} />
 
             <section className="yp-section" aria-labelledby="yp-day">
                 <div className="yp-section-head">

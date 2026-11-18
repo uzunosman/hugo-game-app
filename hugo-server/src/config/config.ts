@@ -16,6 +16,8 @@ export const config = {
     persist: process.env.PERSIST !== 'false',
     // Ortam: production (hugola.io), staging (test.hugola.io; yalnızca admin bağlanır), development
     appEnv: process.env.APP_ENV || (process.env.NODE_ENV === 'production' ? 'production' : 'development'),
+    // Görevlerdeki "Test et" bağlantısı: senaryo staging'de açılır
+    stagingUrl: process.env.STAGING_URL || 'https://test.hugola.io',
     // Lab (test senaryoları, koltuk değiştirme): prod'da hiç açılmaz
     get lab() { return this.appEnv !== 'production'; },
 
