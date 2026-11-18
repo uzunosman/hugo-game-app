@@ -6,24 +6,26 @@ export const STAGE_H = 390;
 
 let scale = 1;
 const html = () => document.documentElement;
+// Ölçek pencere boyundan (visualViewport değil): klavye açılınca görünen alan küçülür, oyun küçülmesin (görev #17).
+// Yazı alanı odaktayken (sohbet) ölçek hiç değişmez; klavye kapanınca yeniden hesaplanır.
+const typing = () => /^(INPUT|TEXTAREA)$/.test(document.activeElement?.tagName || '');
 const update = () => {
-    const vv = window.visualViewport;
-    const w = vv?.width || window.innerWidth;
-    const h = vv?.height || window.innerHeight;
-    scale = Math.min(w / STAGE_W, h / STAGE_H);
+    if (typing()) return;
+    scale = Math.min(window.innerWidth / STAGE_W, window.innerHeight / STAGE_H);
     html().style.setProperty('--stage-s', String(scale));
 };
+const afterTyping = () => setTimeout(update, 350); // klavye kapanma animasyonu bitsin
 
 // Oyun ekranı açılınca çağrılır; dönen işlev sahneyi kapatır
 export const enterStage = () => {
     html().classList.add('stage');
     update();
     window.addEventListener('resize', update);
-    window.visualViewport?.addEventListener('resize', update);
+    document.addEventListener('focusout', afterTyping);
     return () => {
         html().classList.remove('stage');
         window.removeEventListener('resize', update);
-        window.visualViewport?.removeEventListener('resize', update);
+        document.removeEventListener('focusout', afterTyping);
     };
 };
 

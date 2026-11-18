@@ -79,6 +79,18 @@ const connect = (port: number, adminToken?: string) =>
         await emit(admin, 'lab:takeSeat', { playerId: sen });
         assert.strictEqual((await emit(admin, 'game:requestTiles', { playerId: sen })).tiles.length, 14, 'sıfırlanınca el baştan');
 
+        // Yardımlı masa: işlek taş sürüklemeden atılamaz; sürükleyip bırakınca (force) atılır, işlek cezası yazılır
+        const east = await emit(admin, 'lab:start', { id: 'east-process-test' });
+        const eastSen = east.player.id;
+        await emit(admin, 'game:drawTile', { playerId: eastSen, roomId: east.room.id, fromDiscard: false });
+        const eastHand = (await emit(admin, 'game:requestTiles', { playerId: eastSen })).tiles;
+        const r13 = eastHand.find((x: Ack) => x.color === 'red' && x.value === 13);
+        const blocked = await emit(admin, 'game:discardTile', { playerId: eastSen, roomId: east.room.id, tileId: r13.id });
+        assert.strictEqual(blocked.success, false, 'işlek taş dokunarak atılamaz');
+        const pen = new Promise<Ack>(res => admin.on('game:penalty', p => { if (p.tag === 'işlek') res(p); }));
+        assert.ok((await emit(admin, 'game:discardTile', { playerId: eastSen, roomId: east.room.id, tileId: r13.id, force: true })).success, 'sürükleyince atılır');
+        assert.strictEqual((await pen).amount, 100, 'işlek cezası yazılır');
+
         // Prod: lab kapalı (admin olsa bile)
         const prodAdmin = connect(3093, TOKEN);
         const p = await emit(prodAdmin, 'lab:scenarios');

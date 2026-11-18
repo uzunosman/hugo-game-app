@@ -6,6 +6,7 @@ import OpenSetsArea from '../OpenSetsArea/OpenSetsArea';
 import useBoardDrag from '../../hooks/useBoardDrag';
 import { fitTable } from '../../utils/tableFit';
 import { stageScale } from '../../utils/stage';
+import socketService from '../../services/socketService';
 import { animateOwn, flyClone, holdSet, PLACE_MS, rackTileEl, slideFrom, tileLooks, tileOrigins, whenRendered } from '../../utils/flyTiles';
 import '../../assets/css/components/GameBoard.css';
 
@@ -105,15 +106,18 @@ const GameBoard = ({
                 : 'Önce yandan aldığın taşı kullan: pere ekle ya da Kustu ile geri koy');
             return;
         }
-        // Yardımlı masa: işlek taş atılmaz; taş yerinde sallanır, işlek olduğu söylenir (sürüklenen taş ıstakaya döner)
-        if (canDiscardNow && islekBlocked && islekIds?.has(tilePositions[idx])) {
+        // Yardımlı masa: işlek taş çift tık / köşeye dokunmayla atılmaz; taş yerinde sallanır, nasıl atılacağı söylenir.
+        // Sürükleyip köşeye bırakmak (dropRect) bilerek atmadır: atılır, işlek cezası yazılır
+        const forced = !!dropRect && islekBlocked && islekIds?.has(tilePositions[idx]);
+        if (canDiscardNow && islekBlocked && islekIds?.has(tilePositions[idx]) && !dropRect) {
             rackTileEl(tilePositions[idx])?.animate?.([
                 { transform: 'translateX(0)' }, { transform: 'translateX(-4px)' }, { transform: 'translateX(4px)' },
                 { transform: 'translateX(-3px)' }, { transform: 'translateX(2px)' }, { transform: 'translateX(0)' },
             ], { duration: 360, easing: 'ease-out' });
-            onWarn?.('Bu taş işlek: masadaki bir pere işlenebilir. İşle ya da başka taş at');
+            onWarn?.('Bu taş işlek (masadaki bir pere işlenebilir). Yine de atmak istersen sürükleyip köşeye bırak: işlek cezası yazılır');
             return;
         }
+        if (canDiscardNow && forced) socketService.forceDiscardAt = Date.now();
         if (canDiscardNow) {
             const id = tilePositions[idx];
             const el = rackTileEl(id);

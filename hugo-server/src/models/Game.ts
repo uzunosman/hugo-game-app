@@ -108,6 +108,7 @@ export class Game {
     finisherPlayerId: string | null;
     finishedWithJoker: boolean;
     takenDiscardTileId: string | null; // yandan alınan, bu turda kullanılması gereken taş
+    takenBeforeOpen = false;           // yandan alan henüz açmamıştı: alınan taş açılışta kullanılmadan işleme yapamaz
     takenPenalty: Penalty | null;      // yandan alınınca atana yazılan ceza (kusulursa geri alınır)
     roundPenalties: (Penalty & { playerName: string })[]; // bu elde yazılan cezalar (tabela geçmişi için)
     roundHistory: RoundHistoryEntry[]; // biten ellerin sonuçları ve cezaları
@@ -324,6 +325,7 @@ export class Game {
         if (drawnTile) {
             player.addTile(drawnTile);
             this.takenDiscardTileId = fromDiscard ? drawnTile.id : null;
+            this.takenBeforeOpen = fromDiscard && !player.isOpen;
             this.turnAction = TurnAction.DISCARD;
             this.lastActionTime = new Date();
             return drawnTile;
@@ -784,6 +786,10 @@ export class Game {
         if (!player || !this.isPlayerTurn(playerId)) {
             return { success: false, error: 'Sıra bu oyuncuda değil' };
         }
+        // Açmamışken yandan alınan taş açılışta kullanılmadan işleme yok (görev #16; açmış oyuncu yandan alıp işleyebilir).
+        // Alınan taşın kendisi kendi perine işlenebilir: taş yere açılmış olur, açılış değerine eklenir
+        const ownTaken = tileId === this.takenDiscardTileId && this.tableSets.find(s => s.id === targetSetId)?.playerId === playerId;
+        if (this.takenBeforeOpen && this.pendingTakenTileId(player) && !ownTaken) return { success: false, error: 'Yandan aldığın taşı önce yere aç: alınan taş açılmadan işleme yapılmaz' };
 
         if (!player.isOpen) {
             return { success: false, error: 'Önce el açılmalı' };
@@ -879,7 +885,7 @@ export class Game {
         if (setOwner && setOwner.id !== playerId) {
             let effectiveValue: number;
             if (this.isOkeyTile(tile)) {
-                effectiveValue = this.calculateEffectiveValue(targetSet.tiles, tile, position);
+                effectiveValue = this.calculateEffectiveValue(targetSet.tiles, tile);
             } else {
                 const played = this.asPlayed(tile); // sahte okey, okeyin değeri kadar ceza yazar
                 effectiveValue = typeof played.value === 'number' ? played.value : 0;
@@ -951,6 +957,8 @@ export class Game {
     } {
         const player = this.getPlayerById(playerId);
         if (!player || !this.isPlayerTurn(playerId)) return { success: false, error: 'Sıra bu oyuncuda değil' };
+        const ownTakenPair = tileIds.includes(this.takenDiscardTileId || '') && this.tableSets.find(s => s.id === targetSetId)?.playerId === playerId;
+        if (this.takenBeforeOpen && this.pendingTakenTileId(player) && !ownTakenPair) return { success: false, error: 'Yandan aldığın taşı önce yere aç: alınan taş açılmadan işleme yapılmaz' };
         if (!player.isOpen) return { success: false, error: 'Önce el açılmalı' };
 
         const isFirstTurn = player.tiles.length === 15 && this.turnAction === TurnAction.DRAW;
@@ -997,26 +1005,23 @@ export class Game {
     }
 
     // Joker/okey'in sete eklendiği pozisyondaki etkin değerini hesapla
-    private calculateEffectiveValue(tilesAfterInsert: Tile[], addedTile: Tile, position: 'start' | 'end'): number {
-        // Eklenen taş ve diğer wildcard'ları hariç tut
-        const normalTiles = tilesAfterInsert.filter(t => t !== addedTile && !this.isOkeyTile(t) && typeof t.value === 'number');
-        if (normalTiles.length === 0) return 0;
-
-        // Aynı sayı seti ise tüm taşlar aynı değerde
-        if (this.isSameNumberSet(tilesAfterInsert)) {
-            return normalTiles[0].value as number;
+    // Okeyin perde oturduğu yerin değeri (işleme cezası için): aynı sayı perinde o sayı; seride perin yönüne göre
+    // (artan ya da azalan) okeyin bulunduğu sıradaki sayı. Örn. 13-12-11 perinin sonuna okey → 10 (görev #14).
+    private calculateEffectiveValue(tilesAfterInsert: Tile[], addedTile: Tile): number {
+        const at = tilesAfterInsert.indexOf(addedTile);
+        const normals = tilesAfterInsert
+            .map((t, i) => ({ t, i, v: this.asPlayed(t).value }))
+            .filter(({ t, v }) => t !== addedTile && !this.isOkeyTile(t) && typeof v === 'number') as { t: Tile; i: number; v: number }[];
+        if (!normals.length || at === -1) return 0;
+        if (this.isSameNumberSet(tilesAfterInsert)) return normals[0].v;
+        const [a, b] = normals;
+        // Yön: iki gerçek taştan; tek taş varsa önce artan, sığmazsa azalan
+        const dirs = b ? [Math.sign((b.v - a.v) / (b.i - a.i)) || 1] : [1, -1];
+        for (const d of dirs) {
+            const v = a.v + (at - a.i) * d;
+            if (v >= 1 && v <= 13) return v;
         }
-
-        // Sıralı set: joker başa eklendiyse ilk normal taştan -1, sona eklendiyse son normal taştan +1
-        if (position === 'start') {
-            const firstNormal = normalTiles.reduce((min, t) =>
-                (t.value as number) < (min.value as number) ? t : min, normalTiles[0]);
-            return (firstNormal.value as number) - 1;
-        } else {
-            const lastNormal = normalTiles.reduce((max, t) =>
-                (t.value as number) > (max.value as number) ? t : max, normalTiles[0]);
-            return (lastNormal.value as number) + 1;
-        }
+        return 0;
     }
 
     private tableSetToJSON(set: TableSet): Record<string, any> {
@@ -1469,6 +1474,7 @@ export class Game {
             id: this.id,
             players: this.players.map(player => player.toPublicJSON()),
             roundHistory: this.roundHistory || [],
+            roundPenalties: this.roundPenalties || [], // bu elin ceza kaydı: sayfa yenilenince ceza listesi geri gelir (görev #13)
             deckCount: this.deck.length,
             discardPile: this.discardPile.map(tile => tile.toJSON()),
             currentPlayerIndex: this.currentPlayerIndex,

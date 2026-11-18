@@ -243,7 +243,10 @@ class SocketService {
             return;
         }
 
-        this.socket.emit('game:discardTile', { playerId: this.playerId, roomId, tileId, ...(finishSets ? { finishSets } : {}) }, callback);
+        // Sürükleyip köşeye bırakılan işlek taş bilerek atılır (yardımlı masada engellenmez, ceza yazılır)
+        const force = Date.now() - (this.forceDiscardAt || 0) < 1000; // yalnızca az önceki sürükleme için
+        this.forceDiscardAt = 0;
+        this.socket.emit('game:discardTile', { playerId: this.playerId, roomId, tileId, ...(finishSets ? { finishSets } : {}), ...(force ? { force: true } : {}) }, callback);
     }
 
     onPlayerJoined(callback) {

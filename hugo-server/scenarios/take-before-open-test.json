@@ -1,0 +1,67 @@
+{
+  "title": "Açmadan yandan alma",
+  "description": "Sen henüz açmadın. 1) Zeynep'in attığı mavi 9'u yerden al. 2) Mavi 9'u kullanmadan aç: kırmızı 11-12-13 ve mavi 10-11-12 (69). 3) Kırmızı 4'ü Ayşe'nin kırmızı 5-6-7 perinin başına işlemeyi dene: işlenmemeli, \"Yandan aldığın taşı önce yere aç\" uyarısı çıkmalı. 4) Mavi 9'u kendi mavi 10-11-12 perinin başına işle: işlenmeli, açılış 78 olmalı. 5) Şimdi kırmızı 4'ü işleyebilmelisin.",
+  "round": 2,
+  "indicator": "y5",
+  "seats": [
+    {
+      "name": "Sen",
+      "hand": [
+        "r11",
+        "r12",
+        "r13",
+        "k10",
+        "y10",
+        "b10",
+        "r4",
+        "k2",
+        "b11",
+        "b12",
+        "k9",
+        "y9",
+        "y1",
+        "r2"
+      ]
+    },
+    {
+      "name": "Ayşe",
+      "hand": [
+        "y12",
+        "b1",
+        "k11",
+        "b3",
+        "k4",
+        "y2",
+        "r9",
+        "k13",
+        "b6",
+        "y13",
+        "k5"
+      ]
+    },
+    {
+      "name": "Mehmet"
+    },
+    {
+      "name": "Zeynep"
+    }
+  ],
+  "tableSets": [
+    {
+      "owner": 1,
+      "tiles": [
+        "r5",
+        "r6",
+        "r7"
+      ]
+    }
+  ],
+  "discards": [
+    {
+      "owner": 3,
+      "tile": "b9"
+    }
+  ],
+  "turn": 0,
+  "action": "draw"
+}

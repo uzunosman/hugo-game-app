@@ -93,8 +93,9 @@
 
 .open-set-group.expanded .open-set-tile.is-okey {
     cursor: pointer;
-    opacity: 0.7;
+    box-shadow: inset 0 0 0 1.5px #c98a12; /* işlerken okey belli olsun (boş yuvaya benzemesin) */
 }
+.open-set-tile .okey-mark { color: #c98a12; font-size: 0.9em; line-height: 1; }
 .open-set-tile.purple { color: #9C27B0; }
 
 /* ── Genişlemiş durum: scale ile büyür, diğer setler hareket etmez ── */

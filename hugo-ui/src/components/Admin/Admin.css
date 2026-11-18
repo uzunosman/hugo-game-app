@@ -296,3 +296,15 @@ html:has(.yp) .app-version, html:has(.yp-login) .app-version, html:has(.yp) .set
 .yp .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .yp-chat { max-height: 220px; overflow-y: auto; }
 .yp-chat li.t-yonetici b { color: var(--turn); }
+
+/* ── Geçmiş: solda oyuncular, sağda oyunlar → el tablosu → elin dağıtımı ve hamleleri ── */
+.yp-hist { display: grid; grid-template-columns: minmax(200px, 280px) 1fr; gap: 14px; align-items: start; }
+@media (max-width: 760px) { .yp-hist { grid-template-columns: 1fr; } }
+.yp-hist-players input { width: 100%; box-sizing: border-box; padding: 9px 11px; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
+.yp-hist-players ul, .yp-hist-games { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.yp-hist-games { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); margin-top: 0; }
+.yp-hist-main { display: grid; gap: 14px; min-width: 0; }
+.yp-hist-game { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 10px; }
+.yp-hist-game h3 { margin: 0; color: var(--text); }
+.yp-hist-deal { display: grid; gap: 4px; }
+.yp-scores th.is-sel, .yp-scores td.is-sel { color: var(--turn); }

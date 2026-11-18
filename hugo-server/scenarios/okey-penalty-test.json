@@ -1,0 +1,23 @@
+{
+  "title": "Okey işleme cezası",
+  "description": "Gösterge sarı 2, okey sarı 3. Ayşe'nin kırmızı 13-12-11 peri var. Sen açmışsın, elinde okey (sarı 3) var. Desteden çek, okeyi Ayşe'nin perinin sonuna (11'in yanına) işle: okey 10'un yerine geçer, Ayşe'ye +100 ceza yazılmalı (140 değil). Sıfırla, bu kez Mehmet'in mavi 5-6-7 perinin başına işle: okey 4 → +40.",
+  "round": 7,
+  "indicator": "y2",
+  "seats": [
+    { "name": "Sen", "hand": ["y3", "b9", "k12", "y11", "b2", "k5", "r1", "y7"] },
+    { "name": "Ayşe", "hand": ["y1", "b1", "k11"] },
+    { "name": "Mehmet", "hand": ["k1", "k6", "y9"] },
+    { "name": "Zeynep" }
+  ],
+  "tableSets": [
+    { "owner": 0, "tiles": ["k2", "k3", "k4"] },
+    { "owner": 0, "tiles": ["y4", "y5", "y6"] },
+    { "owner": 1, "tiles": ["r13", "r12", "r11"] },
+    { "owner": 1, "tiles": ["b10", "b11", "b12"] },
+    { "owner": 2, "tiles": ["b5", "b6", "b7"] },
+    { "owner": 2, "tiles": ["r8", "r9", "r10"] }
+  ],
+  "deckTop": ["k9"],
+  "turn": 0,
+  "action": "draw"
+}

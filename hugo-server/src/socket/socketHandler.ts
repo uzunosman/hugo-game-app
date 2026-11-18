@@ -14,6 +14,7 @@ import { dayOf, dealSnapshot, findTile, logEvent, tileLabel } from '../utils/Eve
 import { checkToken, days, problems, statsOf, tableEvents } from '../utils/Admin';
 import { applyScenario, findScenario, listScenarios } from '../lab/scenario';
 import { createTask, getAttachment, getTask, listTasks, updateTask, userAction } from '../tasks/tasks';
+import { gameRounds, playerGames, roundEvents, searchPlayers } from '../utils/History';
 
 const BOT_NAMES = ['Robo Rıza', 'Robo Nur', 'Robo Can', 'Robo Ece'];
 const CHAT_MAX_LEN = 200;
@@ -504,7 +505,11 @@ export const setupSocketHandlers = (io: Server) => {
     io.use((socket, next) => {
         const given = socket.handshake.auth?.adminToken;
         if (given && checkToken(given)) socket.data.admin = true;
-        if (config.appEnv === 'staging' && !socket.data.admin) return next(new Error('admin-required'));
+        if (config.appEnv === 'staging' && !socket.data.admin) {
+            // Teşhis: staging'e giremeyen cihaz (anahtar yok / yanlış) günlükte görünsün; anahtarın kendisi yazılmaz
+            console.warn(`Staging bağlantısı reddedildi: anahtar ${given ? 'yanlış' : 'yok'} · ${String(socket.handshake.headers['user-agent'] || '').slice(0, 120)}`);
+            return next(new Error('admin-required'));
+        }
         next();
     });
 
@@ -656,6 +661,11 @@ export const setupSocketHandlers = (io: Server) => {
             return {};
         });
         // Masanın sohbeti (canlı izleme) ve yönetici olarak sohbete yazma: oyuncular "Yönetici" etiketiyle görür
+        // Oyun geçmişi: oyuncu ara → oyunları → elleri → bir elin dağıtımı ve hamleleri
+        admin('admin:historyPlayers', async (d) => ({ players: await searchPlayers(d?.q) }));
+        admin('admin:historyGames', async (d) => ({ games: await playerGames(d?.name) }));
+        admin('admin:historyGame', async (d) => ({ rounds: await gameRounds(d?.game) }));
+        admin('admin:historyRound', async (d) => ({ events: await roundEvents(d?.game, d?.round) }));
         admin('admin:tableChat', (d) => {
             const room = roomByNo(d?.no);
             if (!room) throw new Error('Masa yok');
@@ -1380,7 +1390,7 @@ export const setupSocketHandlers = (io: Server) => {
             }
         });
 
-        socket.on('game:discardTile', (data: { playerId: string, tileId: string, finishSets?: string[][] }, callback) => {
+        socket.on('game:discardTile', (data: { playerId: string, tileId: string, finishSets?: string[][]; force?: boolean }, callback) => {
             try {
                 if (!owns(data?.playerId)) return callback(notYours);
                 const { playerId, tileId } = data;
@@ -1405,8 +1415,9 @@ export const setupSocketHandlers = (io: Server) => {
                 const finishSets = Array.isArray(data.finishSets) && data.finishSets.every(st => Array.isArray(st) && st.every(id => typeof id === 'string'))
                     ? data.finishSets : undefined;
                 // Yardımlı masa: işlenebilir taş atılmaz (yapay zekâ ve süre dolunca otomatik atma bu yoldan geçmez)
-                if (settingsOf(room.settings).assisted && room.game.islekBlocked(playerId, tileId, !!finishSets)) {
-                    return callback({ success: false, error: 'Bu taş masadaki bir pere işlenebilir: işle ya da başka taş at' });
+                // force: oyuncu sürükleyip köşeye bıraktı (bilerek atıyor): atılır, işlek cezası yazılır
+                if (settingsOf(room.settings).assisted && !data.force && room.game.islekBlocked(playerId, tileId, !!finishSets)) {
+                    return callback({ success: false, error: 'Bu taş işlek: yine de atmak istersen sürükleyip köşeye bırak (işlek cezası yazılır)' });
                 }
                 callback(discardAndAdvance(player.roomId, room.game, playerId, tileId, finishSets));
             } catch (error) {

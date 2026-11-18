@@ -96,6 +96,40 @@ const ids = (tiles: Tile[]) => tiles.map(x => x.id);
     assert.ok(game.returnTakenTile(p1.id).tile, 'Kustu ile geri konur');
 }
 
+// Yandan alma ve işleme (görev #16): açmış oyuncu yandan alıp işleyebilir; açmamışken alan, alınan taşı açılışta
+// kullanmadan işleme yapamaz (alınan taşı kullanmadan açsa bile)
+{
+    const table = (game: Game, owner: Player) => game.tableSets.push({ id: 'k', playerId: owner.id, tiles: [t(RED, 5), t(RED, 6), t(RED, 7)], value: 18 });
+    // Açmış oyuncu
+    const a = setup(); a.game.round = 2; table(a.game, a.p0);
+    const [ax] = give(a.p0, [t(BLUE, 9), t(BLUE, 1)]);
+    assert.ok(a.game.discardTile(a.p0.id, ax.id).tile);
+    a.p1.isOpen = true;
+    const [ar4] = give(a.p1, [t(RED, 4), t(BLACK, 1), t(YELLOW, 6)]);
+    assert.ok(a.game.drawTile(a.p1.id, true));
+    assert.ok(a.game.addTileToSet(a.p1.id, ar4.id, 'k', 'start').success, 'açmış oyuncu yandan alıp işleyebilir');
+
+    // Açmamış oyuncu: alınan mavi 9'u kullanmadan açar, işleme yapamaz
+    const b = setup(); b.game.round = 2; table(b.game, b.p0);
+    const [bx] = give(b.p0, [t(BLUE, 9), t(BLUE, 1)]);
+    assert.ok(b.game.discardTile(b.p0.id, bx.id).tile);
+    const hand = give(b.p1, [t(RED, 11), t(RED, 12), t(RED, 13), t(BLACK, 10), t(YELLOW, 10), t(BLUE, 10), t(RED, 4), t(BLACK, 2)]);
+    assert.ok(b.game.drawTile(b.p1.id, true), 'açmamışken yandan alır');
+    assert.ok(b.game.openHand(b.p1.id, [ids(hand.slice(0, 3)), ids(hand.slice(3, 6))]).success, 'alınan taşı kullanmadan açar (66)');
+    const blocked = b.game.addTileToSet(b.p1.id, hand[6].id, 'k', 'start');
+    assert.strictEqual(blocked.success, false, 'alınan taş açılışta kullanılmadan işleme yapılamaz');
+    assert.match(blocked.error || '', /yere aç/);
+    // Alınan mavi 9 kendi perine işlenebilir (testte kendi perlerinden biri elle mavi 10-11-12 yapılır)
+    const own = b.game.tableSets.find(st => st.playerId === b.p1.id && st.tiles[0].value === 11)!;
+    own.tiles = [t(BLUE, 10), t(BLUE, 11), t(BLUE, 12)];
+    own.value = 33;
+    const before = b.p1.openedTotal;
+    const ok = b.game.addTileToSet(b.p1.id, bx.id, own.id, 'start');
+    assert.ok(ok.success, `alınan taş kendi perine işlenebilir: ${ok.error}`);
+    assert.strictEqual(b.p1.openedTotal, before + 9, 'açılış değeri artar');
+    assert.ok(b.game.addTileToSet(b.p1.id, hand[6].id, 'k', 'start').success, 'alınan taş kullanılınca işleme serbest');
+}
+
 // İşlek taş: masadaki pere eklenebilecek taşı atmak 100 ceza (Hugo dışı el); eli bitiren son taş muaf
 {
     const { game, p0, p1 } = setup();
@@ -721,6 +755,27 @@ for (const [round, amount] of [[2, 100], [5, 200]]) {
     const [ok, b5] = give(p0, [t(YELLOW, 2), t(BLUE, 5)]);
     assert.strictEqual(game.islekBlocked(p0.id, ok.id), false, 'okey bu kuralla engellenmez (okey atma cezası ayrı)');
     void b5;
+}
+
+// Okey işleme cezası okeyin oturduğu yerin değeriyle: azalan seride de (görev #14, masa 101730: 13-12-11 + okey = 10 → 100)
+{
+    const ok = () => t(YELLOW, 2); // setup: okey sarı 2
+    const cases: [Tile[], 'start' | 'end', number][] = [
+        [[t(RED, 13), t(RED, 12), t(RED, 11)], 'end', 100],
+        [[t(RED, 13), t(RED, 12), t(RED, 11)], 'start', 0], // 14 olamaz: öbür uca (10) işlenir → 100
+        [[t(RED, 5), t(RED, 6), t(RED, 7)], 'end', 80],
+        [[t(RED, 5), t(RED, 6), t(RED, 7)], 'start', 40],
+        [[t(RED, 9), t(BLUE, 9), t(BLACK, 9)], 'end', 90],
+    ];
+    for (const [tiles, pos, want] of cases) {
+        const { game, p0, p1 } = setup(); game.round = 2;
+        game.tableSets.push({ id: 'x', playerId: p1.id, tiles, value: 0 });
+        p0.isOpen = true;
+        const [o] = give(p0, [ok(), t(BLUE, 1), t(BLUE, 2)]);
+        const r = game.addTileToSet(p0.id, o.id, 'x', pos);
+        assert.ok(r.success, r.error);
+        assert.strictEqual(r.penalty?.amount, want || 100, `okey cezası ${tiles.map(x => x.value).join('-')} ${pos}`);
+    }
 }
 
 console.log('Rules.selftest: el açma, set doğrulama, sıra, işleme, yandan alma, işlek taş (yardımlı modda atılamaz), otomatik atış, Hugo, sahte okey, çift açma, çift işleme ve el sonu puanlama kuralları ✓');

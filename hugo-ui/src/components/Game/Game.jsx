@@ -646,7 +646,7 @@ function Game({ player, room, onGameFinished, onLeaveTable }) {
                 gameRound={gameState.round}
                 isHugoRound={gameState.isHugoRound}
                 onPlayGroup={onPlayGroup}
-                pendingSetIds={pendingOpen?.setIds}
+                pendingSetIds={pendingOpen?.playerId === player.id ? pendingOpen.setIds : undefined} // bekleyen açılış çerçevesi yalnızca açanda (görev #15)
                 onGroupMove={(group, grabIdx, targetIdx) => {
                     // Sürükleme sırasında ıstaka değiştiyse (sunucu olayı) eski seçimle taşınmaz
                     setTilePositions(prev => (prev === tilePositions && moveGroup(prev, group, grabIdx, targetIdx)) || prev);

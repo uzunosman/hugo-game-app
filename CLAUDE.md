@@ -58,7 +58,9 @@
   `attachments <id> <klasör>` → sonra scp ile al, Read ile bak). Akış: görev → `start` → geliştir + senaryo yaz →
   staging deploy → `ready --scenario` → kullanıcı "Test et" (staging `?scenario=`) → Onay / Revize → onayda
   "canlıya al" beklenir → deploy → `done`. Test: `TEST_DATABASE_URL=… npx ts-node scripts/e2e-tasks.ts`.
-- Yönetim ekranı: https://hugola.io/admin (masaları canlı izle, kapat, duyuru, günlük istatistik, sorunlar). Veriler Socket.IO
+- Yönetim ekranı: https://hugola.io/admin (menü: Panel · Görevler `/admin/tasks` · Geçmiş `/admin/history`). Panel: masaları
+  canlı izle / gizli izle, oyuncu kaldır (koltuk 15 sn bekler), yapay zekâ ekle, masa sohbeti (Yönetici olarak yaz), kapat,
+  duyuru, günlük istatistik, sorunlar. Geçmiş: oyuncu → oyunları → el tablosu → elin dağıtımı ve hamleleri (`utils/History.ts`). Veriler Socket.IO
   `admin:*` isteklerinden; anahtar `/var/lib/hugo/admin-token` (ya da `ADMIN_TOKEN`). Sunucu: `src/utils/Admin.ts`, arayüz: `components/Admin`.
 
 ## Ekran (sahne)

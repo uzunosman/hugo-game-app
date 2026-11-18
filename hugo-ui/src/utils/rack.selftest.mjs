@@ -111,6 +111,13 @@ const row = (cells) => [...cells, ...Array(CELLS_PER_ROW * 2 - cells.length).fil
     assert.strictEqual(isIslekTile(tile('red', 11), sets, null, false), true, 'kırmızı 11 aynı sayı perine uyar');
     assert.strictEqual(isIslekTile(tile('blue', 9), sets, null, false), false, 'çiftlere uyan taş işlek değil');
     assert.strictEqual(isIslekTile(tile('yellow', 3), sets, null, false), false);
+    // Okeyin yerini tuttuğu taş da işlek (görev #8): normal elde okey sarı 2, Hugo elinde sahte okey
+    const okey = { color: 'yellow', value: 2 };
+    const seq = [{ id: 'o', kind: 'seri', tiles: [tile('red', 6), tile('yellow', 2), tile('red', 8)] }];
+    assert.strictEqual(isIslekTile(tile('red', 7), seq, okey, false), true, 'okeyin yerindeki kırmızı 7 işlek');
+    assert.strictEqual(isIslekTile(tile('blue', 7), seq, okey, false), false, 'okeyin yerini tutmayan mavi 7 işlek değil');
+    const hugo = [{ id: 'h', tiles: [tile('red', 9), tile('blue', 9), tile('black', 9), tile('purple', 'H', { isJoker: true })] }];
+    assert.strictEqual(isIslekTile(tile('yellow', 9), hugo, null, true), true, 'Hugo elinde sahte okeyin yerindeki sarı 9 işlek');
 }
 
 // Dizince artan taşlar sağ alta yaslanır, en küçük taş en sağ alttaki hücrede (seri diz ve çift diz)

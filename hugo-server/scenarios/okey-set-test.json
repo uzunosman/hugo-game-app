@@ -1,0 +1,21 @@
+{
+  "title": "Okeyli pere işleme",
+  "description": "Ayşe'nin kırmızı 5 · okey · kırmızı 7 peri var (gösterge sarı 2, okey sarı 3: perde kırmızı 6'nın yerinde). Sen açmışsın. Desteden çek. Kırmızı 8'i perin sağına sürükle: per büyüyünce okey amber çerçeve ve ★ ile görünmeli, boş yuvayla karışmamalı. Kırmızı 6'yı okeyin üstüne bırakınca okeyi alırsın.",
+  "round": 2,
+  "indicator": "y2",
+  "seats": [
+    { "name": "Sen", "hand": ["r8", "r6", "b9", "k12", "y11", "b4", "k2", "r13"] },
+    { "name": "Ayşe", "hand": ["y1", "b1", "k11"] },
+    { "name": "Mehmet" },
+    { "name": "Zeynep" }
+  ],
+  "tableSets": [
+    { "owner": 0, "tiles": ["k1", "k2", "k3"] },
+    { "owner": 0, "tiles": ["y4", "y5", "y6"] },
+    { "owner": 1, "tiles": ["r5", "y3", "r7"] },
+    { "owner": 1, "tiles": ["b10", "b11", "b12"] }
+  ],
+  "deckTop": ["k9"],
+  "turn": 0,
+  "action": "draw"
+}

@@ -65,7 +65,10 @@ const useGameState = (player, room) => {
     // Biten ellerin sonuçları ve cezaları (tabelada ele tıklayınca gösterilir)
     const [roundHistory, setRoundHistory] = useState(room.game?.roundHistory || []);
     // Ceza kaydı: masadaki herkesin gördüğü son cezalar
-    const [penaltyLog, setPenaltyLog] = useState([]);
+    // Bu elin ceza kaydı sunucudan gelir: oyundan çıkıp girince / sayfa yenilenince liste silinmez (görev #13)
+    const [penaltyLog, setPenaltyLog] = useState(() => (room.game?.roundPenalties || []).map((p, i) => ({
+        id: `r-${i}`, playerId: p.playerId, tag: p.tag, playerName: p.playerName, tile: p.tile, amount: p.amount,
+    })));
     // Tur sonu sonuçları (null = tur devam ediyor)
     const [roundEndResults, setRoundEndResults] = useState(null);
     // Oyuncu açık durumları { playerId: { isOpen, openedTotal, lastOpenedValue } }

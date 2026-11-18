@@ -57,6 +57,6 @@ systemctl daemon-reload
 systemctl enable hugo-staging >/dev/null # kod ilk staging deploy'unda gelir, servis o zaman başlar
 
 # Web container'ı (Caddy, parola korumalı); prod container'ına dokunulmaz
-cd /opt/hugo/deploy/traefik && docker compose up -d hugo-web-staging </dev/null
+cd /opt/hugo/deploy/traefik && docker compose up -d --force-recreate hugo-web-staging </dev/null # yeni parola da devreye girsin
 
 echo "✔ Staging hazır. Sıradaki: Claude staging'e ilk deploy'u yapar."
