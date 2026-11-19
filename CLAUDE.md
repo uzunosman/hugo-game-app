@@ -70,6 +70,12 @@
 - Bekleme ekranı (`components/Room.jsx`, `Waiting.css`): masa etrafında koltuklar, boş koltukta Davet et / Yapay zekâ, sağda sesli
   sohbet + ayarlar. Masa sahibi kendiliğinden hazır (`Room.areAllPlayersReady`), Hazırım düğmesi yok.
 - Davet: bağlantı `?masa=<masa no>` (açan oturur); uygulama içi `invite:send` → lobideki oyuncuda davet kartı (20 sn).
+- Oyun sürerken masa sahibi yapay zekâyı çıkarır (`room:kickBot`): koltuk `VACANT_SEAT_MS` (15 sn) boş, kartta "YZ 12 sn" geri
+  sayımı (`vacantLeftMs`); boş koltuğa çağır / bağlantı / hemen yapay zekâ (`room:fillSeat`); kimse gelmezse yapay zekâ döner.
+- İzleme (`room:watch` / `watchState` / `watchTiles` / `unwatch`; istemci `Social/WatchTable` → `Game spectator`: oyun ekranının
+  kendisi, izlenen oyuncunun gözünden, dokunulmaz; çıkış + tabela çalışır; ıstaka dizilişi `rack:layout` → `watch:rack`): masa "ziyarete açık"sa
+  (`settings.spectators`, `room:setSpectators`) herkes bütün elleri görür; kapalıysa yalnızca masadakilerin arkadaşları, yalnızca
+  arkadaşının elini. Masadakiler izleyenleri görür (`room:watchers`). Test: `e2e-watch`.
 - Profil (`utils/Profiles.ts`): oyuncu (koltuk) kimliği masadan kalkınca değişir, profil değişmez; arkadaşlıklar profiller
   arasında (`friends:*`, `social:state`). Profiller app_state anlık görüntüsünde. İstemci anahtarı `hugo.account`
   (localStorage); "Hesabımı başka cihaza taşı" bağlantısı `?hesap=id.anahtar` (`profile:link`). Test: `e2e-quick`, `e2e-social`.

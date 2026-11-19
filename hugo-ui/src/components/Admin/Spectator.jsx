@@ -18,7 +18,8 @@ function T({ t, okey, size = '', dim }) {
     );
 }
 
-export default function Spectator({ no, call, socket, onClose }) {
+// Oyuncu da izleyebilir (Social/WatchTable): o zaman yalnızca görmeye izni olan eller gelir (m.eller), diğerlerinin taş sayısı (m.elSayisi)
+export default function Spectator({ no, call, socket, onClose, badge = 'gizli izleme · oyuncular görmez', label }) {
     const [m, setM] = useState(null);
     const [error, setError] = useState('');
     const [focus, setFocus] = useState(null);
@@ -59,18 +60,19 @@ export default function Spectator({ no, call, socket, onClose }) {
     const g = m?.oyun;
     const players = g?.players || [];
     const nameOf = Object.fromEntries(players.map(p => [p.id, p.name]));
-    const sel = focus || players.find(p => !m?.baglanti[p.id]?.bot)?.id || players[0]?.id;
+    const sel = focus || players.find(p => m?.eller[p.id] && !m?.baglanti[p.id]?.bot)?.id || players.find(p => m?.eller[p.id])?.id || players[0]?.id;
+    const count = (id) => m?.elSayisi?.[id] ?? m?.eller[id]?.length ?? 0;
     const okey = g?.okeyTile;
     const discardsBy = Object.fromEntries(players.map(p => [p.id, []]));
     (g?.discardPile || []).forEach((t, i) => { const o = g.discardOwners?.[i]; if (o && discardsBy[o]) discardsBy[o].push(t); });
     const lastDiscardId = g?.discardPile?.[g.discardPile.length - 1]?.id;
 
     return (
-        <div className="yp-spec" role="dialog" aria-modal="true" aria-label={`#${no} masasını gizli izleme`}>
+        <div className="yp-spec" role="dialog" aria-modal="true" aria-label={label || `#${no} masasını gizli izleme`}>
             <header className="yp-spec-top">
                 <div className="yp-spec-title">
                     <h2>#{no} · {m?.ad ?? '…'}</h2>
-                    <span className="yp-spec-badge">gizli izleme · oyuncular görmez</span>
+                    <span className="yp-spec-badge">{badge}{m?.izleyenler?.length ? ` · izleyen: ${m.izleyenler.join(', ')}` : ''}</span>
                 </div>
                 {g && (
                     <div className="yp-spec-info">
@@ -78,7 +80,7 @@ export default function Spectator({ no, call, socket, onClose }) {
                         <span>gösterge <T t={g.indicatorTile} /></span>
                         <span>okey {okey ? <T t={okey} /> : <T t={{ isJoker: true }} />}</span>
                         <span>deste <b>{g.deckCount}</b></span>
-                        <span>sıra <b>{nameOf[g.currentPlayerId] || '-'}</b>{left != null && <> · <b className={left <= 10 ? 'yp-warn' : ''}>{left} sn</b></>} · {g.turnAction === 'draw' && (m.eller[g.currentPlayerId]?.length ?? 0) < 15 ? 'çekecek' : 'atacak'}</span>
+                        <span>sıra <b>{nameOf[g.currentPlayerId] || '-'}</b>{left != null && <> · <b className={left <= 10 ? 'yp-warn' : ''}>{left} sn</b></>} · {g.turnAction === 'draw' && count(g.currentPlayerId) < 15 ? 'çekecek' : 'atacak'}</span>
                     </div>
                 )}
                 <button type="button" className="yp-spec-close" onClick={onClose}>Kapat</button>
@@ -94,7 +96,7 @@ export default function Spectator({ no, call, socket, onClose }) {
                                     className={`yp-spec-player ${sel === p.id ? 'is-sel' : ''} ${g.currentPlayerId === p.id ? 'is-turn' : ''}`}
                                     onClick={() => setFocus(p.id)}>
                                     <b>{p.name}</b>
-                                    <span>{p.totalScore} puan · {p.penaltyScore} ceza · {m.eller[p.id]?.length ?? 0} taş</span>
+                                    <span>{p.totalScore} puan · {p.penaltyScore} ceza · {count(p.id)} taş</span>
                                     <span>{c.bot ? 'yapay zekâ' : c.bagli ? <span className="yp-ok">bağlı</span> : <span className="yp-warn">kopuk</span>}{p.isOpen && ` · açtı (${p.openedTotal})`}</span>
                                 </button>
                             );
@@ -102,8 +104,10 @@ export default function Spectator({ no, call, socket, onClose }) {
                     </nav>
 
                     <section className="yp-spec-hand" aria-label={`${nameOf[sel]} eli`}>
-                        <h3>{nameOf[sel]} · eli <small>{m.eller[sel]?.length ?? 0} taş · renge göre sıralı</small></h3>
-                        <div className="yp-spec-tiles">{sortHand(m.eller[sel] || []).map(t => <T key={t.id} t={t} okey={okey} size="lg" />)}</div>
+                        <h3>{nameOf[sel]} · eli <small>{count(sel)} taş{m.eller[sel] ? ' · renge göre sıralı' : ''}</small></h3>
+                        {m.eller[sel]
+                            ? <div className="yp-spec-tiles">{sortHand(m.eller[sel]).map(t => <T key={t.id} t={t} okey={okey} size="lg" />)}</div>
+                            : <p className="yp-empty">Bu oyuncunun eli gizli: masa ziyarete açık değil, yalnızca arkadaşının elini görürsün.</p>}
                     </section>
 
                     <div className="yp-spec-grid">
@@ -170,7 +174,7 @@ export default function Spectator({ no, call, socket, onClose }) {
 
                     <section aria-label="Diğer eller">
                         <h3>Bütün eller</h3>
-                        {players.filter(p => p.id !== sel).map(p => (
+                        {players.filter(p => p.id !== sel && m.eller[p.id]).map(p => (
                             <div key={p.id} className="yp-spec-owner">
                                 <button type="button" className="yp-link yp-spec-owner-name" onClick={() => setFocus(p.id)}>{p.name}</button>
                                 <div className="yp-spec-sets">{sortHand(m.eller[p.id] || []).map(t => <T key={t.id} t={t} okey={okey} />)}</div>

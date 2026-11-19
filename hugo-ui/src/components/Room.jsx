@@ -26,6 +26,13 @@ function Room({ player, room, onLeaveRoom }) {
     const [invited, setInvited] = useState({}); // çağrılan profiller (düğme "Çağrıldı" olur)
     const [renaming, setRenaming] = useState(null); // masa adı düzenleniyor: yazılan ad
     const [note, setNote] = useState('');
+    const [watchers, setWatchers] = useState([]); // masayı izleyenlerin adları
+    useEffect(() => {
+        const s = socketService.socket;
+        const on = (d) => { if (d?.roomId === room.id) setWatchers(d.names || []); };
+        s.on('room:watchers', on);
+        return () => s.off('room:watchers', on);
+    }, [room.id]);
 
     useEffect(() => {
         // Oyuncu katılma olayını dinle
@@ -170,17 +177,6 @@ function Room({ player, room, onLeaveRoom }) {
         />
     );
 
-    // Eğer oyun başladıysa, Game bileşenini göster
-    if (currentRoom.status === 'playing' && currentRoom.game) {
-        // Aynı masada yeni oyun başlayınca (oyun id'si değişir) oyun ekranı baştan kurulur
-        return (
-            <>
-                <Game key={currentRoom.game.id} player={player} room={currentRoom} onGameFinished={setFinalResults} onLeaveTable={handleLeaveTable} voice={voice} />
-                {finalSummary}
-            </>
-        );
-    }
-
     const tableLink = `${location.origin}/?masa=${currentRoom.no}`;
     const shareTable = async () => {
         const r = await shareLink({ title: `Hugo · ${currentRoom.name}`, text: `${currentRoom.name} masasına gel, bir el atalım`, url: tableLink });
@@ -197,6 +193,33 @@ function Room({ player, room, onLeaveRoom }) {
         if (r?.success) { setInvited(m => ({ ...m, [p.id]: true })); setNote(`${p.name} çağrıldı`); }
         else setError(r?.error || 'Çağrılamadı');
     });
+
+    const inviteSheet = inviteOpen && (
+                <div className="sdialog-back" onClick={() => setInviteOpen(false)}>
+                    <section className="wait-invite-sheet" role="dialog" aria-modal="true" aria-label="Masaya davet et" onClick={(e) => e.stopPropagation()}>
+                        <div className="wait-box-head">
+                            <h2>Masaya davet et</h2>
+                            <button type="button" className="wait-icon is-quiet" onClick={() => setInviteOpen(false)} aria-label="Kapat">×</button>
+                        </div>
+                        <button type="button" className="sbtn sbtn-amber" onClick={shareTable}>Bağlantıyı paylaş (WhatsApp vb.)</button>
+                        {note && <p className="wait-note" role="status">{note}</p>}
+                        <SocialPanel social={social} registered onInvite={inviteProfile} invited={invited} compact />
+                    </section>
+                </div>
+            );
+
+    // Eğer oyun başladıysa, Game bileşenini göster
+    if (currentRoom.status === 'playing' && currentRoom.game) {
+        // Aynı masada yeni oyun başlayınca (oyun id'si değişir) oyun ekranı baştan kurulur
+        return (
+            <>
+                <Game key={currentRoom.game.id} player={player} room={currentRoom} onGameFinished={setFinalResults} onLeaveTable={handleLeaveTable} voice={voice}
+                    watchers={watchers} onInvite={() => setInviteOpen(true)} onShare={shareTable} />
+                {finalSummary}
+                {inviteSheet}
+            </>
+        );
+    }
 
     // Koltuklar masanın etrafında: ben altta, sonra oyun sırasıyla sağ, üst, sol
     const myIndex = Math.max(0, currentRoom.players.findIndex(p => p.id === player.id));
@@ -227,7 +250,7 @@ function Room({ player, room, onLeaveRoom }) {
                         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z" /><path d="M13.5 6.5l4 4" /></svg>
                     </button>
                 )}
-                <span className="wait-sub">#{currentRoom.no} · {waitingFor > 0 ? `${waitingFor} oyuncu daha bekleniyor` : allPlayersReady ? 'herkes hazır' : 'herkesin hazır olması bekleniyor'}</span>
+                <span className="wait-sub" title={watchers.length ? `İzleyen: ${watchers.join(', ')}` : undefined}>{watchers.length > 0 && `${watchers.length} izleyen · `}#{currentRoom.no} · {waitingFor > 0 ? `${waitingFor} oyuncu daha bekleniyor` : allPlayersReady ? 'herkes hazır' : 'herkesin hazır olması bekleniyor'}</span>
                 <span className="lob-grow" />
                 <button type="button" className="sbtn sbtn-line wait-share" onClick={shareTable}>
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7" /><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" /></svg>
@@ -314,6 +337,14 @@ function Room({ player, room, onLeaveRoom }) {
                                 })} />
                             Sesli sohbet
                         </label>
+                        <label className="wait-opt">
+                            <input type="checkbox" checked={!!currentRoom.settings?.spectators} disabled={!isOwner}
+                                onChange={(e) => socketService.socket.emit('room:setSpectators', { roomId: currentRoom.id, playerId: player.id, value: e.target.checked }, (r) => {
+                                    if (r?.success) setCurrentRoom(r.room); else setError(r?.error || 'Ayar değiştirilemedi');
+                                })} />
+                            Ziyarete açık
+                        </label>
+                        <p>{currentRoom.settings?.spectators ? 'Herkes izleyebilir, bütün eller görünür.' : 'Kapalıyken yalnızca arkadaşlar izler, her biri yalnızca arkadaşının elini görür.'}</p>
                         {!isOwner && <p>Ayarları masa sahibi değiştirir.</p>}
                     </section>
 
@@ -333,19 +364,7 @@ function Room({ player, room, onLeaveRoom }) {
                 </aside>
             </div>
 
-            {inviteOpen && (
-                <div className="sdialog-back" onClick={() => setInviteOpen(false)}>
-                    <section className="wait-invite-sheet" role="dialog" aria-modal="true" aria-label="Masaya davet et" onClick={(e) => e.stopPropagation()}>
-                        <div className="wait-box-head">
-                            <h2>Masaya davet et</h2>
-                            <button type="button" className="wait-icon is-quiet" onClick={() => setInviteOpen(false)} aria-label="Kapat">×</button>
-                        </div>
-                        <button type="button" className="sbtn sbtn-amber" onClick={shareTable}>Bağlantıyı paylaş (WhatsApp vb.)</button>
-                        {note && <p className="wait-note" role="status">{note}</p>}
-                        <SocialPanel social={social} registered onInvite={inviteProfile} invited={invited} compact />
-                    </section>
-                </div>
-            )}
+            {inviteSheet}
         </div>
     );
 }

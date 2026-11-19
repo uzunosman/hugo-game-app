@@ -126,3 +126,11 @@ button.mtable-seat:focus-visible { outline: 3px solid #fff; outline-offset: 2px;
 .social-who small { font-size: 11px; color: var(--l-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .social-two { display: inline-flex; gap: 4px; }
 .social-empty { margin: 0; font-size: 12px; line-height: 1.4; color: var(--l-mute); }
+
+/* Küçük masada İzle düğmesi (ziyarete açık ya da arkadaşının masası) */
+.mtable-watch {
+    position: absolute; right: 0; top: 0; z-index: 1; display: inline-flex; align-items: center; gap: 4px; min-height: 26px; padding: 0 8px;
+    border: 0; border-radius: 13px; background: rgba(0, 0, 0, 0.35); color: #fff; font: 700 11px var(--l-text); cursor: pointer;
+}
+.mtable-watch svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; }
+.mtable-watch:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }

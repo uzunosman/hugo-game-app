@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import socketService from '../services/socketService';
 import { flyTilesIn, flyToCorner, flyToPlayer, playerPanelRect } from '../utils/flyTiles';
 import { penaltyBurst } from '../utils/penaltyBurst';
@@ -81,7 +81,35 @@ const useGameState = (player, room) => {
     });
 
     // Istaka dizilişi sekmede saklanır: sayfa yenilenince oyuncunun düzeni kaybolmaz
-    useEffect(() => { writeRack(player.id, tilePositions); }, [player.id, tilePositions]);
+    // İzleme: bu ekran izlenen oyuncunun gözünden çizilir (Game spectator); ıstaka onun dizilişini izler
+    const spectating = !!socketService.watching;
+    const tilesRef = useRef([]);
+    useEffect(() => { tilesRef.current = tiles; }, [tiles]);
+    useEffect(() => {
+        if (spectating) return undefined;
+        writeRack(player.id, tilePositions);
+        // Dizilişi izleyenler görsün (sunucu yalnızca bu eli görebilen izleyene iletir)
+        const t = setTimeout(() => socketService.socket?.emit('rack:layout', { playerId: player.id, layout: tilePositions }), 300);
+        return () => clearTimeout(t);
+    }, [player.id, tilePositions, spectating]);
+    useEffect(() => {
+        if (!spectating) return undefined;
+        const s = socketService.socket;
+        const onRack = (d) => { if (d?.seatId === player.id) setTilePositions(reconcilePositions(d.layout, tilesRef.current)); };
+        // Masada her olayda (çekme, atma, işleme…) izlenen el yeniden alınır
+        let pending = null;
+        const refresh = () => {
+            if (pending) return;
+            pending = setTimeout(() => {
+                pending = null;
+                socketService.requestTiles(player.id, (r) => { if (r?.success) applyTiles(r.tiles, r.layout); });
+            }, 200);
+        };
+        const onAny = (event) => { if (/^(game|player):/.test(event)) refresh(); };
+        s.on('watch:rack', onRack);
+        s.onAny(onAny);
+        return () => { s.off('watch:rack', onRack); s.offAny(onAny); clearTimeout(pending); };
+    }, [spectating, player.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // El değişince ıstaka elle uyumlanır (bkz. reconcilePositions)
     useEffect(() => {
@@ -89,10 +117,10 @@ const useGameState = (player, room) => {
     }, [tiles]);
 
     // Gelen taş listesini state'e ve pozisyonlara uygula
-    const applyTiles = (tileList) => {
+    const applyTiles = (tileList, layout) => {
         setTiles(tileList);
-        // Sayfa yenilendiyse aynı elin dizilişi geri gelir (yeni elde taş id'leri farklı olduğundan eşleşmez)
-        const saved = readRack(player.id);
+        // Sayfa yenilendiyse aynı elin dizilişi geri gelir (yeni elde taş id'leri farklı olduğundan eşleşmez); izlerken oyuncunun dizilişi
+        const saved = layout || (spectating ? null : readRack(player.id));
         if (saved && tileList.some(t => saved.includes(t.id))) {
             setTilePositions(reconcilePositions(saved, tileList));
             return;
@@ -121,7 +149,7 @@ const useGameState = (player, room) => {
         if (room.game && room.status === 'playing') {
             socketService.requestTiles(player.id, (response) => {
                 if (response.success && response.tiles?.length > 0) {
-                    applyTiles(response.tiles);
+                    applyTiles(response.tiles, response.layout);
                 }
             });
         }
@@ -393,7 +421,7 @@ const useGameState = (player, room) => {
             // Taşları server'dan iste
             socketService.requestTiles(player.id, (response) => {
                 if (response.success && response.tiles?.length > 0) {
-                    applyTiles(response.tiles);
+                    applyTiles(response.tiles, response.layout);
                 }
             });
         });

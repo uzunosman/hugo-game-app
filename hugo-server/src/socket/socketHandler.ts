@@ -422,6 +422,9 @@ export const setupSocketHandlers = (io: Server) => {
     const notifyProfiles = (ids: (string | undefined)[]) =>
         ids.forEach(id => id && profileSockets(id).forEach(s => io.to(s).emit('friends:changed')));
     const INVITE_MS = 20_000;
+    // İzleyenler: masa → (soket → ad); masadakiler adlarını görür
+    const watchers = new Map<string, Map<string, string>>();
+    const watcherNames = (roomId: string) => [...(watchers.get(roomId)?.values() || [])];
     const inviteSentAt = new Map<string, number>();
 
     // ── Sesli sohbet (WebRTC; sunucu yalnızca bağlantı kurma mesajlarını aktarır, ses oyuncular arasında doğrudan gider) ──
@@ -534,6 +537,7 @@ export const setupSocketHandlers = (io: Server) => {
         chatLogs.delete(roomId);
         voiceMembers.delete(roomId);
         voiceState.delete(roomId);
+        watchers.delete(roomId);
         const entry = gameManager.archiveRoom(roomId, reason);
         if (!entry) return;
         try { if (config.persist) appendArchive(entry); } catch (error) { console.error('Arşiv yazılamadı:', error); }
@@ -1004,6 +1008,7 @@ export const setupSocketHandlers = (io: Server) => {
         // Oda Olayları
         socket.on('room:create', (data: { name: string, playerId: string, voice?: boolean }, callback) => {
             try {
+                stopWatching(); // izlerken masaya oturan izlemeyi bırakır
                 const { playerId } = data;
                 // Ad sorulmaz: açık masalarda olmayan bir şehir adı (sahip bekleme ekranında değiştirebilir)
                 const name = (typeof data?.name === 'string' && data.name.trim().slice(0, 30)) || pickCity(gameManager.getAllRooms().map(r => r.name));
@@ -1076,7 +1081,7 @@ export const setupSocketHandlers = (io: Server) => {
             const card = (id: string) => {
                 const p = gameManager.profiles.get(id);
                 const o = online.get(id);
-                return p ? { id, name: o?.name || p.name, avatar: o?.avatar || p.avatar, online: !!o, where: o?.where || null, roomName: o?.roomName || null } : null;
+                return p ? { id, name: o?.name || p.name, avatar: o?.avatar || p.avatar, online: !!o, where: o?.where || null, roomName: o?.roomName || null, roomId: o?.roomId || null } : null;
             };
             const friends = me.profile.friends.map(card).filter(Boolean);
             const requests = me.profile.requests.map(card).filter(Boolean);
@@ -1118,7 +1123,8 @@ export const setupSocketHandlers = (io: Server) => {
             const me = meOf(data?.playerId);
             if (!me) return callback?.(noProfile);
             const room = me.player.roomId ? gameManager.getRoomById(me.player.roomId) : undefined;
-            if (!room || room.status !== RoomStatus.WAITING || room.players.length >= room.maxPlayers) return callback?.({ success: false, error: 'Davet için masada boş koltuk olmalı' });
+            const hasSeat = room && (room.status === RoomStatus.WAITING ? room.players.length < room.maxPlayers : room.players.some(p => p.vacantUntil));
+            if (!room || !hasSeat) return callback?.({ success: false, error: 'Davet için masada boş koltuk olmalı' });
             const target = onlineProfiles().get(data?.to);
             if (!target || data.to === me.profile.id) return callback?.({ success: false, error: 'Oyuncu şu an çevrimiçi değil' });
             if (target.roomId) return callback?.({ success: false, error: `${target.name} şu an başka bir masada` });
@@ -1134,9 +1140,127 @@ export const setupSocketHandlers = (io: Server) => {
             callback?.({ success: true });
         });
 
+        // Oyun sürerken masa sahibi yapay zekâyı masadan çıkarır: koltuk süre boyunca (vacantSeatMs) boş kalır; davet edilen
+        // ya da lobiden gelen oturabilir, sahip hemen yapay zekâ koyabilir; kimse oturmazsa yapay zekâ geri gelir
+        socket.on('room:kickBot', (data: { roomId: string; playerId: string; botId: string }, callback) => {
+            const room = gameManager.getRoomById(data?.roomId);
+            const bot = room?.players.find(p => p.id === data?.botId);
+            if (!room || !owns(data?.playerId) || room.owner.id !== data.playerId) return callback?.({ success: false, error: 'Yalnızca masa sahibi çıkarabilir' });
+            if (room.status !== RoomStatus.PLAYING || !room.game) return callback?.({ success: false, error: 'Oyun sürmüyor' });
+            if (!bot?.isBot) return callback?.({ success: false, error: 'Yalnızca yapay zekâ çıkarılabilir' });
+            if (room.players.some(p => p.vacantUntil)) return callback?.({ success: false, error: 'Masada zaten boş koltuk var' });
+            logEvent('masa', { masa: room.no, islem: 'yz-cikar', oyuncu: bot.name });
+            kickPlayer(room, bot, '');
+            broadcastRooms();
+            persist();
+            callback?.({ success: true });
+        });
+        // Boş koltuğa hemen yapay zekâ (masa sahibi)
+        socket.on('room:fillSeat', (data: { roomId: string; playerId: string }, callback) => {
+            const room = gameManager.getRoomById(data?.roomId);
+            if (!room || !owns(data?.playerId) || room.owner.id !== data.playerId) return callback?.({ success: false, error: 'Yalnızca masa sahibi ekleyebilir' });
+            const vacant = room.players.find(p => p.vacantUntil);
+            if (!vacant) return callback?.({ success: false, error: 'Boş koltuk yok' });
+            fillVacant(room.id, vacant.id);
+            callback?.({ success: true });
+        });
+
+        // Ziyarete açık (masa sahibi): herkes izleyebilir, bütün eller görünür
+        socket.on('room:setSpectators', (data: { roomId: string; playerId: string; value: boolean }, callback) => {
+            const room = gameManager.getRoomById(data?.roomId);
+            if (!room || !owns(data?.playerId) || room.owner.id !== data.playerId) return callback?.({ success: false, error: 'Yalnızca masa sahibi değiştirebilir' });
+            room.settings.spectators = !!data.value;
+            io.to(room.id).emit('player:joined', { success: true, room: room.toJSON() });
+            broadcastRooms();
+            persist();
+            callback?.({ success: true, room: room.toJSON() });
+        });
+
+        // İzleme: lobideki oyuncu, ziyarete açık masayı ya da arkadaşının masasını izler (oyuna karışamaz).
+        // Görebileceği eller her istekte yeniden hesaplanır (arkadaşlık bitince el gizlenir).
+        const watchView = (room: Room, viewer: { profile: { id: string; friends: string[] } }) => {
+            const open = !!room.settings?.spectators;
+            const friendSeats = room.players.filter(p => !p.isBot && p.profileId && viewer.profile.friends.includes(p.profileId)).map(p => p.id);
+            if (!open && !friendSeats.length) return null;
+            const visible = open ? room.players.map(p => p.id) : friendSeats;
+            const g = room.game;
+            const deadline = turnDeadlines.get(room.id);
+            return {
+                no: room.no, ad: room.name, durum: room.status, acik: open,
+                oyun: g ? g.toPublicJSON() : null,
+                eller: Object.fromEntries(room.players.filter(p => visible.includes(p.id)).map(p => [p.id, p.tiles.map(t => t.toJSON())])),
+                elSayisi: Object.fromEntries(room.players.map(p => [p.id, p.tiles.length])),
+                baglanti: Object.fromEntries(room.players.map(p => [p.id, { bot: !!p.isBot, bagli: !!p.connected }])),
+                cezalar: g?.roundPenalties ?? [],
+                kalanSn: deadline && g?.status === GameStatus.STARTED ? Math.max(0, Math.round((deadline - Date.now()) / 1000)) : null,
+                izleyenler: watcherNames(room.id),
+                gorunur: visible,
+            };
+        };
+        const stopWatching = () => {
+            const roomId = socket.data.watchRoom as string | undefined;
+            if (!roomId) return;
+            socket.leave(roomId);
+            socket.data.watchRoom = null;
+            watchers.get(roomId)?.delete(socket.id);
+            io.to(roomId).emit('room:watchers', { roomId, names: watcherNames(roomId) });
+        };
+        socket.on('room:watch', (data: { playerId: string; roomId: string }, callback) => {
+            const me = meOf(data?.playerId);
+            if (!me) return callback?.(noProfile);
+            if (me.player.roomId) return callback?.({ success: false, error: 'Masadayken başka masa izlenemez' });
+            const room = gameManager.getRoomById(data?.roomId);
+            const view = room && watchView(room, me);
+            if (!room || !view) return callback?.({ success: false, error: 'Bu masa izlemeye açık değil' });
+            if (socket.data.watchRoom !== room.id) {
+                stopWatching();
+                socket.join(room.id);
+                socket.data.watchRoom = room.id;
+                if (!watchers.has(room.id)) watchers.set(room.id, new Map());
+                watchers.get(room.id)!.set(socket.id, me.player.name);
+                io.to(room.id).emit('room:watchers', { roomId: room.id, names: watcherNames(room.id) });
+            }
+            callback?.({ success: true, masa: watchView(room, me), room: room.toJSON() });
+        });
+        // İzlenen koltuğun eli ve ıstaka dizilişi (izleyen o oyuncunun gözünden görür); izin her istekte denetlenir
+        socket.on('room:watchTiles', (data: { playerId: string; seatId: string }, callback) => {
+            const me = meOf(data?.playerId);
+            const room = socket.data.watchRoom ? gameManager.getRoomById(socket.data.watchRoom) : undefined;
+            const view = me && room && watchView(room, me);
+            const seat = room?.players.find(p => p.id === data?.seatId);
+            if (!view || !seat || !view.gorunur.includes(seat.id)) return callback?.({ success: false, error: 'Bu el izlenemiyor' });
+            callback?.({ success: true, tiles: seat.tiles.map(t => t.toJSON()), layout: seat.rackLayout || null });
+        });
+        socket.on('room:watchState', (data: { playerId: string }, callback) => {
+            const me = meOf(data?.playerId);
+            const room = socket.data.watchRoom ? gameManager.getRoomById(socket.data.watchRoom) : undefined;
+            const view = me && room && watchView(room, me);
+            if (!view) { stopWatching(); return callback?.({ success: false, error: 'Masa artık izlenemiyor' }); }
+            callback?.({ success: true, masa: view });
+        });
+        socket.on('room:unwatch', (_d: unknown, callback) => { stopWatching(); callback?.({ success: true }); });
+        socket.on('disconnect', stopWatching);
+
+        // Istaka dizilişi: oyuncu dizdikçe gönderir, o koltuğu görebilen izleyenlere iletilir
+        socket.on('rack:layout', (data: { playerId: string; layout: (string | null)[] }) => {
+            if (!owns(data?.playerId) || !Array.isArray(data.layout) || data.layout.length > 40) return;
+            const player = gameManager.getPlayerById(data.playerId);
+            const room = player?.roomId ? gameManager.getRoomById(player.roomId) : undefined;
+            if (!player || !room) return;
+            player.rackLayout = data.layout.map(x => (typeof x === 'string' ? x.slice(0, 64) : null));
+            for (const sid of watchers.get(room.id)?.keys() || []) {
+                const ws = io.sockets.sockets.get(sid);
+                const viewer = ws && gameManager.getPlayerBySocketId(sid);
+                const profile = gameManager.profiles.get(viewer?.profileId);
+                const view = profile && watchView(room, { profile });
+                if (view?.gorunur.includes(player.id)) ws!.emit('watch:rack', { seatId: player.id, layout: player.rackLayout });
+            }
+        });
+
         // Hızlı oyna: şehir adlı masa açılır, 3 yapay zekâ oturur, oyun hemen başlar
         socket.on('room:quickPlay', (data: { playerId: string }, callback) => {
             try {
+                stopWatching(); // izlerken masaya oturan izlemeyi bırakır
                 if (!owns(data?.playerId)) return callback?.(notYours);
                 const player = gameManager.getPlayerById(data.playerId);
                 if (!player) return callback?.({ success: false, error: 'Oyuncu bulunamadı' });
@@ -1170,6 +1294,7 @@ export const setupSocketHandlers = (io: Server) => {
 
         socket.on('room:join', (data: { roomId: string, playerId: string }, callback) => {
             try {
+                stopWatching(); // izlerken masaya oturan izlemeyi bırakır
                 const { roomId, playerId } = data;
 
                 const player = gameManager.getPlayerById(playerId);

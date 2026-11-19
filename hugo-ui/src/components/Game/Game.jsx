@@ -27,7 +27,9 @@ import VoiceControls from '../Voice/VoiceControls';
  * @param {Object} props.room - Oda bilgisi
  * @returns {JSX.Element} - Oyun bileşeni
  */
-function Game({ player, room, onGameFinished, onLeaveTable, voice }) {
+// spectator: izleme (Social/WatchTable). Ekran izlenen oyuncunun gözünden aynen çizilir, hiçbir şey dokunulmaz;
+// yalnızca çıkış, tabela, ceza kaydı ve el sonu penceresi çalışır (Voice.css .is-spectator).
+function Game({ player, room, onGameFinished, onLeaveTable, voice, watchers = [], onInvite, onShare, spectator = false, onExit }) {
     // Oyun durumu ve taşlarla ilgili state'leri al
     const {
         tiles,
@@ -63,7 +65,26 @@ function Game({ player, room, onGameFinished, onLeaveTable, voice }) {
 
     // Sesli sohbet (Room'da kurulur: bekleme ekranında başlayan sohbet oyunda kesilmeden sürer; hooks/useVoice.js)
     const [voiceMenu, setVoiceMenu] = useState(null); // susturma penceresi açık oyuncu
-    useEffect(() => { if (!voice?.on) setVoiceMenu(null); }, [voice?.on]);
+    // Boş koltuk geri sayımı (masa sahibi yapay zekâyı çıkardı ya da admin kaldırdı): koltuk kimliği → bitiş anı
+    const [vacantEnd, setVacantEnd] = useState({});
+    const [, setTick] = useState(0);
+    useEffect(() => {
+        setVacantEnd(prev => {
+            const next = {};
+            room.players.forEach(p => { if (p.vacant) next[p.id] = prev[p.id] || Date.now() + (p.vacantLeftMs || 0); });
+            return next;
+        });
+    }, [room.players]);
+    const hasVacant = Object.keys(vacantEnd).length > 0;
+    useEffect(() => {
+        if (!hasVacant) return undefined;
+        const t = setInterval(() => setTick(n => n + 1), 500);
+        return () => clearInterval(t);
+    }, [hasVacant]);
+    const isOwner = room.owner?.id === player.id;
+    const seatAction = (event, data) => socketService.socket.emit(event, { roomId: room.id, playerId: player.id, ...data }, (r) => {
+        if (!r?.success) setError(r?.error || 'Yapılamadı');
+    });
 
     useEffect(() => {
         setSummaryReady(false);
@@ -553,7 +574,8 @@ function Game({ player, room, onGameFinished, onLeaveTable, voice }) {
     );
 
     return (
-        <div className="game-container" onClick={onBlankClick}>
+        <div className={`game-container ${spectator ? 'is-spectator' : ''}`} onClick={spectator ? undefined : onBlankClick}>
+            {spectator && <div className="spectator-banner" role="status">İzliyorsun: {player.name}</div>}
             {notices.length > 0 && (
                 <div className="game-toasts" role="status">
                     {notices.map(n => <div key={n.id} className="game-toast">{n.msg}</div>)}
@@ -579,13 +601,28 @@ function Game({ player, room, onGameFinished, onLeaveTable, voice }) {
                         isTopOpener={!!openState?.isOpen && topOpened > 0 && openState.openedTotal === topOpened}
                         muted={!!voice?.isMuted(p.id)}
                         speaking={!!voice?.on && voice.isSpeaking(p.id)}
-                        onClick={voice?.on && index !== 0 && !p.isBot ? (e) => { e.stopPropagation(); setVoiceMenu(m => (m === p.id ? null : p.id)); } : undefined}
-                        menu={voiceMenu === p.id && voice?.on ? (
+                        vacantLeft={p.vacant && vacantEnd[p.id] ? Math.max(0, Math.ceil((vacantEnd[p.id] - Date.now()) / 1000)) : null}
+                        // Karta dokununca küçük pencere: sesli sohbette susturma; masa sahibine yapay zekâyı çıkar; boş koltukta
+                        // davet et / yapay zekâ koy / bağlantıyı paylaş
+                        onClick={index !== 0 && ((voice?.on && !p.isBot && !p.vacant) || (isOwner && p.isBot) || p.vacant) ? (e) => { e.stopPropagation(); setVoiceMenu(m => (m === p.id ? null : p.id)); } : undefined}
+                        menu={voiceMenu === p.id ? (
                             <div className="voice-menu" role="menu" onClick={(e) => e.stopPropagation()}>
-                                <b>{p.name}</b>
-                                <button type="button" role="menuitem" autoFocus onClick={() => { voice.mute(p.id, !voice.isMuted(p.id)); setVoiceMenu(null); }}>
-                                    {voice.isMuted(p.id) ? 'Sesini aç' : 'Sessize al'}
-                                </button>
+                                <b>{p.vacant ? 'Boş koltuk' : p.name}</b>
+                                {voice?.on && !p.isBot && !p.vacant && (
+                                    <button type="button" role="menuitem" autoFocus onClick={() => { voice.mute(p.id, !voice.isMuted(p.id)); setVoiceMenu(null); }}>
+                                        {voice.isMuted(p.id) ? 'Sesini aç' : 'Sessize al'}
+                                    </button>
+                                )}
+                                {isOwner && p.isBot && (
+                                    <button type="button" role="menuitem" autoFocus onClick={() => { seatAction('room:kickBot', { botId: p.id }); setVoiceMenu(null); }}>Masadan çıkar</button>
+                                )}
+                                {p.vacant && (
+                                    <>
+                                        <button type="button" role="menuitem" autoFocus onClick={() => { onInvite?.(); setVoiceMenu(null); }}>Davet et</button>
+                                        <button type="button" role="menuitem" onClick={() => { onShare?.(); setVoiceMenu(null); }}>Bağlantıyı paylaş</button>
+                                        {isOwner && <button type="button" role="menuitem" onClick={() => { seatAction('room:fillSeat'); setVoiceMenu(null); }}>Yapay zekâ koy</button>}
+                                    </>
+                                )}
                             </div>
                         ) : null}
                         penaltyScore={openState?.penaltyScore || 0}
@@ -709,14 +746,24 @@ function Game({ player, room, onGameFinished, onLeaveTable, voice }) {
 
             <RotateHint />
             <PenaltyLog entries={penaltyLog} round={gameState.round} myId={player.id} />
-            {voice?.on && (
+            {!spectator && voice?.on && (
                 <VoiceControls mic={voice.mic} speaker={voice.speaker} connected={voice.connected}
                     busy={voice.busy} onMic={voice.toggleMic} onSpeaker={voice.toggleSpeaker} />
             )}
-            <Chat playerId={player.id} />
+            {!spectator && <Chat playerId={player.id} />}
 
             {/* Sağ üst: el bilgisi ve tabela */}
-            {room?.no ? <div className="table-no" aria-label={`Masa numarası ${room.no}`}>#{room.no}</div> : null}
+            {room?.no ? (
+                <div className="table-no" aria-label={`Masa numarası ${room.no}${watchers.length ? `, ${watchers.length} izleyen: ${watchers.join(', ')}` : ''}`} title={watchers.length ? `İzleyen: ${watchers.join(', ')}` : undefined}>
+                    #{room.no}
+                    {watchers.length > 0 && (
+                        <span className="table-watchers">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></svg>
+                            {watchers.length}
+                        </span>
+                    )}
+                </div>
+            ) : null}
             {room?.lab && <SeatSwitcher room={room} player={player} />}
             <div className="top-right-tools">
                 <div className="round-chip" aria-label={`${gameState.round}. el${gameState.isHugoRound ? ', Hugo eli' : ''}`}>
@@ -728,7 +775,13 @@ function Game({ player, room, onGameFinished, onLeaveTable, voice }) {
                     playerOpenStates={playerOpenStates}
                     roundHistory={roundHistory}
                 />
-                {!isGameOver && <LeaveTable onLeave={onLeaveTable} />}
+                {spectator ? (
+                    <button type="button" className="scoreboard-toggle" onClick={onExit} title="İzlemeyi bırak" aria-label="İzlemeyi bırak, lobiye dön">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
+                        </svg>
+                    </button>
+                ) : !isGameOver && <LeaveTable onLeave={onLeaveTable} />}
             </div>
 
             {/* Tur Sonu Ekranı */}

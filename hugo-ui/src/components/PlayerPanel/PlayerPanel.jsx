@@ -6,14 +6,14 @@ const TURN_SECONDS = 60;
 
 // Açan oyuncunun açılış değeri: dizme düğmesine benzer küçük taş rozeti (pp-opened): üstte seri / çift yelpazesi, altında sayı.
 // Kuzey ve güneyde avatarın solunda, doğu ve batıda avatarın üstünde
-const PlayerPanel = ({ playerId, name, isBot = false, position, isCurrentPlayer, timeLeft, isOpen, openedTotal, openedWithPairs = false, isTopOpener = false, penaltyScore, connected = true, bubble = null, onClick, menu = null, muted = false, speaking = false }) => {
+const PlayerPanel = ({ playerId, name, isBot = false, position, isCurrentPlayer, timeLeft, isOpen, openedTotal, openedWithPairs = false, isTopOpener = false, penaltyScore, connected = true, bubble = null, onClick, menu = null, muted = false, speaking = false, vacantLeft = null }) => {
     const seconds = isCurrentPlayer && typeof timeLeft === 'number' ? timeLeft : null;
     const progress = seconds === null ? 0 : Math.max(0, Math.min(1, seconds / TURN_SECONDS));
     const isWarning = seconds !== null && seconds <= 10;
 
     return (
         <div
-            className={`player-panel ${position} ${speaking ? 'is-speaking' : ''} ${isCurrentPlayer ? 'is-turn' : ''} ${isWarning ? 'is-warning' : ''} ${connected ? '' : 'offline'} ${bubble ? 'has-bubble' : ''}`}
+            className={`player-panel ${position} ${vacantLeft !== null ? 'is-vacant' : ''} ${speaking ? 'is-speaking' : ''} ${isCurrentPlayer ? 'is-turn' : ''} ${isWarning ? 'is-warning' : ''} ${connected ? '' : 'offline'} ${bubble ? 'has-bubble' : ''}`}
             data-player-id={playerId}
             style={{ '--ring': progress }}
             aria-label={`${name}${isBot ? ', yapay zekâ' : ''}${isCurrentPlayer ? ', sırada' : ''}${connected ? '' : ', bağlantı koptu'}${muted ? ', sessizde' : ''}`}
@@ -34,7 +34,8 @@ const PlayerPanel = ({ playerId, name, isBot = false, position, isCurrentPlayer,
             <div className="pp-body">
                 <div className="pp-name" title={name}>{name}</div>
                 <div className="pp-meta">
-                    {!connected && <span className="pp-chip pp-offline">Koptu</span>}
+                    {vacantLeft !== null && <span className="pp-chip pp-vacant" aria-label={`yapay zekâ ${vacantLeft} saniye sonra geri gelir`}>YZ {vacantLeft} sn</span>}
+                    {!connected && vacantLeft === null && <span className="pp-chip pp-offline">Koptu</span>}
                     {penaltyScore > 0 && <span className="pp-chip pp-penalty" title="Bu eldeki ceza">Ceza {penaltyScore}</span>}
                 </div>
             </div>

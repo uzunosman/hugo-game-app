@@ -10,7 +10,7 @@
     "build": "tsc",
     "tasks": "ts-node src/tools/tasks.ts",
     "test": "ts-node src/utils/Profiles.selftest.ts && ts-node src/models/Game.selftest.ts && ts-node src/models/Rules.selftest.ts && ts-node src/utils/Persistence.selftest.ts && ts-node src/ai/AiPlanner.selftest.ts && ts-node src/tools/stats.selftest.ts && ts-node src/lab/scenario.selftest.ts",
-    "test:e2e": "ts-node scripts/e2e-bots.ts && ts-node scripts/e2e-ai.ts && ts-node scripts/e2e-leave.ts && ts-node scripts/e2e-lobby.ts && ts-node scripts/e2e-lab.ts && ts-node scripts/e2e-solo.ts && ts-node scripts/e2e-tasks.ts && ts-node scripts/e2e-kick.ts && ts-node scripts/e2e-voice.ts && ts-node scripts/e2e-quick.ts && ts-node scripts/e2e-social.ts"
+    "test:e2e": "ts-node scripts/e2e-bots.ts && ts-node scripts/e2e-ai.ts && ts-node scripts/e2e-leave.ts && ts-node scripts/e2e-lobby.ts && ts-node scripts/e2e-lab.ts && ts-node scripts/e2e-solo.ts && ts-node scripts/e2e-tasks.ts && ts-node scripts/e2e-kick.ts && ts-node scripts/e2e-voice.ts && ts-node scripts/e2e-quick.ts && ts-node scripts/e2e-social.ts && ts-node scripts/e2e-watch.ts"
   },
   "keywords": [],
   "author": "",

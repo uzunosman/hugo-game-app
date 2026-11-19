@@ -52,6 +52,7 @@ class SocketService {
         this.playerId = null;
         this.token = null;
         this.activeRoomId = null;
+        this.watching = null; // izlenen masa ve koltuk: { roomId, seatId }
     }
 
     connect() {
@@ -340,6 +341,11 @@ class SocketService {
     }
 
     requestTiles(playerId, callback) {
+        // İzlerken (Social/WatchTable): izlenen koltuğun eli ve ıstaka dizilişi
+        if (this.watching && playerId === this.watching.seatId) {
+            this.socket.emit('room:watchTiles', { playerId: this.playerId, seatId: playerId }, callback);
+            return;
+        }
         this.socket.emit('game:requestTiles', { playerId }, callback);
     }
 

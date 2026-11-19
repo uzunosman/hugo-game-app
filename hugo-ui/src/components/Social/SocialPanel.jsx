@@ -4,7 +4,7 @@ const WHERE = { lobby: 'lobide', table: 'masada', playing: 'oyunda' };
 const whereText = (p) => (p.online ? (p.roomName ? `${p.roomName} · ${WHERE[p.where]}` : WHERE[p.where] || 'çevrimiçi') : 'çevrimdışı');
 
 // Arkadaşlar ve çevrimiçi oyuncular. Lobide: arkadaş ekle / istekleri cevapla. Bekleme ekranında (onInvite): lobidekiler çağrılır.
-export default function SocialPanel({ social, registered, onInvite, invited = {}, compact = false }) {
+export default function SocialPanel({ social, registered, onInvite, onWatch, invited = {}, compact = false }) {
     const st = social.state;
     if (!registered) {
         return (
@@ -30,6 +30,10 @@ export default function SocialPanel({ social, registered, onInvite, invited = {}
     const inviteBtn = (p) => (onInvite && p.online && p.where === 'lobby'
         ? <button type="button" className="sbtn sbtn-amber sbtn-sm" disabled={!!invited[p.id]} onClick={() => onInvite(p)}>{invited[p.id] ? 'Çağrıldı' : 'Çağır'}</button>
         : null);
+    // Lobide: masadaki arkadaşın masasını izle
+    const watchBtn = (p) => (onWatch && p.online && p.roomId
+        ? <button type="button" className="sbtn sbtn-line sbtn-sm" onClick={() => onWatch(p)}>İzle</button>
+        : null);
     return (
         <aside className={`social ${compact ? 'is-compact' : ''}`} aria-label="Arkadaşlar ve çevrimiçi oyuncular">
             {st.requests.length > 0 && (
@@ -47,7 +51,7 @@ export default function SocialPanel({ social, registered, onInvite, invited = {}
                 <h2>Arkadaşlar <small>{st.friends.filter(f => f.online).length} çevrimiçi</small></h2>
                 {st.friends.length === 0
                     ? <p className="social-empty">Henüz arkadaşın yok. Aşağıdan ya da masada birlikte oynadığın birini ekle.</p>
-                    : <ul>{[...st.friends].sort((a, b) => b.online - a.online).map(p => row(p, inviteBtn(p)))}</ul>}
+                    : <ul>{[...st.friends].sort((a, b) => b.online - a.online).map(p => row(p, inviteBtn(p) || watchBtn(p)))}</ul>}
             </section>
             <section>
                 <h2>Çevrimiçi <small>{st.onlineCount} kişi</small></h2>

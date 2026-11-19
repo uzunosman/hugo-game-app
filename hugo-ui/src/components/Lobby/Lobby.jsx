@@ -7,6 +7,7 @@ import MiniTable from '../Social/MiniTable';
 import SocialPanel from '../Social/SocialPanel';
 import InviteCard from '../Social/InviteCard';
 import AccountDialog from '../Social/AccountDialog';
+import WatchTable from '../Social/WatchTable';
 import useSocial from '../../hooks/useSocial';
 import { shareLink } from '../../utils/share';
 import './Lobby.css';
@@ -42,6 +43,7 @@ function Lobby({ player, onRegister, onJoinRoom, notice, joinTableNo, onJoinTabl
     const [invite, setInvite] = useState(null);
     const [account, setAccount] = useState(false);
     const [shared, setShared] = useState('');
+    const [watching, setWatching] = useState(null); // izlenen masa
     const hideIosTip = () => { setIosTip(false); try { localStorage.setItem(IOS_TIP_KEY, '1'); } catch { /* depolama kapalı */ } };
     const social = useSocial(player?.id);
     useEffect(() => { if (notice) setError(notice); }, [notice]);
@@ -112,6 +114,17 @@ function Lobby({ player, onRegister, onJoinRoom, notice, joinTableNo, onJoinTabl
     };
 
     const onlineCount = social.state?.onlineCount;
+    // İzlenebilir masa: ziyarete açık ya da masada arkadaşın var (sunucu yeniden denetler)
+    const friendIds = new Set(social.state?.friends.map(f => f.id) || []);
+    const canWatch = (room) => !!player && (room.settings?.spectators || room.players.some(p => p.profileId && friendIds.has(p.profileId)));
+    const stopWatching = useCallback((msg) => { setWatching(null); if (msg) setError(msg); }, []);
+    const watchFriend = (f) => {
+        const room = rooms.find(r => r.id === f.roomId);
+        if (room) setWatching(room); else setError(`${f.name} şu an bir masada değil`);
+    };
+
+    // İzlerken lobi yerine oyun ekranı (izlenen oyuncunun gözünden)
+    if (watching) return <WatchTable room={watching} onClose={stopWatching} />;
 
     return (
         <div className="lob">
@@ -182,7 +195,9 @@ function Lobby({ player, onRegister, onJoinRoom, notice, joinTableNo, onJoinTabl
                                         playing={room.status === 'playing'}
                                         players={room.players}
                                         maxPlayers={room.maxPlayers}
+                                        open={!!room.settings?.spectators}
                                         onSit={canSit(room) && !loading ? () => request({ kind: 'join', room }) : undefined}
+                                        onWatch={canWatch(room) ? () => setWatching(room) : undefined}
                                     />
                                 </li>
                             ))}
@@ -190,7 +205,7 @@ function Lobby({ player, onRegister, onJoinRoom, notice, joinTableNo, onJoinTabl
                     )}
                 </section>
 
-                <SocialPanel social={social} registered={!!player} />
+                <SocialPanel social={social} registered={!!player} onWatch={watchFriend} />
             </div>
 
             <LabPanel />
