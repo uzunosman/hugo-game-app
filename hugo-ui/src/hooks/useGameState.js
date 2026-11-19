@@ -171,8 +171,8 @@ const useGameState = (player, room) => {
         // Taş çekme işlemini dinle
         socketService.onTileDraw((response) => {
             if (response.success) {
-                // Başka bir oyuncu taş çekti
-                if (response.playerId !== player.id) {
+                // Başka bir oyuncu taş çekti (izlerken izlenen oyuncunun çekişi de: onun kendi işlem cevabı bu ekrana gelmez)
+                if (response.playerId !== player.id || spectating) {
                     // Çekilen taş desteden (kapalı) ya da köşedeki yerden (açık, köşeden kalkmadan önce) oyuncunun kartına uçar
                     const fromCorner = response.fromDiscard && response.fromDiscardOfPlayerId ? getCornerByPlayerId(response.fromDiscardOfPlayerId) : null;
                     flyToPlayer(fromCorner
@@ -212,8 +212,8 @@ const useGameState = (player, room) => {
                 // En son atan oyuncuyu güncelle (kendimiz dahil)
                 setLastDiscardPlayerId(response.playerId);
 
-                // Başka bir oyuncu taş attıysa köşeye ekle (kendi taşımızı handler'da zaten ekliyoruz)
-                if (response.playerId !== player.id) {
+                // Başka bir oyuncu taş attıysa köşeye ekle (kendi taşımızı handler'da zaten ekliyoruz; izlerken izlenenin taşı da)
+                if (response.playerId !== player.id || spectating) {
                     console.log('Başka bir oyuncu taş attı:', response.playerId, response.tile);
 
                     const discardedTile = response.tile;
