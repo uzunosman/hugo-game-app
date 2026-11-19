@@ -42,6 +42,11 @@ export const parseAccount = (text) => {
     return id && key ? { id, key } : null;
 };
 
+// Bu cihazda son girilen ad ve avatar (ProfileDialog yazar): bir kez ad giren, sonraki girişlerde sorulmadan tanınır
+const NAME_KEY = 'hugo.profile';
+export const savedName = () => { try { return JSON.parse(localStorage.getItem(NAME_KEY)) || null; } catch { return null; } };
+const writeName = (v) => { try { if (v) localStorage.setItem(NAME_KEY, JSON.stringify(v)); else localStorage.removeItem(NAME_KEY); } catch { /* depolama kapalı */ } };
+
 // Admin anahtarı (admin ekranıyla aynı): staging'e bağlanmak ve test senaryoları için bağlantıda gönderilir
 export const ADMIN_TOKEN_KEY = 'hugo.adminToken';
 const adminToken = () => { try { return localStorage.getItem(ADMIN_TOKEN_KEY) || ''; } catch { return ''; } };
@@ -162,6 +167,24 @@ class SocketService {
             this.socket = null;
             console.log('Socket bağlantısı kesildi');
         }
+    }
+
+    // Ad değiştir (lobide)
+    renamePlayer(name, callback) {
+        this.socket.emit('player:rename', { playerId: this.playerId, name }, (r) => {
+            if (r?.success) writeName({ ...(savedName() || {}), name: r.player.name });
+            callback?.(r);
+        });
+    }
+
+    // Çıkış: bu cihaz oyuncuyu unutur (oturum, profil anahtarı, ad); arkadaşlar profil bağlantısıyla geri alınır
+    logout() {
+        writeSession(null);
+        try { stores().forEach(s => s.removeItem(ACCOUNT_KEY)); } catch { /* depolama kapalı */ }
+        writeName(null);
+        this.playerId = null;
+        this.token = null;
+        this.profileId = null;
     }
 
     registerPlayer(name, avatar, callback) {

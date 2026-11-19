@@ -1061,6 +1061,20 @@ export const setupSocketHandlers = (io: Server) => {
         };
         const noProfile = { success: false, error: 'Profil bulunamadı' };
 
+        // Ad değiştir (lobide, hesabım penceresi): oyuncu ve profil
+        socket.on('player:rename', (data: { playerId: string; name: string }, callback) => {
+            if (!owns(data?.playerId)) return callback?.(notYours);
+            const player = gameManager.getPlayerById(data.playerId);
+            const name = typeof data?.name === 'string' ? data.name.trim().slice(0, 20) : '';
+            if (!player || !name) return callback?.({ success: false, error: 'Geçerli bir ad yaz' });
+            if (player.roomId) return callback?.({ success: false, error: 'Adını masadan kalkınca değiştirebilirsin' });
+            player.name = name;
+            const profile = gameManager.profiles.get(player.profileId);
+            if (profile) profile.name = name;
+            persist();
+            callback?.({ success: true, player: player.toJSON() });
+        });
+
         // Başka cihazdan taşınan profil: anahtar doğruysa bu oyuncu o profile geçer
         socket.on('profile:link', (data: { playerId: string; profile: { id?: string; key?: string } }, callback) => {
             if (!owns(data?.playerId)) return callback?.(notYours);

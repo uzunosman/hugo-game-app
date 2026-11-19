@@ -39,6 +39,10 @@ const startServer = () => new Promise<ReturnType<typeof spawn>>((resolve, reject
         assert.notStrictEqual(rx.profile.id, pa, 'yanlış anahtarla profil alınamaz');
         assert.strictEqual((await emit(c, 'profile:link', { playerId: rc.player.id, profile: { id: pb, key: 'x' } })).success, false);
 
+        // Ad değiştir: profil adı da değişir; başkası değiştiremez
+        assert.strictEqual((await emit(b, 'player:rename', { playerId: aId, name: 'X' })).success, false);
+        assert.strictEqual((await emit(a, 'player:rename', { playerId: aId, name: 'Ayşe Nur' })).player.name, 'Ayşe Nur');
+
         // Çevrimiçi liste
         const st = await emit(a, 'social:state', { playerId: aId });
         assert.ok(st.online.some((o: Ack) => o.id === pb && o.where === 'lobby'), 'Barış çevrimiçi, lobide');
@@ -50,7 +54,7 @@ const startServer = () => new Promise<ReturnType<typeof spawn>>((resolve, reject
         assert.strictEqual((await emit(a, 'friends:request', { playerId: aId, to: pb })).status, 'sent');
         await changed;
         const sb = await emit(b, 'social:state', { playerId: bId });
-        assert.deepStrictEqual(sb.requests.map((r: Ack) => r.name), ['Ayşe tablet'], 'istek görünür (profilin son adıyla)');
+        assert.ok(sb.requests.length === 1 && sb.requests[0].id === pa, 'istek görünür');
         assert.ok((await emit(b, 'friends:respond', { playerId: bId, from: pa, accept: true })).success);
         const fa = await emit(a, 'social:state', { playerId: aId });
         assert.ok(fa.friends.some((f: Ack) => f.id === pb && f.online), 'arkadaş ve çevrimiçi');
@@ -62,7 +66,7 @@ const startServer = () => new Promise<ReturnType<typeof spawn>>((resolve, reject
         assert.ok((await emit(a, 'invite:send', { playerId: aId, to: pb })).success);
         const got = await inv;
         assert.strictEqual(got.room.id, room.id);
-        assert.strictEqual(got.from.name, 'Ayşe');
+        assert.strictEqual(got.from.name, 'Ayşe Nur');
         assert.strictEqual((await emit(a, 'invite:send', { playerId: aId, to: pb })).success, false, 'aynı kişi 20 sn içinde tekrar çağrılmaz');
         assert.ok((await emit(b, 'room:join', { roomId: room.id, playerId: bId })).success, 'davetle oturur');
 

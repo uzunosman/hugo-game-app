@@ -61,6 +61,7 @@ function Lobby({ player, onRegister, onJoinRoom, notice, joinTableNo, onJoinTabl
     rememberAvatars([...rooms.flatMap(r => r.players), player].filter(Boolean));
 
     const run = (action) => {
+        if (action.kind === 'login') { setPending(null); setLoading(false); return; } // yalnızca ad girildi
         setLoading(true);
         setError('');
         const done = (response) => {
@@ -135,6 +136,9 @@ function Lobby({ player, onRegister, onJoinRoom, notice, joinTableNo, onJoinTabl
                 </div>
                 {onlineCount > 0 && <span className="lob-online"><i aria-hidden="true" />{onlineCount} kişi çevrimiçi</span>}
                 <span className="lob-grow" />
+                {!player && (
+                    <button type="button" className="lob-me is-login" onClick={() => setPending({ kind: 'login' })}>Giriş yap</button>
+                )}
                 {player && (
                     <button type="button" className="lob-me" onClick={() => setAccount(true)} aria-label={`Hesabım: ${player.name}`}>
                         <img src={avatarFor(player.id)} alt="" />
@@ -212,7 +216,7 @@ function Lobby({ player, onRegister, onJoinRoom, notice, joinTableNo, onJoinTabl
 
             {pending && (
                 <ProfileDialog
-                    title={pending.kind === 'join' ? `${pending.room.name} masasına otur` : pending.kind === 'quick' ? 'Hızlı oyna' : 'Masa aç'}
+                    title={pending.kind === 'join' ? `${pending.room.name} masasına otur` : pending.kind === 'quick' ? 'Hızlı oyna' : pending.kind === 'login' ? 'Giriş yap' : 'Masa aç'}
                     busy={loading}
                     error={error}
                     onSubmit={handleProfile}
@@ -220,7 +224,7 @@ function Lobby({ player, onRegister, onJoinRoom, notice, joinTableNo, onJoinTabl
                 />
             )}
             {invite && <InviteCard invite={invite} busy={loading} onAccept={acceptInvite} onDismiss={dismissInvite} />}
-            {account && player && <AccountDialog player={player} onClose={() => setAccount(false)} />}
+            {account && player && <AccountDialog player={player} onClose={() => setAccount(false)} onPlayer={onRegister} />}
         </div>
     );
 }

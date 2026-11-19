@@ -134,3 +134,21 @@ button.mtable-seat:focus-visible { outline: 3px solid #fff; outline-offset: 2px;
 }
 .mtable-watch svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; }
 .mtable-watch:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+.sdialog-name { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 8px; align-items: center; }
+.sdialog-name label { grid-column: 1 / -1; font-size: 12px; color: var(--l-ink-2); }
+.sdialog-name input { min-height: 44px; box-sizing: border-box; padding: 0 10px; border: 1px solid var(--l-ivory-edge); border-radius: 8px; font: 15px var(--l-text); color: var(--l-ink); background: #fff; }
+
+/* Küçük masada oturanların adı avatarın altında, küçük yazıyla */
+.mtable-who { position: absolute; display: flex; flex-direction: column; align-items: center; width: 64px; margin-left: -15px; }
+.mtable-who .mtable-seat { position: static; margin: 0; }
+.mtable-who.mtable-bottom { left: 50%; bottom: -10px; margin-left: -32px; }
+.mtable-who.mtable-top { left: 50%; top: 4px; margin-left: -32px; }
+.mtable-who.mtable-right { right: -9px; top: 50%; margin-top: -24px; margin-left: 0; }
+.mtable-who.mtable-left { left: -9px; top: 50%; margin-top: -24px; margin-left: 0; }
+.mtable-pname {
+    max-width: 64px; margin-top: 1px; padding: 0 3px; border-radius: 4px; background: rgba(0, 0, 0, 0.35);
+    font: 600 9px/1.3 var(--l-text); color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mtable { margin-bottom: 10px; }
+.mtable.is-small .mtable-pname { background: rgba(0, 0, 0, 0.55); }

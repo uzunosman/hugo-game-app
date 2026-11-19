@@ -62,3 +62,9 @@
 }
 /* Sol üstteki ayarlar düğmesi başlığın üstüne binmesin */
 .lob-head, .wait-head { padding-left: 46px; }
+.lob-me.is-login { padding: 0 16px; background: var(--l-amber); color: var(--l-amber-ink); }
+/* Telefonda sayfa yana kaymasın (taşan uzun ad / koltuk etiketi); çevrimiçi sayısı tek satır */
+.lob { overflow-x: hidden; }
+.lob-online { white-space: nowrap; }
+.social, .social section, .social ul, .social-row { min-width: 0; max-width: 100%; box-sizing: border-box; }
+@media (max-width: 420px) { .lob-online { display: none; } }

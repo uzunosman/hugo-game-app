@@ -32,7 +32,12 @@ export default function MiniTable({ name, status, voice, open, playing, players,
             {seats.map((p, i) => {
                 const side = SIDES[i];
                 if (p && !p.vacant) {
-                    return <img key={side} className={`mtable-seat mtable-${side} ${p.connected === false ? 'is-away' : ''}`} src={avatarFor(p.id, p.isBot)} alt={p.name} title={p.name} />;
+                    return (
+                        <span key={side} className={`mtable-who mtable-${side}`}>
+                            <img className={`mtable-seat ${p.connected === false ? 'is-away' : ''}`} src={avatarFor(p.id, p.isBot)} alt="" />
+                            <span className="mtable-pname">{p.name}</span>
+                        </span>
+                    );
                 }
                 if (highlight && i === emptyAt) {
                     return <span key={side} className={`mtable-seat mtable-${side} is-mine`} aria-label="senin koltuğun" />;

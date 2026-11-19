@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import Lobby from './components/Lobby/Lobby'
 import Room from './components/Room'
-import socketService, { parseAccount, writeAccount } from './services/socketService'
+import socketService, { parseAccount, readAccount, savedName, writeAccount } from './services/socketService'
 import AdminGate from './components/Lab/AdminGate'
 import './assets/css/global.css';
 import './assets/css/components/Screens.css';
@@ -70,6 +70,14 @@ function App() {
     return () => { window.removeEventListener('hugo:adminRequired', ask); socketService.socket?.off('connect', ok) }
   }, [])
 
+  // Bir kez ad giren bu cihazda tanınır: oturum yoksa ya da sunucuda bitmişse aynı profil ve adla sessizce yeniden girilir
+  // (lobide adı sağ üstte, arkadaşları ve çevrimiçiler hemen görünür; masa açarken ad sorulmaz)
+  const autoLogin = () => {
+    const saved = savedName()
+    if (!saved?.name || !readAccount()) return
+    socketService.registerPlayer(saved.name, saved.avatar, (r) => { if (r?.success) setPlayer(r.player) })
+  }
+
   useEffect(() => {
     socketService.connect()
     socketService.onResync((response) => {
@@ -79,19 +87,20 @@ function App() {
       } else {
         setPlayer(null)
         setCurrentRoom(null)
+        autoLogin()
       }
       setSyncKey(k => k + 1)
     })
     const moved = (msg) => { if (movedAccount) setNotice(msg) }
     const saved = socketService.savedSession()
-    if (!saved) { moved('Hesabın bu cihaza taşındı: masaya oturunca arkadaşların görünür'); return }
+    if (!saved) { moved('Hesabın bu cihaza taşındı: masaya oturunca arkadaşların görünür'); autoLogin(); return }
     socketService.reconnect(saved, (response) => {
       if (response.success) {
         setPlayer(response.player)
         if (response.room) setCurrentRoom(response.room)
         // Taşınan profil: oturumdaki oyuncu o profile geçer
         if (movedAccount) socketService.linkAccount(movedAccount, (r) => moved(r?.success ? 'Hesabın bu cihaza taşındı' : r?.error || 'Hesap taşınamadı'))
-      }
+      } else autoLogin()
       setRestoring(false)
     })
   }, [])
