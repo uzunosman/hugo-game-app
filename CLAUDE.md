@@ -96,6 +96,8 @@
 - Tasarım değişikliğinde kullanıcıyı farklı cihazlarda nasıl görüneceği konusunda uyar (Android, küçük / büyük iPhone, tablet).
 
 ## Dikkat
+- Seri diz şekli (`TileHolder`, `hugo.seriStyle`): Diz'e basılı tut → erkek (4-4-4, `group`) / dişi (3-4-5, `run`);
+  `arrangeTiles(..., seriStyle)` → `bestSets` seçilen türün perlerini 1,5 kat sayar ve ıstakada öne koyar.
 - Animasyonlar `utils/flyTiles.js` (`PLACE_MS`): işlenen taş bırakıldığı / ıstakadaki yerden pere süzülür (sürükleyerek
   işlemede per taş oturana kadar büyük kalır: `holdSet`); diğer oyuncunun çektiği taş desteden / yerden kartına uçar
   (`flyToPlayer`); işleme cezası üstten bildirim yerine taşın üstünde patlar (`utils/penaltyBurst.js`).

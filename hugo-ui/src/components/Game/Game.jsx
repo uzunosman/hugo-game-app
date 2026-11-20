@@ -706,13 +706,13 @@ function Game({ player, room, onGameFinished, onLeaveTable, voice, watchers = []
                     setTilePositions(prev => (prev === tilePositions && moveGroup(prev, group, grabIdx, targetIdx)) || prev);
                     setSelectedTile(null);
                 }}
-                onArrange={(mode) => {
+                onArrange={(mode, seriStyle) => {
                     // Teşhis: iPhone ana ekran uygulamasında dizmeden sonra donma bildirildi (main.jsx sunucuya yazar)
                     window.__lastAction = `dizme:${mode}`;
                     window.__diagTouches = 5; // sonraki 5 dokunuş da günlüğe yazılır
                     const t0 = performance.now();
                     try {
-                        const next = arrangeTiles(tiles, mode, gameState.okeyTile, gameState.isHugoRound);
+                        const next = arrangeTiles(tiles, mode, gameState.okeyTile, gameState.isHugoRound, seriStyle);
                         setRackMode(mode);
                         setTilePositions(next);
                         setSelectedTile(null);

@@ -263,3 +263,22 @@ const row = (cells) => [...cells, ...Array(CELLS_PER_ROW * 2 - cells.length).fil
 }
 
 console.log('rack.selftest: satır ayrımı, kaydırma, otomatik dizme, çiftler, sahte okey, per/çift taşıma, sürükleme önizlemesi ve ıstaka-el uyumu ✓');
+
+// Seri diz tercihi: kırmızı 3-4-5 + sarı 4 + mavi 4 → dişi (run) 3-4-5, erkek (group) 4-4-4
+{
+    const hand = [tile('red', 3), tile('red', 4), tile('red', 5), tile('yellow', 4), tile('blue', 4), tile('black', 11)];
+    const okey = { color: 'black', value: 1 };
+    const firstGroup = (pos) => {
+        const ids = []; for (const id of pos) { if (!id) { if (ids.length) break; continue; } ids.push(id); }
+        return ids.map(id => hand.find(t => t.id === id)).map(t => `${t.color[0]}${t.value}`).join(' ');
+    };
+    assert.strictEqual(firstGroup(arrangeTiles(hand, 'seri', okey, false, 'run')), 'r3 r4 r5', 'dişi: seri önce');
+    const g = firstGroup(arrangeTiles(hand, 'seri', okey, false, 'group')).split(' ');
+    assert.ok(g.length === 3 && g.every(x => x.endsWith('4')), `erkek: 4-4-4 önce (${g})`);
+    // Dört 4'lü: dişide 3-4-5 önce (4-4-4-4 = 16 < 12 × 1,5); erkekte önce 4-4-4, kalan kırmızı 3-4-5 de per olur
+    const h2 = [...hand, tile('black', 4)];
+    hand.push(h2[h2.length - 1]);
+    assert.strictEqual(firstGroup(arrangeTiles(h2, 'seri', okey, false, 'run')), 'r3 r4 r5');
+    assert.ok(firstGroup(arrangeTiles(h2, 'seri', okey, false, 'group')).split(' ').every(x => x.endsWith('4')));
+}
+console.log('rack.selftest: seri diz erkek / dişi ✓');
